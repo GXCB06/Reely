@@ -1,10 +1,17 @@
-export function Logo({ className = "" }: { className?: string }) {
+import Image from "next/image";
+import darkLogo from "@/public/brand/reely-logo-dark.png";
+import lightLogo from "@/public/brand/reely-logo-light.png";
+
+/** Reely wordmark. `onDark` uses white letters for the dark sidebar. */
+export function Logo({ onDark = false, height = 28 }: { onDark?: boolean; height?: number }) {
+  const src = onDark ? darkLogo : lightLogo;
   return (
-    <span className={`inline-flex items-center gap-2 font-heading text-xl font-bold tracking-tight ${className}`}>
-      <span className="grid size-7 place-items-center rounded-lg bg-primary text-sm text-primary-foreground">R</span>
-      <span>
-        Reel<span className="text-sidebar-primary">y</span>
-      </span>
-    </span>
+    <Image
+      src={src}
+      alt="Reely"
+      height={height}
+      style={{ width: "auto", height }}
+      priority
+    />
   );
 }

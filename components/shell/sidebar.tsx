@@ -29,8 +29,8 @@ export function Sidebar({ email, onSignOut }: { email: string | null; onSignOut?
 
   return (
     <aside className="flex w-60 shrink-0 flex-col bg-sidebar px-3 py-5 text-sidebar-foreground">
-      <Link href="/app" className="mb-6 px-2 text-white">
-        <Logo />
+      <Link href="/app" className="mb-6 px-2">
+        <Logo onDark height={26} />
       </Link>
 
       <nav className="flex-1 space-y-6">

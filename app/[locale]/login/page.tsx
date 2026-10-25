@@ -11,7 +11,7 @@ export default async function LoginPage({ params }: PageProps<"/[locale]/login">
     <div className="page-wash grid min-h-dvh place-items-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex justify-center">
-          <Logo />
+          <Logo height={36} />
         </div>
         <Suspense>
           <LoginForm />

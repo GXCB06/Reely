@@ -137,7 +137,7 @@ Output language = the user's locale. Keep prompts in `/lib/ai/prompts.ts`.
 |---|---|---|
 | 0 (1–2 h, no Claude Code) | Accounts + keys, data tests (`DAY0.md`), design screenshots | All data tests pass or the plan is adjusted |
 | 1 | Next.js setup, Supabase auth + schema + RLS, i18n, YouTube + TikTok adapters, scores | A keyword search shows real ranked videos |
-| 2 | Research flow (brief → plan → run), results page with Peekly-style tabs/filter chips/sort (§11), video detail + AI breakdown, save | Friends can run research for their products |
+| 2 | Research flow (brief → plan → run), results page with Virlo-style insight card + Peekly-style tabs/filter chips/sort (§11), video detail + AI breakdown, save | Friends can run research for their products |
 | 3 | Product profile, Make my version, saved, deploy to Vercel, test with friends | Both friends use it live |
 | 4 | Competitor tracking in the Peekly row layout (§11) | FlowAccount breakout is flagged |
 | 5 | Instagram tracking (Meta API), Thai copy polish | Full MVP |
@@ -179,3 +179,21 @@ Borrow the feel and structure, never Peekly's or Virlo's names, wording, logos o
   (topic, audience, angle, what to avoid) and editable keyword and exclusion chips.
 - Results header: run stats (videos, total views, breakouts, creators) above the grid.
 - Show the numbers behind every score in a tooltip or chip.
+
+**From Virlo's "check my niche" agent (reviewed 2026-10-25)**
+- Insight card on top of results: an AI headline with one highlighted word
+  ("Accounting software videos *work* on short-form"), a one-line summary, then 3 stat tiles:
+  videos found · views on the top video · "X of 10 top results from accounts under 10K followers"
+  (shows small accounts can win — motivating for founders).
+- Top videos carousel: hook text from the caption in quotes over the thumbnail, @handle, platform
+  label, views pill + red score pill, arrows, "See all".
+- AI takeaway paragraph under the carousel: the pattern behind the winners, citing specific videos
+  ("win on a relatable problem, not a feature list. @x pulled 15M with …").
+- Later (GTM, not MVP): public "Will Reely work for your niche?" page — no account, 3 free
+  searches with a progress indicator, example chips ("Try: …"), a scrolling strip of viral thumbnails
+  with views and follower counts. Must run on cached results to protect credits.
+
+**Brand**
+- Logo files: `public/brand/reely-logo-light.png` (light backgrounds), `reely-logo-dark.png`
+  (white letters, for the sidebar), `reely-mark.png` (R only), `app/icon.png` (favicon).
+  Original: `docs/brand/reely-logo-original.png`. Brand purple `#5636BA` = `--primary`.
