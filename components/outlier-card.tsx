@@ -1,5 +1,6 @@
 import { Bookmark, Eye, Flame, Heart, MessageCircle, Share2, Users } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
+import { PlatformIcon } from "@/components/platform-icon";
 import { SaveButton } from "@/components/save-button";
 import { Thumb } from "@/components/thumb";
 import { Link } from "@/i18n/navigation";
@@ -85,8 +86,8 @@ export async function OutlierCard({
         </div>
       )}
       {variant === "grid" && (
-        <span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white">
-          {PLATFORM_NAME[video.platform]} {flag}
+        <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/70 py-0.5 pr-2 pl-0.5 text-[11px] font-medium text-white">
+          <PlatformIcon platform={video.platform} className="size-4" /> {PLATFORM_NAME[video.platform]} {flag}
         </span>
       )}
     </div>
@@ -100,7 +101,11 @@ export async function OutlierCard({
         <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
           <Users className="size-3 shrink-0" />@{video.creatorHandle}
           {video.creatorFollowers !== null && <> · {compact(video.creatorFollowers)} {t("followers")}</>}
-          {variant === "carousel" && <> · {PLATFORM_NAME[video.platform]} {flag}</>}
+          {variant === "carousel" && (
+            <>
+              {" "}· <PlatformIcon platform={video.platform} className="size-3.5" /> {flag}
+            </>
+          )}
         </p>
         <div className="flex flex-wrap gap-1.5 pt-1 text-[11px]">
           {video.usual !== null && video.usualViews !== null && (

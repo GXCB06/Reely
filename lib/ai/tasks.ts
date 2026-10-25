@@ -83,6 +83,8 @@ export async function understandProduct(
         `Keywords: up to ${MAX_KEYWORDS} search phrases, 2-4 words each, that people actually type or use as hashtags:`,
         "mix the product category, the problem it solves and the audience's everyday topics, so results include",
         "similar products AND content the same audience watches. " + REGION_RULE[msg.region],
+        "Avoid broad or ambiguous phrases that also name unrelated things (e.g. a university faculty, a",
+        "celebrity, a TV show): every phrase should still clearly point at the product's topic.",
         "Exclusions: single words that would bring off-topic videos.",
         "",
         msg.text ? `The user wrote:

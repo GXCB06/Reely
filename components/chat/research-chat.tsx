@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { runResearchAction, understandAction } from "@/app/[locale]/app/research/actions";
+import { PlatformIcon } from "@/components/platform-icon";
 import { Logo } from "@/components/shell/logo";
 import { useRouter } from "@/i18n/navigation";
 import type { Understanding } from "@/lib/ai/schemas";
@@ -478,8 +479,9 @@ function PlatformPicker({ value, onChange }: { value: PlatformId[]; onChange: (p
             aria-pressed={on}
             title={p === "instagram" ? t("instagramHint") : undefined}
             onClick={() => onChange(on ? (value.length > 1 ? value.filter((x) => x !== p) : value) : [...value, p])}
-            className={`rounded-full border px-3 py-1.5 text-sm transition ${on ? "border-primary/40 bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted"}`}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition ${on ? "border-primary/40 bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted"}`}
           >
+            <PlatformIcon platform={p} className={`size-4 ${on ? "" : "opacity-50 grayscale"}`} />
             {t(`platform.${p}`)}
           </button>
         );

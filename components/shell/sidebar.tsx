@@ -3,11 +3,10 @@
 import { Bookmark, ChevronUp, Languages, LogOut, Package, Radar, SquarePen, UserRound } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
-import type { RegionChoice } from "@/lib/region";
-import { RegionIcon } from "@/components/chat/region-flag";
 import { Logo } from "./logo";
+import { RecentItem, type RecentRun } from "./recent-item";
 
-export type RecentRun = { id: string; title: string; region: RegionChoice; running: boolean };
+export type { RecentRun };
 
 const NAV = [
   { href: "/app/tracking", key: "tracking", icon: Radar },
@@ -65,18 +64,10 @@ export function Sidebar({
       </p>
       <ul className="-mr-1 flex-1 space-y-0.5 overflow-y-auto pr-1">
         {recent.length === 0 && <li className="px-3 text-xs text-sidebar-foreground/50">{t("noRecent")}</li>}
-        {recent.map((r) => {
-          const href = `/app/research/${r.id}`;
-          return (
-            <li key={r.id}>
-              <Link href={href} title={r.title} className={`${rowClass(pathname === href)} py-1.5`}>
-                <RegionIcon region={r.region} className="text-xs" />
-                <span className="truncate">{r.title}</span>
-                {r.running && <span className="ml-auto size-1.5 shrink-0 animate-pulse rounded-full bg-sidebar-primary" />}
-              </Link>
-            </li>
-          );
-        })}
+        {recent.map((r) => (
+          // key includes the title so a rename from elsewhere resets the row's local state.
+          <RecentItem key={`${r.id}:${r.title}`} run={r} />
+        ))}
       </ul>
 
       {email && (

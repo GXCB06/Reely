@@ -18,7 +18,8 @@ export default async function AppLayout({ children, params }: LayoutProps<"/[loc
     if (email) {
       const { data: runs } = await supabase
         .from("research_runs")
-        .select("id, title, brief, region, status")
+        .select("id, title, brief, region, status, pinned_at")
+        .order("pinned_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
         .limit(30);
       recent = (runs ?? []).map((r) => ({
@@ -26,6 +27,7 @@ export default async function AppLayout({ children, params }: LayoutProps<"/[loc
         title: ((r.title as string | null) || (r.brief as string)).slice(0, 60),
         region: (r.region as RegionChoice | null) ?? "th",
         running: r.status === "running",
+        pinned: r.pinned_at !== null,
       }));
     }
   }

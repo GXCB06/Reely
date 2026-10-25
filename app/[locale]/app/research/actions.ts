@@ -157,3 +157,38 @@ export async function runResearchAction(input: RunInput) {
     return { ok: false as const, error: "search", runId: run.id as string };
   }
 }
+
+const runId = z.string().uuid();
+
+/** Sidebar chat menu: rename a research chat. */
+export async function renameRunAction(id: string, title: string) {
+  const parsed = z.object({ id: runId, title: z.string().trim().min(1).max(80) }).safeParse({ id, title });
+  if (!parsed.success) return { ok: false as const };
+  const supabase = await createClient();
+  const { error } = await supabase.from("research_runs").update({ title: parsed.data.title }).eq("id", parsed.data.id);
+  revalidatePath("/[locale]/app", "layout");
+  return { ok: !error };
+}
+
+/** Sidebar chat menu: pin to the top of Recent, or unpin. */
+export async function pinRunAction(id: string, pinned: boolean) {
+  const parsed = z.object({ id: runId, pinned: z.boolean() }).safeParse({ id, pinned });
+  if (!parsed.success) return { ok: false as const };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("research_runs")
+    .update({ pinned_at: parsed.data.pinned ? new Date().toISOString() : null })
+    .eq("id", parsed.data.id);
+  revalidatePath("/[locale]/app", "layout");
+  return { ok: !error };
+}
+
+/** Sidebar chat menu: delete a research chat and its results (videos stay in the shared cache). */
+export async function deleteRunAction(id: string) {
+  const parsed = runId.safeParse(id);
+  if (!parsed.success) return { ok: false as const };
+  const supabase = await createClient();
+  const { error } = await supabase.from("research_runs").delete().eq("id", parsed.data);
+  revalidatePath("/[locale]/app", "layout");
+  return { ok: !error };
+}

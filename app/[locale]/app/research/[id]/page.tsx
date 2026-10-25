@@ -4,6 +4,7 @@ import { getFormatter, getTranslations, setRequestLocale } from "next-intl/serve
 import { ReelyBubble, UserBubble } from "@/components/chat/research-chat";
 import { RegionIcon } from "@/components/chat/region-flag";
 import { OutlierCard } from "@/components/outlier-card";
+import { PlatformIcon } from "@/components/platform-icon";
 import { FilterBar } from "@/components/results/filter-bar";
 import { InsightCard } from "@/components/results/insight-card";
 import { ScoreExplainer } from "@/components/results/score-explainer";
@@ -74,8 +75,12 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
               </span>
             ))}
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            {(run.platforms as ("tiktok" | "youtube" | "instagram")[]).map((p) => tc(`platform.${p}`)).join(" · ")} ·{" "}
+          <p className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+            {(run.platforms as ("tiktok" | "youtube" | "instagram")[]).map((p) => (
+              <span key={p} className="inline-flex items-center gap-1">
+                <PlatformIcon platform={p} className="size-3.5" /> {tc(`platform.${p}`)} ·
+              </span>
+            ))}{" "}
             <RegionIcon region={region} /> {tc(`region.${region}`)} ·{" "}
             {format.dateTime(new Date(run.created_at), { dateStyle: "medium", timeStyle: "short" })}
           </p>

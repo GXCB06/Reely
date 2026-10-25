@@ -1,5 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
+import { PlatformIcon } from "@/components/platform-icon";
 import { Link } from "@/i18n/navigation";
 import { FILTER_PRESETS, type PlatformTab, type ResultFilters, type Sort } from "@/lib/results";
 
@@ -62,7 +63,8 @@ export async function FilterBar({
   const format = await getFormatter();
   const compact = (n: number) => format.number(n, { notation: "compact" });
 
-  const tabs: PlatformTab[] = ["all", "tiktok", "youtube"];
+  // Reels only appear when a search included Instagram.
+  const tabs: PlatformTab[] = ["all", "tiktok", "youtube", ...(counts.instagram ? (["instagram"] as const) : [])];
   const menu = (key: string, values: readonly number[], current: number | null, fmt: (n: number) => string) => [
     { label: t("any"), href: hrefWith(basePath, params, { [key]: undefined }), active: current === null },
     ...values.map((v) => ({ label: fmt(v), href: hrefWith(basePath, params, { [key]: String(v) }), active: current === v })),
@@ -78,10 +80,11 @@ export async function FilterBar({
             key={tab}
             href={hrefWith(basePath, params, { platform: tab === "all" ? undefined : tab })}
             scroll={false}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition ${
               filters.platform === tab ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
+            {tab !== "all" && <PlatformIcon platform={tab} className="size-4" />}
             {t(`tab.${tab}`)} <span className="opacity-60">{counts[tab]}</span>
           </Link>
         ))}

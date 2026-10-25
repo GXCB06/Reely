@@ -36,13 +36,15 @@ type ProfileReel = {
   user?: { username?: string; full_name?: string };
 };
 
-async function call<T>(endpoint: string, params: Record<string, string>): Promise<T> {
+async function call<T>(endpoint: string, params: Record<string, string>): Promise<T | null> {
   const key = process.env.SCRAPECREATORS_API_KEY;
   if (!key) throw new Error("SCRAPECREATORS_API_KEY is not set");
   const res = await fetch(`${BASE}${endpoint}?${new URLSearchParams(params)}`, {
     headers: { "x-api-key": key },
     cache: "no-store",
   });
+  // Reels search answers 404 when Google has no reels for the phrase (common for Thai keywords): no results, not an error.
+  if (res.status === 404) return null;
   if (!res.ok) throw new Error(`ScrapeCreators ${endpoint} failed: ${res.status}`);
   await logApiCall("scrapecreators", endpoint);
   return (await res.json()) as T;

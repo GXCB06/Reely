@@ -13,7 +13,16 @@
     "language": "ภาษาไทย",
     "account": "Account",
     "signOut": "Sign out",
-    "menu": "Account menu"
+    "menu": "Account menu",
+    "chatMenu": "Chat options",
+    "rename": "Rename",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "delete": "Delete",
+    "deleteConfirm": "Delete “{title}”? Its results will be removed. Saved videos stay saved.",
+    "deleted": "Chat deleted",
+    "actionFailed": "That didn’t work. Try again.",
+    "pinned": "Pinned"
   },
   "login": {
     "title": "Sign in to Reely",
