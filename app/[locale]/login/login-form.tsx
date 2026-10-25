@@ -10,6 +10,10 @@ import { Input } from "@/components/ui/input";
 import { SUPABASE_URL } from "@/lib/env";
 import { createClient } from "@/lib/supabase/client";
 
+type Mode = "signin" | "signup" | "link" | "linkSent";
+
+const MIN_PASSWORD = 8;
+
 /** A pasted sign-in link must point at our own Supabase project, so this can't become an open redirect. */
 function isOurSignInLink(value: string) {
   try {
@@ -21,9 +25,8 @@ function isOurSignInLink(value: string) {
 }
 
 /**
- * Email sign-in in two steps. Step 2 accepts the link from the email (pasted here, so the session
- * lands in this same browser even if the email app opens links elsewhere) or a one-time code
- * (once a custom email template includes one).
+ * Email + password sign-in and sign-up (no emails sent, so no hourly email limit),
+ * with the emailed link kept as a fallback.
  */
 export function LoginForm() {
   const t = useTranslations("login");
@@ -32,13 +35,45 @@ export function LoginForm() {
   const next = params.get("next") ?? `/${locale}/app`;
   const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : `/${locale}/app`;
 
-  const [step, setStep] = useState<"email" | "link">("email");
+  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [pasted, setPasted] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function sendEmail(e: React.FormEvent) {
+  const switchTo = (m: Mode) => {
+    setMode(m);
+    setError(null);
+  };
+
+  async function submitPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    const supabase = createClient();
+    const { data, error } =
+      mode === "signup"
+        ? await supabase.auth.signUp({ email, password })
+        : await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setBusy(false);
+      if (error.status === 429) return setError(t("rateLimited"));
+      if (error.code === "user_already_exists") return setError(t("alreadyExists"));
+      if (error.code === "weak_password") return setError(t("weakPassword", { n: MIN_PASSWORD }));
+      if (error.code === "email_not_confirmed") return setError(t("notConfirmed"));
+      return setError(mode === "signup" ? t("signupError") : t("wrongPassword"));
+    }
+    // Sign-up returns no session when Supabase still requires email confirmation.
+    if (!data.session) {
+      setBusy(false);
+      return setError(t("checkEmailToConfirm"));
+    }
+    // Full navigation so the server sees the new session cookie right away.
+    window.location.assign(safeNext);
+  }
+
+  async function sendLink(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
@@ -47,37 +82,33 @@ export function LoginForm() {
       options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}` },
     });
     setBusy(false);
-    // 429: Supabase's built-in sender allows only a few emails per hour per project.
     if (error) return setError(error.status === 429 ? t("rateLimited") : t("error"));
-    setStep("link");
+    switchTo("linkSent");
   }
 
-  async function continueWithPasted(e: React.FormEvent) {
+  function continueWithPasted(e: React.FormEvent) {
     e.preventDefault();
-    const value = pasted.trim();
-    setError(null);
-    if (isOurSignInLink(value)) {
-      // Opening the link here completes sign-in in this browser (the callback then redirects into the app).
-      return window.location.assign(value);
-    }
-    if (/^\d{6,10}$/.test(value)) {
-      setBusy(true);
-      const { error } = await createClient().auth.verifyOtp({ email, token: value, type: "email" });
-      if (!error) return window.location.assign(safeNext);
-      setBusy(false);
-    }
+    if (isOurSignInLink(pasted.trim())) return window.location.assign(pasted.trim());
     setError(t("badLink"));
   }
+
+  const title = { signin: t("title"), signup: t("signupTitle"), link: t("linkModeTitle"), linkSent: t("linkTitle") }[mode];
+  const subtitle = {
+    signin: t("passwordSubtitle"),
+    signup: t("signupSubtitle"),
+    link: t("subtitle"),
+    linkSent: t("linkSubtitle", { email }),
+  }[mode];
 
   return (
     <Card className="rounded-3xl shadow-sm">
       <CardHeader>
-        <CardTitle className="text-xl">{step === "email" ? t("title") : t("linkTitle")}</CardTitle>
-        <CardDescription>{step === "email" ? t("subtitle") : t("linkSubtitle", { email })}</CardDescription>
+        <CardTitle className="text-xl">{title}</CardTitle>
+        <CardDescription>{subtitle}</CardDescription>
       </CardHeader>
       <CardContent>
-        {step === "email" ? (
-          <form onSubmit={sendEmail} className="space-y-3">
+        {(mode === "signin" || mode === "signup") && (
+          <form onSubmit={submitPassword} className="space-y-3">
             <Input
               type="email"
               required
@@ -86,52 +117,76 @@ export function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+            <Input
+              type="password"
+              required
+              minLength={MIN_PASSWORD}
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              placeholder={mode === "signup" ? t("newPassword", { n: MIN_PASSWORD }) : t("password")}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <Button type="submit" className="w-full rounded-full" disabled={busy}>
+              {busy ? t("verifying") : mode === "signup" ? t("createAccount") : t("signIn")}
+            </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              {mode === "signin" ? t("noAccount") : t("haveAccount")}{" "}
+              <button
+                type="button"
+                onClick={() => switchTo(mode === "signin" ? "signup" : "signin")}
+                className="font-medium text-primary hover:underline"
+              >
+                {mode === "signin" ? t("createAccount") : t("signIn")}
+              </button>
+            </p>
+            <button
+              type="button"
+              onClick={() => switchTo("link")}
+              className="w-full text-center text-xs text-muted-foreground hover:text-foreground"
+            >
+              {t("useLinkInstead")}
+            </button>
+          </form>
+        )}
+
+        {mode === "link" && (
+          <form onSubmit={sendLink} className="space-y-3">
+            <Input type="email" required autoComplete="email" placeholder={t("email")} value={email} onChange={(e) => setEmail(e.target.value)} />
             <Button type="submit" className="w-full rounded-full" disabled={busy}>
               {busy ? t("sending") : t("send")}
             </Button>
-            <button
-              type="button"
-              onClick={() => {
-                setError(null);
-                setStep("link");
-              }}
-              className="w-full text-center text-sm text-muted-foreground hover:text-foreground"
-            >
-              {t("haveLink")}
-            </button>
+            <BackButton label={t("backToPassword")} onClick={() => switchTo("signin")} />
           </form>
-        ) : (
+        )}
+
+        {mode === "linkSent" && (
           <form onSubmit={continueWithPasted} className="space-y-3">
             <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
               <li>{t("linkStep1")}</li>
               <li>{t("linkStep2")}</li>
             </ol>
-            <Input
-              required
-              autoComplete="off"
-              placeholder={t("pastePlaceholder")}
-              value={pasted}
-              onChange={(e) => setPasted(e.target.value)}
-              autoFocus
-            />
-            <Button type="submit" className="w-full rounded-full" disabled={busy || !pasted.trim()}>
-              {busy ? t("verifying") : t("continue")}
+            <Input required autoComplete="off" placeholder={t("pastePlaceholder")} value={pasted} onChange={(e) => setPasted(e.target.value)} />
+            <Button type="submit" className="w-full rounded-full" disabled={!pasted.trim()}>
+              {t("continue")}
             </Button>
-            <button
-              type="button"
-              onClick={() => {
-                setStep("email");
-                setPasted("");
-                setError(null);
-              }}
-              className="flex w-full items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="size-3.5" /> {t("changeEmail")}
-            </button>
+            <BackButton label={t("backToPassword")} onClick={() => switchTo("signin")} />
           </form>
         )}
+
         {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
       </CardContent>
     </Card>
+  );
+}
+
+function BackButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+    >
+      <ArrowLeft className="size-3.5" /> {label}
+    </button>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, FlaskConical, Home, Languages, LogOut, Package, Radar, Sparkles } from "lucide-react";
+import { Bookmark, FlaskConical, Home, Languages, LogOut, Package, Radar, Sparkles, UserRound } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { Logo } from "./logo";
@@ -74,6 +74,17 @@ export function Sidebar({ email, onSignOut }: { email: string | null; onSignOut?
           <Languages className="size-4" />
           {t("language")}
         </Link>
+        {email && (
+          <Link
+            href="/app/account"
+            className={`flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-sidebar-accent/60 ${
+              pathname === "/app/account" ? "bg-sidebar-accent text-white" : ""
+            }`}
+          >
+            <UserRound className="size-4" />
+            {t("account")}
+          </Link>
+        )}
         {email && onSignOut && (
           <form action={onSignOut}>
             <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-sidebar-accent/60">

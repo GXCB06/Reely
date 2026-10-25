@@ -13,7 +13,8 @@
     "product": "My product",
     "devSearch": "Test search",
     "signOut": "Sign out",
-    "language": "ภาษาไทย"
+    "language": "ภาษาไทย",
+    "account": "Account"
   },
   "login": {
     "title": "Sign in to Reely",
@@ -32,6 +33,24 @@
     "continue": "Continue",
     "badLink": "That isn't a Reely sign-in link. Copy the whole link from the email, or request a new one.",
     "rateLimited": "Too many sign-in emails were sent in the last hour. Use the last email you received, or try again later.",
+    "passwordSubtitle": "Sign in with your email and password.",
+    "signupTitle": "Create your Reely account",
+    "signupSubtitle": "Use your email and a password of your choice.",
+    "linkModeTitle": "Sign in with an email link",
+    "password": "Password",
+    "newPassword": "Password (at least {n} characters)",
+    "signIn": "Sign in",
+    "createAccount": "Create account",
+    "noAccount": "New to Reely?",
+    "haveAccount": "Already have an account?",
+    "useLinkInstead": "Email me a sign-in link instead",
+    "backToPassword": "Back to password sign-in",
+    "wrongPassword": "Wrong email or password.",
+    "signupError": "Couldn't create the account. Try again.",
+    "alreadyExists": "An account with this email already exists. Sign in instead.",
+    "weakPassword": "Use at least {n} characters.",
+    "notConfirmed": "This email isn't confirmed yet. Use the link in your confirmation email.",
+    "checkEmailToConfirm": "Account created. Check your email to confirm it, then sign in.",
     "haveLink": "Already have a sign-in email? Paste its link"
   },
   "home": {
@@ -212,5 +231,17 @@
       "payoff": "Payoff",
       "cta": "CTA"
     }
+  },
+  "account": {
+    "title": "Account",
+    "passwordTitle": "Password",
+    "passwordHint": "Set a password so you can sign in on any browser without waiting for an email.",
+    "newPassword": "New password (at least {n} characters)",
+    "confirmPassword": "Type it again",
+    "save": "Save password",
+    "saved": "Password saved. You can now sign in with it anywhere.",
+    "mismatch": "The two passwords don't match.",
+    "weak": "Use at least {n} characters.",
+    "error": "Couldn't save the password. Try again."
   }
 }
