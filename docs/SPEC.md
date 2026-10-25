@@ -137,9 +137,9 @@ Output language = the user's locale. Keep prompts in `/lib/ai/prompts.ts`.
 |---|---|---|
 | 0 (1–2 h, no Claude Code) | Accounts + keys, data tests (`DAY0.md`), design screenshots | All data tests pass or the plan is adjusted |
 | 1 | Next.js setup, Supabase auth + schema + RLS, i18n, YouTube + TikTok adapters, scores | A keyword search shows real ranked videos |
-| 2 | Research flow (brief → plan → run → grid + filters), video detail + AI breakdown | Friends can run research for their products |
+| 2 | Research flow (brief → plan → run), results page with Peekly-style tabs/filter chips/sort (§11), video detail + AI breakdown, save | Friends can run research for their products |
 | 3 | Product profile, Make my version, saved, deploy to Vercel, test with friends | Both friends use it live |
-| 4 | Competitor tracking | FlowAccount breakout is flagged |
+| 4 | Competitor tracking in the Peekly row layout (§11) | FlowAccount breakout is flagged |
 | 5 | Instagram tracking (Meta API), Thai copy polish | Full MVP |
 
 Cut order if behind: Instagram → saved collection → date filter.
@@ -153,3 +153,29 @@ Cut order if behind: Instagram → saved collection → date filter.
 - **Gemini free-tier limits are unclear** → backup: Vercel AI Gateway ($5 free/month).
 - **Vercel Hobby is non-commercial** → move to Pro ($20/month) before charging.
 - **Thailand PDPA** → privacy policy and terms before opening to the public.
+
+## 11. UI patterns (reviewed 2026-10-25)
+
+Borrow the feel and structure, never Peekly's or Virlo's names, wording, logos or images.
+
+**From Peekly (Organic and Ads pages)**
+- Platform pill tabs: `All / TikTok / Reels / Shorts` (rounded segmented control).
+- Filter chips: small white buttons (6px radius, hairline ring `0 0 0 1px rgb(0 0 0/.08)` + soft
+  shadow `0 2px 6px rgb(0 0 0/.1)`, 12.5px semibold, ~31px tall), each opening a menu of preset
+  thresholds. Reely chips: Min views (10k+/50k+/100k+/500k+/1M+), Min outlier (2×+/5×+/10×+),
+  Min saves (100+/1k+/10k+), Language (TH/EN), Posted (7d/30d/90d/6mo).
+- Sort dropdown, same chip style: Biggest outlier (default) / Most views / Most saves / Most recent.
+- Video cards: views + engagement rail (likes, comments, saves, shares) on the thumbnail edge;
+  @handle + followers under the card; Save button.
+- Account rows (tracking page): left panel with KPI tiles (uppercase label, big number):
+  FOLLOWERS, USUAL VIEWS, BREAKOUTS (30D), POSTS / MONTH + a small posts-per-month bar chart;
+  right: horizontal strip of the account's videos, breakouts first, "+N more" and "See account".
+- Soft paywall later: first rows visible, rest locked with an unlock prompt.
+- Tokens: Plus Jakarta Sans, page `#FAFAFA`, cards 12px radius without heavy borders, active
+  sidebar item white/10 on the dark sidebar with 8px radius.
+
+**From Virlo**
+- Research wizard: Describe → Keywords → Run, with a "good brief covers" checklist
+  (topic, audience, angle, what to avoid) and editable keyword and exclusion chips.
+- Results header: run stats (videos, total views, breakouts, creators) above the grid.
+- Show the numbers behind every score in a tooltip or chip.
