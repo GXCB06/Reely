@@ -1,4 +1,4 @@
-import { Globe, PenLine, Radar, RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronUp, Globe, PenLine, Radar, RotateCcw, Sparkles } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { ReelyBubble, UserBubble } from "@/components/chat/research-chat";
@@ -6,12 +6,15 @@ import { RegionIcon } from "@/components/chat/region-flag";
 import { OutlierCard } from "@/components/outlier-card";
 import { PlatformIcon } from "@/components/platform-icon";
 import { FilterBar } from "@/components/results/filter-bar";
+import { FollowTopicButton } from "@/components/results/follow-topic-button";
 import { InsightCard } from "@/components/results/insight-card";
+import { Patterns } from "@/components/results/patterns";
 import { ScoreExplainer } from "@/components/results/score-explainer";
 import { Link } from "@/i18n/navigation";
 import type { RunSummary } from "@/lib/ai/schemas";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
-import { applyFilters, outlierOf, parseFilters, type PlatformTab } from "@/lib/results";
+import { applyFilters, parseFilters, type PlatformTab } from "@/lib/results";
+import { bestScore } from "@/lib/scoring";
 import type { RegionChoice } from "@/lib/region";
 import type { ScoredVideo } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
@@ -27,7 +30,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
 
   const { data: run } = await supabase
     .from("research_runs")
-    .select("id, brief, keywords, keyword_regions, exclusions, platforms, region, input, status, error, summary, created_at")
+    .select("id, brief, keywords, keyword_regions, exclusions, platforms, region, input, status, error, summary, stats, followed_at, created_at")
     .eq("id", id)
     .maybeSingle();
   if (!run) notFound();
@@ -44,8 +47,12 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   const all = ((rows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null);
 
   const filters = parseFilters(sp);
+  // Default view: the 10 best. "Show all" (?all=1) opens every result with filters and sorting.
+  const showAll = sp.all === "1";
   const shown = applyFilters(all, filters);
-  const top = [...all].sort((a, b) => outlierOf(b) - outlierOf(a)).slice(0, 10);
+  const top = [...all].sort((a, b) => bestScore(b) - bestScore(a)).slice(0, 10);
+  const summary = run.summary as RunSummary | null;
+  const stats = run.stats as { hidden?: number; offTopic?: number } | null;
   const counts: Record<PlatformTab, number> = {
     all: all.length,
     tiktok: all.filter((v) => v.platform === "tiktok").length,
@@ -91,49 +98,74 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
         {run.status === "failed" && <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{t("failed")}</p>}
 
         <InsightCard
-          summary={run.summary as RunSummary | null}
+          summary={summary}
           totalVideos={all.length}
           topViews={all.reduce<number | null>((m, v) => Math.max(m ?? 0, v.views ?? 0), null)}
           smallInTop10={top.filter((v) => (v.creatorFollowers ?? Infinity) < 10_000).length}
           topCount={top.length}
         />
 
-        {top.length > 0 && (
-          <section>
-            <div className="mb-3 flex items-baseline justify-between">
-              <h3 className="font-heading text-lg font-bold">{t("topVideos")}</h3>
-              <span className="text-xs text-muted-foreground">{t("topVideosHint")}</span>
-            </div>
-            <div className="-mx-1 flex snap-x gap-4 overflow-x-auto px-1 pb-3">
-              {top.map((v) => (
-                <div key={`${v.platform}:${v.platformVideoId}`} className="w-52 shrink-0 snap-start">
-                  <OutlierCard video={v} variant="carousel" saved={v.dbId ? saved.has(v.dbId) : false} />
-                </div>
-              ))}
-            </div>
-          </section>
+        {stats && (stats.offTopic ?? 0) + (stats.hidden ?? 0) > 0 && (
+          <p className="-mt-4 flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
+            <Sparkles className="size-3.5 text-primary" />
+            {t("statsLine", { offTopic: stats.offTopic ?? 0, hidden: stats.hidden ?? 0 })}
+          </p>
         )}
 
-        <section className="space-y-4">
-          <h3 className="font-heading text-lg font-bold">{t("allVideos")}</h3>
-          <FilterBar basePath={`/app/research/${id}`} filters={filters} params={flatParams} counts={counts} />
-          <ScoreExplainer />
-          {shown.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">{t("noMatch")}</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {shown.map((v) => (
-                <OutlierCard key={`${v.platform}:${v.platformVideoId}`} video={v} saved={v.dbId ? saved.has(v.dbId) : false} />
-              ))}
+        {summary?.patterns && summary.patterns.length > 0 && (
+          <Patterns patterns={summary.patterns} videos={all} productName={input?.productName ?? null} />
+        )}
+
+        {showAll ? (
+          <section className="space-y-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h3 className="font-heading text-lg font-bold">{t("allVideos")}</h3>
+              <Link href={`/app/research/${id}`} scroll={false} className="inline-flex items-center gap-1 text-sm text-primary">
+                <ChevronUp className="size-4" /> {t("showTop")}
+              </Link>
             </div>
-          )}
-        </section>
+            <FilterBar basePath={`/app/research/${id}`} filters={filters} params={flatParams} counts={counts} />
+            <ScoreExplainer />
+            {shown.length === 0 ? (
+              <p className="py-10 text-center text-sm text-muted-foreground">{t("noMatch")}</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                {shown.map((v) => (
+                  <OutlierCard key={`${v.platform}:${v.platformVideoId}`} video={v} saved={v.dbId ? saved.has(v.dbId) : false} />
+                ))}
+              </div>
+            )}
+          </section>
+        ) : (
+          top.length > 0 && (
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 className="font-heading text-lg font-bold">{t("bestTitle", { n: top.length })}</h3>
+                <span className="text-xs text-muted-foreground">{t("bestHint")}</span>
+              </div>
+              <ScoreExplainer />
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                {top.map((v) => (
+                  <OutlierCard key={`${v.platform}:${v.platformVideoId}`} video={v} saved={v.dbId ? saved.has(v.dbId) : false} />
+                ))}
+              </div>
+              {all.length > top.length && (
+                <div className="text-center">
+                  <Link href={`/app/research/${id}?all=1`} scroll={false} className="chip">
+                    <ChevronDown className="size-3.5" /> {t("showAll", { n: all.length })}
+                  </Link>
+                </div>
+              )}
+            </section>
+          )
+        )}
 
         {run.status !== "running" && (
           <section className="mx-auto max-w-3xl">
             <ReelyBubble>
               <p className="mb-3 text-sm font-semibold">{t("nextTitle")}</p>
               <div className="flex flex-wrap gap-2">
+                <FollowTopicButton runId={run.id as string} initialFollowed={run.followed_at !== null} />
                 {lead?.dbId && (
                   <Link href={`/app/video/${lead.dbId}`} className="chip">
                     <PenLine className="size-3.5" /> {t("nextScript", { handle: lead.creatorHandle })}

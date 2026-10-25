@@ -96,7 +96,7 @@ export default async function VideoPage({ params }: PageProps<"/[locale]/app/vid
   ]);
   const usualViews = (creator?.usual_views as number | null) ?? null;
   const scores = { usual: usualScore(video.views, usualViews), reach: reachScore(video.views, video.creator_followers) };
-  const label = labelFor(scores.usual, scores.reach);
+  const label = labelFor(scores.usual, scores.reach, { views: video.views, followers: video.creator_followers });
   const compact = (n: number) => format.number(n, { notation: "compact", maximumFractionDigits: 1 });
 
   const stats = [

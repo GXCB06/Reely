@@ -1,6 +1,7 @@
 // Pure helpers for research results: exclusions, URL filters and sorting. No server imports (tested directly).
+import { bestScore, type OutlierLabel } from "./scoring";
 
-export type Sort = "outlier" | "views" | "saves" | "recent";
+export type Sort = "best" | "outlier" | "views" | "saves" | "recent";
 export type PlatformTab = "all" | "tiktok" | "youtube" | "instagram";
 
 export type ResultFilters = {
@@ -19,7 +20,7 @@ export const FILTER_PRESETS = {
   postedDays: [7, 30, 90, 180],
 } as const;
 
-const SORTS: Sort[] = ["outlier", "views", "saves", "recent"];
+const SORTS: Sort[] = ["best", "outlier", "views", "saves", "recent"];
 const TABS: PlatformTab[] = ["all", "tiktok", "youtube", "instagram"];
 
 /** True when the caption mentions any excluded word (case-insensitive substring; Thai has no spaces). */
@@ -42,7 +43,7 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
     minOutlier: presetOrNull(sp.minOutlier, FILTER_PRESETS.minOutlier),
     minSaves: presetOrNull(sp.minSaves, FILTER_PRESETS.minSaves),
     postedDays: presetOrNull(sp.posted, FILTER_PRESETS.postedDays),
-    sort: SORTS.includes(one("sort") as Sort) ? (one("sort") as Sort) : "outlier",
+    sort: SORTS.includes(one("sort") as Sort) ? (one("sort") as Sort) : "best",
   };
 }
 
@@ -50,6 +51,8 @@ export type FilterableResult = {
   platform: string;
   views: number | null;
   saves: number | null;
+  shares: number | null;
+  label: OutlierLabel;
   publishedAt: string | null;
   usual: number | null;
   reach: number | null;
@@ -70,6 +73,7 @@ export function applyFilters<T extends FilterableResult>(rows: T[], f: ResultFil
     return true;
   });
   const key: Record<Sort, (r: T) => number> = {
+    best: bestScore,
     outlier: outlierOf,
     views: (r) => r.views ?? 0,
     saves: (r) => r.saves ?? 0,

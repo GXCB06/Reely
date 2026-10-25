@@ -22,7 +22,8 @@
     "deleteConfirm": "Delete “{title}”? Its results will be removed. Saved videos stay saved.",
     "deleted": "Chat deleted",
     "actionFailed": "That didn’t work. Try again.",
-    "pinned": "Pinned"
+    "pinned": "Pinned",
+    "today": "Today"
   },
   "login": {
     "title": "Sign in to Reely",
@@ -145,7 +146,9 @@
     "usual": "{x}× usual views",
     "open": "Open",
     "fireUsualTip": "{views} views ÷ this account usually gets {usual} = {x}× ({label})",
-    "fireReachTip": "{views} views ÷ {followers} followers = {x}× ({label}). We don't have this account's usual views yet."
+    "fireReachTip": "{views} views ÷ {followers} followers = {x}× ({label}). We don't have this account's usual views yet.",
+    "keep": "{p}% saved/shared",
+    "keepTip": "Saves + shares per 100 views. High = people keep it to copy later or send it on."
   },
   "labels": {
     "breakout": "Breakout",
@@ -161,8 +164,6 @@
     "tileTopViews": "views on the top video",
     "tileSmall": "top results from accounts under 10K followers",
     "tileSmallValue": "{n} of {of}",
-    "topVideos": "Top videos",
-    "topVideosHint": "The 10 biggest outliers",
     "allVideos": "All videos",
     "tab": {
       "all": "All",
@@ -181,6 +182,7 @@
     "posted": "Posted",
     "lastDays": "Last {n} days",
     "sort": {
+      "best": "Best for you",
       "outlier": "Biggest outlier",
       "views": "Most views",
       "saves": "Most saves",
@@ -192,7 +194,24 @@
     "nextTrack": "Track @{handle}",
     "nextWorldwide": "Search worldwide instead",
     "nextThailand": "Search Thailand instead",
-    "nextEdit": "Edit my request"
+    "nextEdit": "Edit my request",
+    "patternsTitle": "Formulas that worked",
+    "patternsHint": "Repeatable patterns behind the winners. Pick one and film it.",
+    "patternN": "Formula {n}",
+    "patternHook": "Hook:",
+    "patternIdea": "Your version:",
+    "patternIdeaFor": "For {product}:",
+    "patternScript": "Write my script",
+    "bestTitle": "The {n} best videos",
+    "bestHint": "Real views, beat their usual, on topic",
+    "showAll": "Show all {n} videos (filter and sort)",
+    "showTop": "Back to the top 10",
+    "statsLine": "AI removed {offTopic} off-topic videos · {hidden} tiny or low-view videos hidden",
+    "follow": "Follow this topic daily",
+    "following": "Following daily",
+    "followLimit": "You can follow 2 topics. Unfollow one first.",
+    "followFailed": "That didn’t work. Try again.",
+    "followedToast": "Added to Today: Reely checks this topic for new breakouts every day."
   },
   "card": {
     "save": "Save",
@@ -305,10 +324,37 @@
     "show": "Show",
     "usual": "It shows how many times more views a video got than that account normally gets. \"Normally\" = the middle value (median) of its ~20 most recent posts, not counting this one.",
     "example": "41.3K views ÷ usually 499 views = 82×",
-    "reach": "If we haven't checked the account's recent posts yet, we compare views with its followers instead (views ÷ followers).",
+    "reach": "If we have not checked that account’s recent posts, we compare views with followers instead (views ÷ followers).",
     "breakout": "{n}×+ Breakout",
     "strong": "{from}–{to}× Strong",
     "normal": "under {n}× Normal",
-    "caveat": "Views show attention, not sales. Use the 🔥 to find ideas worth studying, then test them yourself."
+    "caveat": "Views show attention, not sales. Use the 🔥 to find ideas worth studying, then test them yourself.",
+    "minViews": "It also needs real views: Breakout needs 10K+ views, Strong 5K+. Views ÷ followers only counts for accounts with 1K+ followers."
+  },
+  "today": {
+    "title": "What to post today",
+    "subtitle": "New breakouts from the last 7 days, from accounts and topics you follow, turned into ideas for your product.",
+    "sources": "From {tracked} tracked accounts · {topics} followed topics ·",
+    "manageTracking": "Manage",
+    "emptyTitle": "Follow something first",
+    "emptyHint": "Today checks the competitors you track and the research topics you follow for new breakout videos every day.",
+    "emptyTrack": "Track a competitor",
+    "emptyFollow": "Start a research, then press “Follow this topic daily”",
+    "building": "Checking what broke out this week…",
+    "stepAccounts": "Checking {n} tracked accounts",
+    "stepTopics": "Searching {n} followed topics (last 7 days)",
+    "stepIdeas": "Picking ideas for your product",
+    "buildingHint": "Only the first visit each day takes this long. Then it’s saved for today.",
+    "failed": "Today’s ideas couldn’t be built. Try again later.",
+    "quietTitle": "Nothing new broke out this week",
+    "quietHint": "No new breakouts from your accounts and topics in the last 7 days. Check back tomorrow, or track one more competitor.",
+    "ideaN": "Idea {n}",
+    "fromTracked": "from {who}, who you track",
+    "fromTopic": "from your topic “{topic}”",
+    "hook": "Hook:",
+    "forProduct": "For {product}:",
+    "yourVersion": "Your version:",
+    "writeScript": "Write my script",
+    "footer": "Picked from {n} new breakouts. Updates once a day, the first time you open this page."
   }
 }

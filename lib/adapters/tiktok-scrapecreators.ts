@@ -76,7 +76,7 @@ export const tiktokAdapter: PlatformAdapter = {
       ? await readFixture<Res>("tiktok-search")
       : await call<Res>("/v1/tiktok/search/keyword", {
           query: keyword,
-          date_posted: "last-6-months",
+          date_posted: opts?.recent ? "this-week" : "last-6-months",
           trim: "true",
           // Sets where the search runs from (not a hard filter): Thai results from TH, worldwide from US.
           region: opts?.region === "global" ? "US" : "TH",

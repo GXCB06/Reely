@@ -8,9 +8,11 @@ import {
   MAX_KEYWORDS,
   planSchema,
   type ResearchPlan,
+  relevanceSchema,
   type RunSummary,
   runSummarySchema,
   type Script,
+  todaySchema,
   scriptSchema,
   type Understanding,
   understandingSchema,
@@ -138,6 +140,55 @@ Text: ${msg.link.text.slice(0, 2000)}`
   };
 }
 
+export type ProductBrief = { name: string; whatItIs: string; audience: string };
+
+const RELEVANCE_BATCH = 80;
+
+/**
+ * Rates each search result 0-2 for relevance to the product, from its caption (one Gemini call per
+ * 80 videos, run in parallel). Returns null when AI is unavailable or fails, so callers keep everything.
+ */
+export async function rateRelevance(
+  product: ProductBrief,
+  videos: { caption: string; creatorHandle: string }[],
+): Promise<number[] | null> {
+  const model = getModel();
+  if (!model || !videos.length) return null;
+  const batches = Array.from({ length: Math.ceil(videos.length / RELEVANCE_BATCH) }, (_, b) =>
+    videos.slice(b * RELEVANCE_BATCH, (b + 1) * RELEVANCE_BATCH),
+  );
+  try {
+    const results = await Promise.all(
+      batches.map(async (batch, b) => {
+        const { output } = await generateText({
+          ...aiCallOptions(40_000),
+          model,
+          output: Output.object({ schema: relevanceSchema }),
+          prompt: [
+            "A founder wants short videos they can learn from for their product. Rate every video below.",
+            `Product: ${product.name} — ${product.whatItIs}`,
+            product.audience ? `Audience: ${product.audience}` : "",
+            "Score 2: about the product's category, the problem it solves, or a competitor.",
+            "Score 1: not about the product, but a topic its audience clearly cares about (their work, money, tools).",
+            "Score 0: unrelated (school/university life, entertainment, pets, other industries) or the caption is",
+            "empty or too vague to tell.",
+            "Return one score per line number.",
+            "",
+            ...batch.map((v, i) => `${i} | @${v.creatorHandle} | ${v.caption.slice(0, 160).replace(/\s+/g, " ") || "(no caption)"}`),
+          ].join("\n"),
+        });
+        const scores: number[] = Array(batch.length).fill(0);
+        for (const s of output.scores) if (s.i < batch.length) scores[s.i] = s.score;
+        return { b, scores };
+      }),
+    );
+    return results.sort((x, y) => x.b - y.b).flatMap((r) => r.scores);
+  } catch (e) {
+    console.warn("[ai] rateRelevance failed, keeping all results", (e as Error).message);
+    return null;
+  }
+}
+
 type VideoInput = { caption: string; views: number | null; usual: number | null; reach: number | null; handle: string; platform: string };
 
 export async function analyzeVideo(v: VideoInput, locale: string): Promise<VideoAnalysis & { source: "ai" | "sample" }> {
@@ -245,7 +296,17 @@ type RunInput = {
   topViews: number | null;
   smallAccountsInTop10: number;
   breakouts: number;
-  top: { handle: string; caption: string; views: number | null; multiplier: number | null; platform: string }[];
+  product?: ProductBrief;
+  /** Best first; up to 15. `dbId` lets patterns point at real videos. */
+  top: {
+    dbId?: number;
+    handle: string;
+    caption: string;
+    views: number | null;
+    multiplier: number | null;
+    keepRate: number | null;
+    platform: string;
+  }[];
 };
 
 export async function summarizeRun(input: RunInput, locale: string): Promise<RunSummary> {
@@ -253,7 +314,7 @@ export async function summarizeRun(input: RunInput, locale: string): Promise<Run
   if (model && input.top.length) {
     try {
       const { output } = await generateText({
-        ...aiCallOptions(),
+        ...aiCallOptions(40_000),
         model,
         output: Output.object({ schema: runSummarySchema }),
         prompt: [
@@ -261,16 +322,25 @@ export async function summarizeRun(input: RunInput, locale: string): Promise<Run
           `Keywords: ${input.keywords.join(", ")}`,
           `Videos found: ${input.totalVideos}. Clear breakouts (5x+ usual views): ${input.breakouts}.`,
           `Top results from accounts under 10K followers: ${input.smallAccountsInTop10} of ${Math.min(10, input.top.length)}.`,
-          "Top videos (handle | views | multiplier | caption):",
+          input.product ? `The founder's product: ${input.product.name} — ${input.product.whatItIs}` : "",
+          "Top videos (line | handle | views | multiplier | saves+shares per view | caption):",
           ...input.top.map(
-            (v) =>
-              `@${v.handle} | ${v.views ?? "?"} | ${v.multiplier !== null ? formatMultiplier(v.multiplier) + "x" : "?"} | ${v.caption.slice(0, 160).replace(/\s+/g, " ")}`,
+            (v, i) =>
+              `${i} | @${v.handle} | ${v.views ?? "?"} | ${v.multiplier !== null ? formatMultiplier(v.multiplier) + "x" : "?"} | ${v.keepRate !== null ? (v.keepRate * 100).toFixed(1) + "%" : "?"} | ${v.caption.slice(0, 160).replace(/\s+/g, " ")}`,
           ),
           "Write a confident headline about whether this niche works on short-form, and a takeaway that",
           "names the shared pattern (hook, format or angle) behind the winners. Cite @handles. No hype words.",
+          "Then group the videos into 3-5 formulas the founder can copy tomorrow with a phone. Each formula needs",
+          "1-3 example line numbers; skip videos that fit no useful formula. The idea must be about THEIR product.",
         ].join("\n"),
       });
-      return { ...output, source: "ai" };
+      const patterns = output.patterns
+        .map(({ examples, ...p }) => ({
+          ...p,
+          videoIds: [...new Set(examples)].map((i) => input.top[i]?.dbId).filter((id): id is number => id !== undefined),
+        }))
+        .filter((p) => p.videoIds.length);
+      return { ...output, patterns, source: "ai" };
     } catch (e) {
       console.warn("[ai] summarizeRun failed, using sample", (e as Error).message);
     }
@@ -291,4 +361,46 @@ export async function summarizeRun(input: RunInput, locale: string): Promise<Run
       : "",
     source: "sample",
   };
+}
+
+export type TodayCandidate = { handle: string; caption: string; views: number | null; multiplier: number | null; keepRate: number | null; source: string };
+export type TodayIdea = { i: number; title: string; why: string; hook: string; angle: string };
+
+/** Today page: picks 3-5 of the new breakouts and turns each into a "post this today" idea for the product. */
+export async function pickTodayIdeas(product: ProductBrief | null, candidates: TodayCandidate[], locale: string): Promise<TodayIdea[]> {
+  const model = getModel();
+  if (model && candidates.length) {
+    try {
+      const { output } = await generateText({
+        ...aiCallOptions(40_000),
+        model,
+        output: Output.object({ schema: todaySchema }),
+        prompt: [
+          `You are a content strategist. Answer in ${languageName(locale)}.`,
+          product ? `The founder's product: ${product.name} — ${product.whatItIs}. Audience: ${product.audience}` : "",
+          "These short videos broke out in the last 7 days (line | source | handle | views | multiplier | saves+shares per view | caption):",
+          ...candidates.map(
+            (v, i) =>
+              `${i} | ${v.source} | @${v.handle} | ${v.views ?? "?"} | ${v.multiplier !== null ? formatMultiplier(v.multiplier) + "x" : "?"} | ${v.keepRate !== null ? (v.keepRate * 100).toFixed(1) + "%" : "?"} | ${v.caption.slice(0, 160).replace(/\s+/g, " ")}`,
+          ),
+          "Pick the 3-5 most useful for this founder (different formats, prefer high saves+shares and real views),",
+          "and turn each into one video they could film today with a phone. Never suggest copying words or footage.",
+        ].join("\n"),
+      });
+      const seen = new Set<number>();
+      return output.ideas.filter((x) => x.i < candidates.length && !seen.has(x.i) && seen.add(x.i));
+    } catch (e) {
+      console.warn("[ai] pickTodayIdeas failed, using top videos", (e as Error).message);
+    }
+  }
+  const th = locale !== "en";
+  return candidates.slice(0, 5).map((v, i) => ({
+    i,
+    title: (v.caption.split(/\n|#/)[0] || v.caption).trim().slice(0, 80) || `@${v.handle}`,
+    why: th
+      ? `ได้ ${v.views ?? "?"} วิว${v.multiplier !== null ? ` (${formatMultiplier(v.multiplier)}× ของปกติ)` : ""}`
+      : `${v.views ?? "?"} views${v.multiplier !== null ? ` (${formatMultiplier(v.multiplier)}x usual)` : ""}`,
+    hook: "",
+    angle: th ? "เปิดดูคลิปแล้วกด “เขียนสคริปต์” เพื่อทำเวอร์ชันของคุณ" : "Open the video and press Make my version.",
+  }));
 }

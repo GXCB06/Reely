@@ -1,9 +1,11 @@
 import "server-only";
 import { adapters } from "@/lib/adapters";
 import type { NormalizedVideo, Platform, SearchRegion } from "@/lib/adapters/types";
+import { type ProductBrief, rateRelevance } from "@/lib/ai/tasks";
 import { getFreshCreator, saveCreator, saveVideos } from "@/lib/cache";
 import { isExcluded } from "@/lib/results";
 import {
+  bestScore,
   labelFor,
   type OutlierLabel,
   passesNoiseFilter,
@@ -25,7 +27,14 @@ export type ScoredVideo = NormalizedVideo & {
   dbId?: number;
 };
 
-export type SearchResult = { videos: ScoredVideo[]; hidden: number; errors: string[] };
+export type SearchResult = {
+  videos: ScoredVideo[];
+  /** Dropped by the noise filter or exclusions. */
+  hidden: number;
+  /** Dropped by the AI relevance check. */
+  offTopic: number;
+  errors: string[];
+};
 export type KeywordQuery = { text: string; region: SearchRegion };
 
 async function creatorBaseline(platform: Platform, handle: string) {
@@ -56,12 +65,13 @@ export async function searchKeywords(
   keywords: KeywordQuery[],
   platforms: Platform[] = ["tiktok", "youtube"],
   exclusions: string[] = [],
+  opts: { product?: ProductBrief; recent?: boolean } = {},
 ): Promise<SearchResult> {
   const errors: string[] = [];
   const jobs = keywords.flatMap(({ text: keyword, region }) =>
     platforms.map(async (p) => {
       try {
-        const found = await adapters[p].searchVideos(keyword, { region });
+        const found = await adapters[p].searchVideos(keyword, { region, recent: opts.recent });
         return found.map((v) => ({ ...v, keyword }));
       } catch (e) {
         errors.push(`${p} "${keyword}": ${(e as Error).message}`);
@@ -77,7 +87,10 @@ export async function searchKeywords(
     return !seen.has(key) && seen.add(key);
   });
 
-  const kept = all.filter((v) => passesNoiseFilter(v.views, v.creatorFollowers) && !isExcluded(v.caption, exclusions));
+  const clean = all.filter((v) => passesNoiseFilter(v.views, v.creatorFollowers) && !isExcluded(v.caption, exclusions));
+  // AI relevance check before any paid baseline lookups, so off-topic creators cost nothing.
+  const relevance = opts.product ? await rateRelevance(opts.product, clean) : null;
+  const kept = relevance ? clean.filter((_, i) => relevance[i] > 0) : clean;
   const dbIds = await saveVideos(kept);
 
   // Usual-views baselines for the top creators (by reach, or by views where followers are unknown, as on Instagram).
@@ -122,13 +135,13 @@ export async function searchKeywords(
         reach,
         usual,
         usualViews,
-        label: labelFor(usual, reach),
+        label: labelFor(usual, reach, { views, followers: v.creatorFollowers }),
         dbId: dbIds.get(`${v.platform}:${v.platformVideoId}`),
       };
     })
-    .sort((a, b) => (b.usual ?? b.reach ?? 0) - (a.usual ?? a.reach ?? 0));
+    .sort((a, b) => bestScore(b) - bestScore(a));
 
-  return { videos, hidden: all.length - kept.length, errors };
+  return { videos, hidden: all.length - clean.length, offTopic: clean.length - kept.length, errors };
 }
 
 /** Single-keyword search used by the test page. */

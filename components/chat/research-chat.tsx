@@ -44,7 +44,8 @@ export function ResearchChat({
   const [text, setText] = useState(initialText);
   const [image, setImage] = useState<{ full: string; thumb: string } | null>(null);
   const [region, setRegion] = useState<RegionChoice>(initialRegion);
-  const [platforms, setPlatforms] = useState<PlatformId[]>(["tiktok", "youtube"]);
+  // TikTok only by default: it is the one platform with saves and shares, and the most on-topic results.
+  const [platforms, setPlatforms] = useState<PlatformId[]>(["tiktok"]);
   const [phase, setPhase] = useState<Phase>("compose");
   const [sent, setSent] = useState<Sent | null>(null);
   const [plan, setPlan] = useState<(Understanding & { source: "ai" | "sample" }) | null>(null);

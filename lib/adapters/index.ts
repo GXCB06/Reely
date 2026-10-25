@@ -11,4 +11,4 @@ export const adapters: Record<Platform, PlatformAdapter> = {
   instagram: instagramAdapter,
 };
 
-export type { NormalizedCreator, NormalizedVideo, Platform, PlatformAdapter, SearchRegion } from "./types";
+export type { NormalizedCreator, NormalizedVideo, Platform, PlatformAdapter, SearchOptions, SearchRegion } from "./types";

@@ -6,7 +6,7 @@ import { Thumb } from "@/components/thumb";
 import { Link } from "@/i18n/navigation";
 import { RegionIcon } from "@/components/chat/region-flag";
 import { looksThai } from "@/lib/region";
-import { formatMultiplier } from "@/lib/scoring";
+import { formatMultiplier, keepRate } from "@/lib/scoring";
 import type { ScoredVideo } from "@/lib/search";
 
 const LABEL_STYLE = {
@@ -32,6 +32,7 @@ export async function OutlierCard({
   const format = await getFormatter();
   const compact = (n: number) => format.number(n, { notation: "compact", maximumFractionDigits: 1 });
   const headline = video.usual ?? video.reach;
+  const keep = keepRate(video);
   const href = video.dbId ? `/app/video/${video.dbId}` : null;
   const hook = (video.caption.split(/\n|#/)[0] || video.caption).trim();
   // Caption language as a quick hint of where the video is from.
@@ -111,6 +112,11 @@ export async function OutlierCard({
           {video.usual !== null && video.usualViews !== null && (
             <span className="rounded-full bg-accent px-2 py-0.5 text-accent-foreground">
               {t("usual", { x: formatMultiplier(video.usual) })} · {t("usually", { views: compact(video.usualViews) })}
+            </span>
+          )}
+          {keep !== null && (
+            <span title={t("keepTip")} className="cursor-help rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-800">
+              {t("keep", { p: (keep * 100).toFixed(1) })}
             </span>
           )}
           {video.reach !== null && (

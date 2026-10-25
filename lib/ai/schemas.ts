@@ -27,6 +27,11 @@ export const understandingSchema = z.object({
 });
 export type Understanding = z.infer<typeof understandingSchema>;
 
+/** Relevance of each search result to the user's product: 0 unrelated, 1 same audience, 2 on topic. */
+export const relevanceSchema = z.object({
+  scores: z.array(z.object({ i: z.number().int().min(0), score: z.number().int().min(0).max(2) })),
+});
+
 export const videoAnalysisSchema = z.object({
   hook: z.string().describe("The opening line or on-screen hook, quoted or closely paraphrased from the caption"),
   hookType: z.string().describe("Short label, e.g. question, bold claim, POV, problem callout, list, story, how-to"),
@@ -60,10 +65,42 @@ export const scriptSchema = z.object({
 });
 export type Script = z.infer<typeof scriptSchema>;
 
+/** A repeatable formula behind several winning videos ("Demo that kills a boring chore"). */
+export const patternSchema = z.object({
+  name: z.string().describe("Max 6 words, a memorable name for the formula"),
+  why: z.string().describe("1-2 sentences: why it works, citing views, multipliers or saves of the examples"),
+  hook: z.string().describe("A fill-in-the-blank opening line the user could say, max 14 words, e.g. 'Still ___ by hand? Watch this.'"),
+  idea: z.string().describe("One sentence: a concrete video the user could shoot with this formula for THEIR product"),
+  examples: z.array(z.number().int().min(0)).min(1).max(3).describe("Line numbers of the videos that use it"),
+});
+
 export const runSummarySchema = z.object({
   headline: z.string().describe("Max 10 words, e.g. 'Accounting software videos work on short-form.'"),
   highlight: z.string().describe("One word from the headline to emphasise"),
   summary: z.string().describe("One sentence about how many videos clearly beat their usual views"),
   takeaway: z.string().describe("2-3 sentences: the pattern behind the winners, citing @handles and numbers"),
+  patterns: z.array(patternSchema).min(1).max(5),
 });
-export type RunSummary = z.infer<typeof runSummarySchema> & { source: "ai" | "sample" };
+
+/** Stored with the run: example line numbers replaced by video ids. */
+export type Pattern = Omit<z.infer<typeof patternSchema>, "examples"> & { videoIds: number[] };
+export type RunSummary = Omit<z.infer<typeof runSummarySchema>, "patterns"> & {
+  patterns?: Pattern[];
+  source: "ai" | "sample";
+};
+
+/** Today page: 3-5 "post this today" ideas picked from new breakouts. */
+export const todaySchema = z.object({
+  ideas: z
+    .array(
+      z.object({
+        i: z.number().int().min(0).describe("Line number of the video this idea comes from"),
+        title: z.string().describe("Max 10 words: what to post today, as an action"),
+        why: z.string().describe("1-2 sentences: why this video worked, citing its views, multiplier or saves"),
+        hook: z.string().describe("An opening line the user could say, max 14 words"),
+        angle: z.string().describe("One sentence: how to do it for the user's product"),
+      }),
+    )
+    .min(1)
+    .max(5),
+});

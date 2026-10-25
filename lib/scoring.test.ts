@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  bestScore,
   formatMultiplier,
+  keepRate,
   labelFor,
   median,
   passesNoiseFilter,
@@ -68,5 +70,27 @@ describe("labels and filters", () => {
     expect(formatMultiplier(83.04)).toBe("83");
     expect(formatMultiplier(6.53)).toBe("6.5");
     expect(formatMultiplier(0.004)).toBe("<0.1");
+  });
+});
+
+describe("real viral rules", () => {
+  it("needs real views, not just a big multiplier", () => {
+    expect(labelFor(36, null, { views: 1800, followers: 400 })).toBe("normal");
+    expect(labelFor(36, null, { views: 7000, followers: 400 })).toBe("strong");
+    expect(labelFor(36, null, { views: 41_000, followers: 400 })).toBe("breakout");
+  });
+
+  it("ignores views ÷ followers on tiny accounts", () => {
+    expect(labelFor(null, 3613, { views: 361_000, followers: 100 })).toBe("normal");
+    expect(labelFor(null, 27, { views: 192_000, followers: 7200 })).toBe("breakout");
+  });
+
+  it("ranks by label, then views weighted by saves + shares", () => {
+    expect(keepRate({ views: 10_000, saves: 150, shares: 50 })).toBe(0.02);
+    const plain = bestScore({ label: "breakout", views: 100_000, saves: 0, shares: 0 });
+    const kept = bestScore({ label: "breakout", views: 80_000, saves: 3000, shares: 1000 });
+    const strong = bestScore({ label: "strong", views: 900_000, saves: null, shares: null });
+    expect(kept).toBeGreaterThan(plain);
+    expect(plain).toBeGreaterThan(strong);
   });
 });

@@ -84,7 +84,7 @@ export const youtubeAdapter: PlatformAdapter = {
 
   async searchVideos(keyword, opts) {
     type Res = { items?: { id: { videoId: string } }[] };
-    const sixMonthsAgo = new Date(Date.now() - 182 * 864e5).toISOString();
+    const since = new Date(Date.now() - (opts?.recent ? 7 : 182) * 864e5).toISOString();
     const data = fixturesEnabled()
       ? await readFixture<Res>("youtube-search")
       : await call<Res>("search", {
@@ -92,7 +92,7 @@ export const youtubeAdapter: PlatformAdapter = {
           type: "video",
           videoDuration: "short",
           maxResults: "25",
-          publishedAfter: sixMonthsAgo,
+          publishedAfter: since,
           q: keyword,
           ...(opts?.region === "global" ? { relevanceLanguage: "en" } : { regionCode: "TH", relevanceLanguage: "th" }),
         });

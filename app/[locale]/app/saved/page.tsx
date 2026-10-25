@@ -16,7 +16,7 @@ export default async function SavedPage({ params }: PageProps<"/[locale]/app/sav
     .filter((v): v is VideoRow => v !== null)
     .map((v) => {
       const reach = reachScore(v.views, v.creator_followers);
-      return videoFromRow(v, { reach, usual: null, usualViews: null, label: labelFor(null, reach) });
+      return videoFromRow(v, { reach, usual: null, usualViews: null, label: labelFor(null, reach, { views: v.views, followers: v.creator_followers }) });
     });
 
   return (

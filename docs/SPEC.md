@@ -26,6 +26,16 @@ and turn them into a script for their own product**, then keep an eye on competi
 **Supporting (not features on their own):** email-link sign-in, product profile, save to collection,
 Thai/English switch.
 
+**Quality and focus (2026-10-25, after the first live runs):** an AI relevance check drops off-topic
+results before paid lookups; labels need real views (10K+ for Breakout); results open on the 10 best plus
+3-5 "formulas that worked" (hook, why, idea for the user's product, example videos); "Show all" keeps the
+full filterable grid. TikTok is the default platform (only one with saves and shares).
+
+**Today page (`/app/today`):** the daily reason to come back. Built on the first visit of the day from
+tracked accounts and up to 2 followed topics ("Follow this topic daily" on a research), last 7 days only,
+skipping videos suggested in the last 14 days → 3-5 "post this today" ideas with a hook and an angle for
+the user's product. Saved in `daily_digests`, so reopening costs nothing.
+
 ## 3. Not in the MVP
 
 Open-ended Copilot chat (the Home chat only runs the research flow) · bring-your-own AI keys · automatic alerts (LINE/Telegram) · content trends, hashtags, sounds · Meta ads in-app

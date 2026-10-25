@@ -39,6 +39,7 @@ lib/scoring.ts                # reach score, usual-views score, labels, noise fi
 lib/search.ts                 # keywords (with region) → adapters → noise filter → baselines → ranked results
 lib/region.ts                 # Thailand / Worldwide / Both → keyword regions; Thai-caption check
 lib/link-preview.ts           # reads a pasted product link (blocks private addresses — keep that check)
+lib/today.ts                  # Today page: new breakouts (7 days) from tracked accounts + followed topics → 3-5 ideas
 components/chat/              # chat Home (ResearchChat), bubbles, region icons
 lib/cache.ts                  # 24-hour shared cache (creators, videos)
 lib/usage.ts                  # api_usage logging
@@ -74,6 +75,9 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 10. Never call `/v1/tiktok/user/audience` (26 credits) or transcripts with `use_ai_as_fallback`.
 11. Instagram: search `/v2/instagram/reels/search` (1 page, `date_posted=last-year`); baseline = one page
     of `/v1/instagram/user/reels` (`trim=true`). No profile calls (search has no follower counts).
+12. Run the AI relevance check (`rateRelevance`) BEFORE baseline lookups, so off-topic creators cost nothing.
+13. Today page: built at most once per user per day (`daily_digests`), only when the page is opened.
+    Followed topics: max 2 per user, first 3 keywords, TikTok only, `date_posted=this-week`.
 
 ## Security rules
 
@@ -90,6 +94,9 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 - Server Components by default; `"use client"` only where needed.
 - All user-facing text goes in `messages/th.json` and `messages/en.json` — no hard-coded strings.
 - Show the numbers behind every score label ("usually ~510 views → 41.3K").
+- A label needs real views too: Breakout = 5x+ AND 10K+ views; Strong = 2x+ AND 5K+ views. Views ÷ followers
+  only counts for accounts with 1K+ followers. Default order is "best": label, then views weighted by
+  saves + shares (`bestScore` in lib/scoring.ts).
 - Design: Peekly-inspired — near-black sidebar, light content panel with rounded corners,
   lavender `page-wash` header, purple primary, rounded-2xl cards, pill buttons. Virlo is the
   reference for flows (brief → keywords → results, outlier cards with views + multiplier).

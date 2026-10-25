@@ -5,6 +5,7 @@ import { z } from "zod";
 import { MAX_KEYWORDS } from "@/lib/ai/schemas";
 import { summarizeRun, understandProduct } from "@/lib/ai/tasks";
 import { readLink } from "@/lib/link-preview";
+import { keepRate } from "@/lib/scoring";
 import { searchKeywords } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
 
@@ -99,7 +100,8 @@ export async function runResearchAction(input: RunInput) {
   }
 
   try {
-    const result = await searchKeywords(keywords, platforms, exclusions);
+    const product = { name: understanding.productName, whatItIs: understanding.whatItIs, audience: understanding.audience };
+    const result = await searchKeywords(keywords, platforms, exclusions, { product });
     const rows = result.videos
       .filter((v) => v.dbId !== undefined)
       .map((v, i) => ({
@@ -123,19 +125,23 @@ export async function runResearchAction(input: RunInput) {
       .update({
         status: "done",
         error: result.errors.length ? result.errors.join("\n").slice(0, 2000) : null,
+        stats: { hidden: result.hidden, offTopic: result.offTopic },
         finished_at: new Date().toISOString(),
       })
       .eq("id", run.id);
 
-    const top = result.videos.slice(0, 10);
+    const top = result.videos.slice(0, 15);
     const summary = await summarizeRun(
       {
         keywords: keywords.map((k) => k.text),
         totalVideos: result.videos.length,
         topViews: result.videos.reduce<number | null>((m, v) => Math.max(m ?? 0, v.views ?? 0), null),
-        smallAccountsInTop10: top.filter((v) => (v.creatorFollowers ?? Infinity) < 10_000).length,
+        smallAccountsInTop10: top.slice(0, 10).filter((v) => (v.creatorFollowers ?? Infinity) < 10_000).length,
         breakouts: result.videos.filter((v) => v.label === "breakout").length,
+        product,
         top: top.map((v) => ({
+          dbId: v.dbId,
+          keepRate: keepRate(v),
           handle: v.creatorHandle,
           caption: v.caption,
           views: v.views,
@@ -191,4 +197,27 @@ export async function deleteRunAction(id: string) {
   const { error } = await supabase.from("research_runs").delete().eq("id", parsed.data);
   revalidatePath("/[locale]/app", "layout");
   return { ok: !error };
+}
+
+/** Followed topics feed the Today page (re-searched for the last 7 days). Kept to 2 to cap daily credits. */
+const MAX_FOLLOWED_TOPICS = 2;
+
+export async function followRunAction(id: string, follow: boolean) {
+  const parsed = z.object({ id: runId, follow: z.boolean() }).safeParse({ id, follow });
+  if (!parsed.success) return { ok: false as const, error: "invalid" };
+  const supabase = await createClient();
+  if (parsed.data.follow) {
+    const { count } = await supabase
+      .from("research_runs")
+      .select("id", { count: "exact", head: true })
+      .not("followed_at", "is", null)
+      .neq("id", parsed.data.id);
+    if ((count ?? 0) >= MAX_FOLLOWED_TOPICS) return { ok: false as const, error: "limit" };
+  }
+  const { error } = await supabase
+    .from("research_runs")
+    .update({ followed_at: parsed.data.follow ? new Date().toISOString() : null })
+    .eq("id", parsed.data.id);
+  revalidatePath("/[locale]/app", "layout");
+  return error ? { ok: false as const, error: "failed" } : { ok: true as const };
 }

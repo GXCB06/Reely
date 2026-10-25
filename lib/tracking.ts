@@ -89,7 +89,7 @@ export async function loadAccount(platform: Platform, handle: string, now = Date
       const usualViews = usualViewsExcluding(posts, String(v.id));
       const usual = usualScore(v.views, usualViews);
       const reach = reachScore(v.views, followers);
-      return videoFromRow(v, { usual, reach, usualViews, label: labelFor(usual, reach) });
+      return videoFromRow(v, { usual, reach, usualViews, label: labelFor(usual, reach, { views: v.views, followers }) });
     })
     // Biggest outliers first.
     .sort((a, b) => (b.usual ?? 0) - (a.usual ?? 0));

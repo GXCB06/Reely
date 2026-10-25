@@ -10,10 +10,10 @@ export function getModel() {
 export const languageName = (locale: string) => (locale === "en" ? "English" : "Thai");
 
 /** Shared options for every Gemini call: short tasks, so cap time and thinking and retry once. */
-export function aiCallOptions() {
+export function aiCallOptions(timeoutMs = Number(process.env.AI_TIMEOUT_MS) || 25_000) {
   return {
     maxRetries: 1,
-    abortSignal: AbortSignal.timeout(Number(process.env.AI_TIMEOUT_MS) || 25_000),
+    abortSignal: AbortSignal.timeout(timeoutMs),
     providerOptions: { google: { thinkingConfig: { thinkingLevel: "minimal" as const } } },
   };
 }

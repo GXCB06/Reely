@@ -17,21 +17,24 @@ describe("parseFilters", () => {
   });
   it("ignores junk", () => {
     const f = parseFilters({ platform: "myspace", minViews: "123", sort: "drop table" });
-    expect(f).toEqual({ platform: "all", minViews: null, minOutlier: null, minSaves: null, postedDays: null, sort: "outlier" });
+    expect(f).toEqual({ platform: "all", minViews: null, minOutlier: null, minSaves: null, postedDays: null, sort: "best" });
   });
 });
 
 describe("applyFilters", () => {
   const now = new Date("2026-10-25T00:00:00Z").getTime();
   const rows = [
-    { id: "a", platform: "tiktok", views: 41320, saves: 755, publishedAt: "2026-09-29T00:00:00Z", usual: 83, reach: 1.8 },
-    { id: "b", platform: "tiktok", views: 6525, saves: 132, publishedAt: "2026-10-09T00:00:00Z", usual: 13, reach: 0.3 },
-    { id: "c", platform: "youtube", views: 120000, saves: null, publishedAt: "2026-05-01T00:00:00Z", usual: null, reach: 4 },
+    { id: "a", platform: "tiktok", views: 41320, saves: 755, shares: 90, label: "breakout" as const, publishedAt: "2026-09-29T00:00:00Z", usual: 83, reach: 1.8 },
+    { id: "b", platform: "tiktok", views: 6525, saves: 132, shares: 10, label: "strong" as const, publishedAt: "2026-10-09T00:00:00Z", usual: 13, reach: 0.3 },
+    { id: "c", platform: "youtube", views: 120000, saves: null, shares: null, label: "strong" as const, publishedAt: "2026-05-01T00:00:00Z", usual: null, reach: 4 },
   ];
   const base = parseFilters({});
 
-  it("sorts by biggest outlier by default, using reach when usual is missing", () => {
-    expect(applyFilters(rows, base, now).map((r) => r.id)).toEqual(["a", "b", "c"]);
+  it("sorts best first by default: label, then views weighted by saves + shares", () => {
+    expect(applyFilters(rows, base, now).map((r) => r.id)).toEqual(["a", "c", "b"]);
+  });
+  it("sorts by biggest outlier, using reach when usual is missing", () => {
+    expect(applyFilters(rows, { ...base, sort: "outlier" }, now).map((r) => r.id)).toEqual(["a", "b", "c"]);
   });
   it("filters by platform, outlier, views and recency", () => {
     expect(applyFilters(rows, { ...base, platform: "youtube" }, now).map((r) => r.id)).toEqual(["c"]);

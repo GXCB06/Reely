@@ -19,6 +19,7 @@ export async function ScoreExplainer() {
         </p>
         <p className="rounded-xl bg-muted px-3 py-2 font-mono text-xs text-foreground">{t("example")}</p>
         <p>{t("reach")}</p>
+        <p>{t("minViews")}</p>
         <div className="flex flex-wrap gap-2 pt-1 text-xs">
           <span className="rounded-full bg-[var(--breakout)] px-2 py-0.5 font-bold text-white">{t("breakout", { n: BREAKOUT_AT })}</span>
           <span className="rounded-full bg-[var(--strong)] px-2 py-0.5 font-bold text-white">{t("strong", { from: STRONG_AT, to: BREAKOUT_AT })}</span>

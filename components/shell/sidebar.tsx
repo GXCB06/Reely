@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, ChevronUp, Languages, LogOut, Package, Radar, SquarePen, UserRound } from "lucide-react";
+import { Bookmark, ChevronUp, Languages, LogOut, Package, Radar, SquarePen, Sun, UserRound } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { Logo } from "./logo";
@@ -9,6 +9,7 @@ import { RecentItem, type RecentRun } from "./recent-item";
 export type { RecentRun };
 
 const NAV = [
+  { href: "/app/today", key: "today", icon: Sun },
   { href: "/app/tracking", key: "tracking", icon: Radar },
   { href: "/app/saved", key: "saved", icon: Bookmark },
 ] as const;

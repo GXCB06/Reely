@@ -37,13 +37,50 @@ export function usualViewsExcluding(recent: { id: string; views: number | null }
   return m === null ? null : Math.round(m);
 }
 
-/** Label from the usual-views score; falls back to the reach score when no baseline exists. */
-export function labelFor(usual: number | null, reach: number | null): OutlierLabel {
-  const x = usual ?? reach;
+/** A multiplier alone isn't viral: 1,800 views at 36x usual is still a small video. */
+export const BREAKOUT_MIN_VIEWS = 10_000;
+export const STRONG_MIN_VIEWS = 5_000;
+/** Views ÷ followers only counts on accounts this big (a 100-subscriber channel makes ratios meaningless). */
+export const REACH_MIN_FOLLOWERS = 1_000;
+
+/**
+ * Label from the usual-views score; falls back to the reach score when no baseline exists.
+ * With `size`, a label also needs real views (10K+ for breakout, 5K+ for strong), and the reach
+ * fallback only counts for accounts with 1K+ followers.
+ */
+export function labelFor(
+  usual: number | null,
+  reach: number | null,
+  size?: { views: number | null; followers: number | null },
+): OutlierLabel {
+  const reachCounts = !size || size.followers === null || size.followers >= REACH_MIN_FOLLOWERS;
+  const x = usual ?? (reachCounts ? reach : null);
   if (x === null) return "normal";
-  if (x >= BREAKOUT_AT) return "breakout";
-  if (x >= STRONG_AT) return "strong";
+  const views = size ? (size.views ?? 0) : Infinity;
+  if (x >= BREAKOUT_AT && views >= BREAKOUT_MIN_VIEWS) return "breakout";
+  if (x >= STRONG_AT && views >= STRONG_MIN_VIEWS) return "strong";
   return "normal";
+}
+
+/** Saves + shares per view (TikTok only): people keeping or passing a video on = useful, copy-worthy. */
+export function keepRate(v: { views: number | null; saves: number | null; shares: number | null }): number | null {
+  if (!v.views || (v.saves === null && v.shares === null)) return null;
+  return ((v.saves ?? 0) + (v.shares ?? 0)) / v.views;
+}
+
+const LABEL_RANK: Record<OutlierLabel, number> = { breakout: 2, strong: 1, normal: 0 };
+
+/**
+ * "Best" order: label first, then views weighted by keep rate (a 2% keep rate counts like 1.2x views).
+ * Raw multipliers are not used here, so tiny accounts with huge ratios don't float to the top.
+ */
+export function bestScore(v: {
+  label: OutlierLabel;
+  views: number | null;
+  saves: number | null;
+  shares: number | null;
+}): number {
+  return LABEL_RANK[v.label] * 1e12 + (v.views ?? 0) * (1 + 10 * (keepRate(v) ?? 0));
 }
 
 export function passesNoiseFilter(

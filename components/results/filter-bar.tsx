@@ -69,7 +69,7 @@ export async function FilterBar({
     { label: t("any"), href: hrefWith(basePath, params, { [key]: undefined }), active: current === null },
     ...values.map((v) => ({ label: fmt(v), href: hrefWith(basePath, params, { [key]: String(v) }), active: current === v })),
   ];
-  const sorts: Sort[] = ["outlier", "views", "saves", "recent"];
+  const sorts: Sort[] = ["best", "outlier", "views", "saves", "recent"];
   const stateKey = JSON.stringify(params);
 
   return (
@@ -124,7 +124,7 @@ export async function FilterBar({
           activeLabel={null}
           options={sorts.map((s) => ({
             label: t(`sort.${s}`),
-            href: hrefWith(basePath, params, { sort: s === "outlier" ? undefined : s }),
+            href: hrefWith(basePath, params, { sort: s === "best" ? undefined : s }),
             active: filters.sort === s,
           }))}
         />

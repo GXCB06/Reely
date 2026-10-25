@@ -93,12 +93,12 @@ function fromProfile(r: ProfileReel): NormalizedVideo {
 export const instagramAdapter: PlatformAdapter = {
   platform: "instagram",
 
-  async searchVideos(keyword) {
+  async searchVideos(keyword, opts) {
     // No region option: the keyword's language decides whose Reels come back.
     type Res = { reels?: SearchReel[] };
     const data = fixturesEnabled()
       ? await readFixture<Res>("instagram-search")
-      : await call<Res>("/v2/instagram/reels/search", { query: keyword, date_posted: "last-year" });
+      : await call<Res>("/v2/instagram/reels/search", { query: keyword, date_posted: opts?.recent ? "last-week" : "last-year" });
     return (data?.reels ?? []).filter((r) => r.shortcode).map(fromSearch);
   },
 
