@@ -32,7 +32,9 @@ export function usualScore(views: number | null, usualViews: number | null): num
  * so a single viral video doesn't inflate its own baseline.
  */
 export function usualViewsExcluding(recent: { id: string; views: number | null }[], excludeId?: string) {
-  return median(recent.filter((p) => p.id !== excludeId && p.views !== null).map((p) => p.views as number));
+  const m = median(recent.filter((p) => p.id !== excludeId && p.views !== null).map((p) => p.views as number));
+  // Views are whole numbers; an even-sized median can land on .5.
+  return m === null ? null : Math.round(m);
 }
 
 /** Label from the usual-views score; falls back to the reach score when no baseline exists. */

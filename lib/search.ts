@@ -35,6 +35,8 @@ async function creatorBaseline(platform: Platform, handle: string) {
   const posts = recent.map((v) => ({ id: v.platformVideoId, views: v.views }));
   const usualViews = usualViewsExcluding(posts);
   if (recent.length) {
+    // Keep the posts too: the tracking page reads an account's recent videos from this cache.
+    await saveVideos(recent);
     await saveCreator(platform, handle, {
       followers: recent[0].creatorFollowers,
       usualViews,

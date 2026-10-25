@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 import { SaveButton } from "@/components/save-button";
+import { Thumb } from "@/components/thumb";
+import { TrackButton } from "@/components/tracking/track-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/navigation";
 import { analyzeVideo } from "@/lib/ai/tasks";
@@ -85,11 +87,12 @@ export default async function VideoPage({ params }: PageProps<"/[locale]/app/vid
   const { data: video } = await supabase.from("videos").select("*").eq("id", videoId).maybeSingle<VideoRow>();
   if (!video) notFound();
 
-  const [{ data: creator }, { data: savedRow }, { data: product }, { data: scripts }] = await Promise.all([
+  const [{ data: creator }, { data: savedRow }, { data: product }, { data: scripts }, { data: trackedRow }] = await Promise.all([
     supabase.from("creators").select("usual_views").eq("platform", video.platform).eq("handle", video.creator_handle).maybeSingle(),
     supabase.from("saved_videos").select("video_id").eq("video_id", videoId).maybeSingle(),
     supabase.from("products").select("name").order("created_at").limit(1).maybeSingle(),
     supabase.from("scripts").select("id, content, created_at").eq("video_id", videoId).order("created_at", { ascending: false }),
+    supabase.from("tracked_accounts").select("id").eq("platform", video.platform).eq("handle", video.creator_handle).maybeSingle(),
   ]);
   const usualViews = (creator?.usual_views as number | null) ?? null;
   const scores = { usual: usualScore(video.views, usualViews), reach: reachScore(video.views, video.creator_followers) };
@@ -114,10 +117,9 @@ export default async function VideoPage({ params }: PageProps<"/[locale]/app/vid
       <div className="mt-6 grid gap-8 lg:grid-cols-[320px_1fr]">
         <aside className="space-y-4">
           <div className="overflow-hidden rounded-2xl border bg-muted">
-            {video.thumbnail_url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={video.thumbnail_url} alt="" className="aspect-[9/14] w-full object-cover" />
-            )}
+            <div className="aspect-[9/14] w-full">
+              <Thumb src={video.thumbnail_url} />
+            </div>
           </div>
           <div className="flex items-center justify-between">
             <a
@@ -130,6 +132,9 @@ export default async function VideoPage({ params }: PageProps<"/[locale]/app/vid
             </a>
             <SaveButton videoId={video.id} initialSaved={Boolean(savedRow)} />
           </div>
+          {video.platform !== "instagram" && (
+            <TrackButton platform={video.platform} handle={video.creator_handle} initialTracked={Boolean(trackedRow)} />
+          )}
         </aside>
 
         <div className="space-y-6">

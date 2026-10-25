@@ -246,5 +246,32 @@
     "mismatch": "The two passwords don't match.",
     "weak": "Use at least {n} characters.",
     "error": "Couldn't save the password. Try again."
+  },
+  "tracking": {
+    "title": "Competitor tracking",
+    "subtitle": "Follow competitors and creators. Reely checks their latest posts when you open this page and highlights the ones beating their usual views.",
+    "placeholder": "@handle or profile link",
+    "track": "Track",
+    "added": "Now tracking @{handle}",
+    "errorInvalid": "That doesn't look like a TikTok or YouTube handle or link.",
+    "errorLimit": "You can track up to 20 accounts.",
+    "untrack": "Stop tracking",
+    "costNote": "Each TikTok account uses 2 credits per refresh, at most once a day. YouTube is free.",
+    "empty": "No accounts yet. Add a competitor above, e.g. @flowaccountchannel.",
+    "kpiFollowers": "Followers",
+    "kpiUsual": "Usual views",
+    "kpiBreakouts": "Breakouts · 30d",
+    "kpiPosts": "Posts checked",
+    "postsPerMonth": "Posts per month",
+    "updated": "Updated {when}",
+    "notYet": "Not checked yet",
+    "noData": "Couldn't load posts for this account.",
+    "noVideos": "No posts found yet.",
+    "moreVideos": "+{n} more",
+    "seeAccount": "See account",
+    "back": "All tracked accounts",
+    "allPosts": "Recent posts · biggest outliers first",
+    "tracking": "Tracking",
+    "trackHandle": "Track @{handle}"
   }
 }

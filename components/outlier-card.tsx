@@ -1,6 +1,7 @@
 import { Bookmark, Eye, Flame, Heart, MessageCircle, Share2, Users } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { SaveButton } from "@/components/save-button";
+import { Thumb } from "@/components/thumb";
 import { Link } from "@/i18n/navigation";
 import { formatMultiplier } from "@/lib/scoring";
 import type { ScoredVideo } from "@/lib/search";
@@ -40,11 +41,7 @@ export async function OutlierCard({
 
   const thumb = (
     <div className="relative aspect-[9/14] overflow-hidden bg-muted">
-      {video.thumbnailUrl && (
-        // Vendor thumbnails are short-lived signed URLs (some HEIC), so skip next/image optimisation.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={video.thumbnailUrl} alt="" loading="lazy" className="size-full object-cover transition group-hover:scale-[1.02]" />
-      )}
+      <Thumb src={video.thumbnailUrl} className="transition group-hover:scale-[1.02]" />
       <div className="absolute inset-x-2 top-2 flex items-center justify-between gap-1">
         <span className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-xs font-semibold text-white">
           <Eye className="size-3" /> {video.views !== null ? compact(video.views) : "–"}
