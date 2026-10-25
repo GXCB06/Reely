@@ -15,7 +15,7 @@ const SECTIONS: { key: string; items: NavItem[] }[] = [
       { href: "/app/research/new", key: "newResearch", icon: Sparkles },
       { href: "/app/tracking", key: "tracking", icon: Radar, soon: true },
       { href: "/app/saved", key: "saved", icon: Bookmark },
-      { href: "/app/product", key: "product", icon: Package, soon: true },
+      { href: "/app/product", key: "product", icon: Package },
       { href: "/app/dev-search", key: "devSearch", icon: FlaskConical },
     ],
   },

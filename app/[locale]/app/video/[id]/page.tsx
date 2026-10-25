@@ -10,6 +10,8 @@ import type { VideoRow } from "@/lib/db-mappers";
 import { formatMultiplier, labelFor, reachScore, usualScore } from "@/lib/scoring";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import type { SavedScript } from "./actions";
+import { ScriptPanel } from "./script-panel";
 
 type Scores = { usual: number | null; reach: number | null };
 
@@ -83,9 +85,11 @@ export default async function VideoPage({ params }: PageProps<"/[locale]/app/vid
   const { data: video } = await supabase.from("videos").select("*").eq("id", videoId).maybeSingle<VideoRow>();
   if (!video) notFound();
 
-  const [{ data: creator }, { data: savedRow }] = await Promise.all([
+  const [{ data: creator }, { data: savedRow }, { data: product }, { data: scripts }] = await Promise.all([
     supabase.from("creators").select("usual_views").eq("platform", video.platform).eq("handle", video.creator_handle).maybeSingle(),
     supabase.from("saved_videos").select("video_id").eq("video_id", videoId).maybeSingle(),
+    supabase.from("products").select("name").order("created_at").limit(1).maybeSingle(),
+    supabase.from("scripts").select("id, content, created_at").eq("video_id", videoId).order("created_at", { ascending: false }),
   ]);
   const usualViews = (creator?.usual_views as number | null) ?? null;
   const scores = { usual: usualScore(video.views, usualViews), reach: reachScore(video.views, video.creator_followers) };
@@ -175,6 +179,15 @@ export default async function VideoPage({ params }: PageProps<"/[locale]/app/vid
             >
               <Breakdown video={video} scores={scores} locale={locale} />
             </Suspense>
+          </section>
+
+          <section>
+            <h2 className="mb-3 font-heading text-xl font-bold">{t("makeMyVersion")}</h2>
+            <ScriptPanel
+              videoId={video.id}
+              productName={(product?.name as string | undefined) ?? null}
+              initialScripts={(scripts ?? []) as SavedScript[]}
+            />
           </section>
         </div>
       </div>

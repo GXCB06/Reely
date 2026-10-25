@@ -18,6 +18,29 @@ export const videoAnalysisSchema = z.object({
 });
 export type VideoAnalysis = z.infer<typeof videoAnalysisSchema>;
 
+export const BEAT_LABELS = ["hook", "setup", "demo", "payoff", "cta"] as const;
+
+export const scriptSchema = z.object({
+  title: z.string().describe("Working title for the video, max 8 words"),
+  durationSeconds: z.number().int().min(10).max(90),
+  beats: z
+    .array(
+      z.object({
+        label: z.enum(BEAT_LABELS),
+        time: z.string().describe("Start time like 0:00"),
+        voiceover: z.string().describe("What is said out loud"),
+        onScreen: z.string().describe("Short on-screen text, or empty"),
+        visual: z.string().describe("What the camera shows"),
+      }),
+    )
+    .min(3)
+    .max(6),
+  caption: z.string().describe("Post caption, 1-2 sentences"),
+  hashtags: z.array(z.string()).max(6),
+  borrowed: z.string().describe("One sentence: what structure is borrowed from the original and what is new"),
+});
+export type Script = z.infer<typeof scriptSchema>;
+
 export const runSummarySchema = z.object({
   headline: z.string().describe("Max 10 words, e.g. 'Accounting software videos work on short-form.'"),
   highlight: z.string().describe("One word from the headline to emphasise"),

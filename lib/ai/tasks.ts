@@ -8,6 +8,8 @@ import {
   type ResearchPlan,
   type RunSummary,
   runSummarySchema,
+  type Script,
+  scriptSchema,
   type VideoAnalysis,
   videoAnalysisSchema,
 } from "./schemas";
@@ -79,6 +81,66 @@ export async function analyzeVideo(v: VideoInput, locale: string): Promise<Video
     whyItWorked: th
       ? "นี่คือข้อความตัวอย่าง ใส่ GOOGLE_GENERATIVE_AI_API_KEY ใน .env.local เพื่อให้ AI วิเคราะห์คลิปนี้"
       : "This is sample text. Set GOOGLE_GENERATIVE_AI_API_KEY in .env.local to have AI analyse this video.",
+    source: "sample",
+  };
+}
+
+export type ProductInput = { name: string; url: string | null; description: string | null; audience: string | null };
+type ScriptVideoInput = VideoInput & { hook: string | null; format: string | null; angle: string | null };
+
+/** "Make my version": adapt the structure of an outlier video to the user's product. */
+export async function makeMyVersion(
+  product: ProductInput,
+  v: ScriptVideoInput,
+  locale: string,
+): Promise<Script & { source: "ai" | "sample" }> {
+  const model = getModel();
+  if (model) {
+    try {
+      const { output } = await generateText({
+        model,
+        output: Output.object({ schema: scriptSchema }),
+        prompt: [
+          `Write a short-form video script for the product below, in ${languageName(locale)}.`,
+          "Borrow the STRUCTURE of the reference video (hook style, format, pacing, angle) — never copy its",
+          "words, jokes or footage. Make it filmable by a founder with a phone in one take. 20-45 seconds.",
+          "Beats in order: hook, setup, demo, payoff, cta. Keep the hook under 12 words.",
+          "",
+          `Product: ${product.name}`,
+          product.url ? `Link: ${product.url}` : "",
+          product.description ? `What it does: ${product.description}` : "",
+          product.audience ? `For: ${product.audience}` : "",
+          "",
+          `Reference video by @${v.handle} on ${v.platform}, ${v.views ?? "?"} views` +
+            (v.usual !== null ? ` (${formatMultiplier(v.usual)}x usual)` : ""),
+          v.hook ? `Its hook: ${v.hook}` : "",
+          v.format ? `Its format: ${v.format}` : "",
+          v.angle ? `Its angle: ${v.angle}` : "",
+          `Its caption: ${v.caption.slice(0, 400)}`,
+        ].join("\n"),
+      });
+      return { ...output, source: "ai" };
+    } catch (e) {
+      console.warn("[ai] makeMyVersion failed, using sample", (e as Error).message);
+    }
+  }
+  const th = locale !== "en";
+  const p = product.name;
+  return {
+    title: th ? `${p} ในแบบของคุณ` : `${p}, your version`,
+    durationSeconds: 30,
+    beats: [
+      { label: "hook", time: "0:00", voiceover: th ? `ถ้าคุณยังทำแบบนี้อยู่ ลองดู ${p}` : `Still doing it the hard way? Watch this.`, onScreen: v.hook ?? "", visual: th ? "พูดกับกล้อง ใกล้ ๆ" : "Close-up, talking to camera" },
+      { label: "setup", time: "0:03", voiceover: th ? "ปัญหาที่คนส่วนใหญ่เจอคือ…" : "Here's the problem most people have…", onScreen: "", visual: th ? "โชว์ปัญหา" : "Show the problem" },
+      { label: "demo", time: "0:10", voiceover: th ? `${p} ช่วยให้…` : `${p} makes it…`, onScreen: "", visual: th ? "บันทึกหน้าจอการใช้งาน" : "Screen recording of the product" },
+      { label: "payoff", time: "0:22", voiceover: th ? "ผลลัพธ์คือ…" : "The result…", onScreen: "", visual: th ? "โชว์ผลลัพธ์" : "Show the result" },
+      { label: "cta", time: "0:27", voiceover: th ? "ลองใช้ได้ที่ลิงก์ในโปรไฟล์" : "Try it from the link in bio", onScreen: "", visual: th ? "โลโก้ + ลิงก์" : "Logo + link" },
+    ],
+    caption: th
+      ? "สคริปต์ตัวอย่าง — ใส่ Gemini API key เพื่อให้ AI เขียนสคริปต์จริงจากคลิปนี้"
+      : "Sample script — add a Gemini API key to have AI adapt this video for your product.",
+    hashtags: [],
+    borrowed: th ? "ยืมโครงสร้าง ฮุก → ปัญหา → เดโม → ผลลัพธ์ → CTA" : "Borrowed structure: hook → problem → demo → result → CTA",
     source: "sample",
   };
 }

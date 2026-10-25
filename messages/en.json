@@ -165,11 +165,52 @@
     "cta": "Call to action",
     "whyItWorked": "Likely reason",
     "hypothesisNote": "AI explanation based on the caption and numbers — a hypothesis, not a fact.",
-    "sampleNote": "Sample breakdown — add a Gemini API key to analyse this video."
+    "sampleNote": "Sample breakdown — add a Gemini API key to analyse this video.",
+    "makeMyVersion": "Make my version"
   },
   "saved": {
     "title": "Saved",
     "subtitle": "Your swipe file of videos worth learning from.",
     "empty": "Nothing saved yet. Tap Save on any video."
+  },
+  "product": {
+    "title": "My product",
+    "subtitle": "Tell Reely about your product once. It uses this to turn outlier videos into scripts made for you.",
+    "name": "Product name",
+    "nameHint": "e.g. AccOs Pro",
+    "url": "Website or app link",
+    "urlHint": "Optional. Helps the AI describe your product correctly.",
+    "description": "What it does",
+    "descriptionHint": "One or two sentences: the problem it solves and how.",
+    "audience": "Who it's for",
+    "audienceHint": "e.g. Thai SME owners and accounting offices",
+    "language": "Script language",
+    "languageHint": "The language your audience watches in.",
+    "save": "Save product",
+    "saved": "Product saved",
+    "badUrl": "That link doesn't look right. Include https://",
+    "error": "Couldn't save. Try again."
+  },
+  "script": {
+    "needProduct": "Add your product first, so Reely can adapt this video for you.",
+    "setUpProduct": "Set up my product →",
+    "forProduct": "Adapts this video's structure for {product}.",
+    "make": "Make my version",
+    "again": "Make another version",
+    "copy": "Copy script",
+    "copied": "Script copied",
+    "onScreen": "On screen",
+    "shot": "Shot",
+    "caption": "Caption",
+    "versions": "{n} versions saved for this video.",
+    "error": "Couldn't write the script. Try again.",
+    "sampleNotice": "Gemini key not set yet, so this is a sample script.",
+    "beat": {
+      "hook": "Hook",
+      "setup": "Setup",
+      "demo": "Demo",
+      "payoff": "Payoff",
+      "cta": "CTA"
+    }
   }
 }
