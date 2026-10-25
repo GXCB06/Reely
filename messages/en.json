@@ -30,7 +30,9 @@
     "linkStep2": "If it opens in a different browser, right-click the link, copy it, and paste it below.",
     "pastePlaceholder": "Paste the sign-in link (or code) here",
     "continue": "Continue",
-    "badLink": "That isn't a Reely sign-in link. Copy the whole link from the email, or request a new one."
+    "badLink": "That isn't a Reely sign-in link. Copy the whole link from the email, or request a new one.",
+    "rateLimited": "Too many sign-in emails were sent in the last hour. Use the last email you received, or try again later.",
+    "haveLink": "Already have a sign-in email? Paste its link"
   },
   "home": {
     "title": "Welcome back",

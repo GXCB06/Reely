@@ -47,7 +47,8 @@ export function LoginForm() {
       options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}` },
     });
     setBusy(false);
-    if (error) return setError(t("error"));
+    // 429: Supabase's built-in sender allows only a few emails per hour per project.
+    if (error) return setError(error.status === 429 ? t("rateLimited") : t("error"));
     setStep("link");
   }
 
@@ -88,6 +89,16 @@ export function LoginForm() {
             <Button type="submit" className="w-full rounded-full" disabled={busy}>
               {busy ? t("sending") : t("send")}
             </Button>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setStep("link");
+              }}
+              className="w-full text-center text-sm text-muted-foreground hover:text-foreground"
+            >
+              {t("haveLink")}
+            </button>
           </form>
         ) : (
           <form onSubmit={continueWithPasted} className="space-y-3">
