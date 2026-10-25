@@ -43,7 +43,7 @@ async function Breakdown({ video, scores, locale }: { video: VideoRow; scores: S
     if (!sample) {
       await createAdminClient()
         ?.from("video_analyses")
-        .upsert({ video_id: video.id, locale, model: process.env.GEMINI_MODEL || "gemini-flash-latest", ...a });
+        .upsert({ video_id: video.id, locale, model: process.env.GEMINI_MODEL || "gemini-flash-lite-latest", ...a });
     }
   }
 
