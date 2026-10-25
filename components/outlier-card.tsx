@@ -1,7 +1,9 @@
-import { Eye, Flame, Users } from "lucide-react";
+import { Bookmark, Eye, Flame, Heart, MessageCircle, Share2, Users } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
-import type { ScoredVideo } from "@/lib/search";
+import { SaveButton } from "@/components/save-button";
+import { Link } from "@/i18n/navigation";
 import { formatMultiplier } from "@/lib/scoring";
+import type { ScoredVideo } from "@/lib/search";
 
 const LABEL_STYLE = {
   breakout: "bg-[var(--breakout)] text-white",
@@ -9,46 +11,79 @@ const LABEL_STYLE = {
   normal: "bg-white/90 text-foreground",
 } as const;
 
-function PlatformMark({ platform }: { platform: ScoredVideo["platform"] }) {
-  const name = platform === "tiktok" ? "TikTok" : platform === "youtube" ? "Shorts" : "Reels";
-  return <span className="rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white">{name}</span>;
-}
+const PLATFORM_NAME = { tiktok: "TikTok", youtube: "Shorts", instagram: "Reels" } as const;
 
-export async function OutlierCard({ video }: { video: ScoredVideo }) {
+/** Outlier video card: views + multiplier on top, engagement rail on the right edge, creator and scores below. */
+export async function OutlierCard({
+  video,
+  saved = false,
+  variant = "grid",
+}: {
+  video: ScoredVideo;
+  saved?: boolean;
+  variant?: "grid" | "carousel";
+}) {
   const t = await getTranslations("search");
   const tl = await getTranslations("labels");
   const format = await getFormatter();
   const compact = (n: number) => format.number(n, { notation: "compact", maximumFractionDigits: 1 });
   const headline = video.usual ?? video.reach;
+  const href = video.dbId ? `/app/video/${video.dbId}` : null;
+  const hook = (video.caption.split(/\n|#/)[0] || video.caption).trim();
+
+  const rail = [
+    { icon: Heart, value: video.likes },
+    { icon: MessageCircle, value: video.comments },
+    { icon: Bookmark, value: video.saves },
+    { icon: Share2, value: video.shares },
+  ].filter((r) => r.value !== null);
+
+  const thumb = (
+    <div className="relative aspect-[9/14] overflow-hidden bg-muted">
+      {video.thumbnailUrl && (
+        // Vendor thumbnails are short-lived signed URLs (some HEIC), so skip next/image optimisation.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={video.thumbnailUrl} alt="" loading="lazy" className="size-full object-cover transition group-hover:scale-[1.02]" />
+      )}
+      <div className="absolute inset-x-2 top-2 flex items-center justify-between gap-1">
+        <span className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-xs font-semibold text-white">
+          <Eye className="size-3" /> {video.views !== null ? compact(video.views) : "–"}
+        </span>
+        {headline !== null && (
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${LABEL_STYLE[video.label]}`}
+            title={tl(video.label)}
+          >
+            <Flame className="size-3" /> {formatMultiplier(headline)}×
+          </span>
+        )}
+      </div>
+      {rail.length > 0 && (
+        <div className="absolute right-2 bottom-12 flex flex-col gap-2 rounded-full bg-black/55 px-1.5 py-2 text-[10px] font-semibold text-white">
+          {rail.map(({ icon: Icon, value }, i) => (
+            <span key={i} className="flex flex-col items-center gap-0.5">
+              <Icon className="size-3" />
+              {compact(value!)}
+            </span>
+          ))}
+        </div>
+      )}
+      {variant === "carousel" && hook && (
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-3 pt-10">
+          <p className="line-clamp-2 text-sm font-semibold text-white">“{hook}”</p>
+        </div>
+      )}
+      <span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white">
+        {PLATFORM_NAME[video.platform]}
+      </span>
+    </div>
+  );
 
   return (
-    <article className="group overflow-hidden rounded-2xl border bg-card shadow-sm transition hover:shadow-md">
-      <a href={video.url} target="_blank" rel="noreferrer" className="relative block aspect-[9/14] bg-muted">
-        {video.thumbnailUrl && (
-          // Vendor thumbnails are short-lived signed URLs (some HEIC), so skip next/image optimisation.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={video.thumbnailUrl} alt="" loading="lazy" className="size-full object-cover" />
-        )}
-        <div className="absolute inset-x-2 top-2 flex items-center justify-between gap-1">
-          <span className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-xs font-semibold text-white">
-            <Eye className="size-3" /> {video.views !== null ? compact(video.views) : "–"}
-          </span>
-          {headline !== null && (
-            <span
-              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${LABEL_STYLE[video.label]}`}
-              title={tl(video.label)}
-            >
-              <Flame className="size-3" /> {formatMultiplier(headline)}×
-            </span>
-          )}
-        </div>
-        <div className="absolute bottom-2 left-2">
-          <PlatformMark platform={video.platform} />
-        </div>
-      </a>
-
+    <article className="group overflow-hidden rounded-xl border bg-card shadow-sm transition hover:shadow-md">
+      {href ? <Link href={href}>{thumb}</Link> : <a href={video.url} target="_blank" rel="noreferrer">{thumb}</a>}
       <div className="space-y-1.5 p-3">
-        <p className="line-clamp-2 text-sm leading-snug font-medium">{video.caption || "—"}</p>
+        {variant === "grid" && <p className="line-clamp-2 text-sm leading-snug font-medium">{video.caption || "—"}</p>}
         <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
           <Users className="size-3 shrink-0" />@{video.creatorHandle}
           {video.creatorFollowers !== null && <> · {compact(video.creatorFollowers)} {t("followers")}</>}
@@ -65,6 +100,11 @@ export async function OutlierCard({ video }: { video: ScoredVideo }) {
             </span>
           )}
         </div>
+        {video.dbId && (
+          <div className="flex justify-end pt-1">
+            <SaveButton videoId={video.dbId} initialSaved={saved} />
+          </div>
+        )}
       </div>
     </article>
   );

@@ -2,6 +2,7 @@ import "server-only";
 import { adapters } from "@/lib/adapters";
 import type { NormalizedVideo, Platform } from "@/lib/adapters/types";
 import { getFreshCreator, saveCreator, saveVideos } from "@/lib/cache";
+import { isExcluded } from "@/lib/results";
 import {
   labelFor,
   type OutlierLabel,
@@ -19,6 +20,9 @@ export type ScoredVideo = NormalizedVideo & {
   usual: number | null;
   usualViews: number | null;
   label: OutlierLabel;
+  keyword: string;
+  /** Row id in the shared videos table, when Supabase is configured. */
+  dbId?: number;
 };
 
 export type SearchResult = { videos: ScoredVideo[]; hidden: number; errors: string[] };
@@ -41,23 +45,37 @@ async function creatorBaseline(platform: Platform, handle: string) {
   return { usualViews, recent: posts };
 }
 
-/** Searches one keyword on each platform, filters noise, adds both outlier scores and ranks the results. */
-export async function searchKeyword(keyword: string, platforms: Platform[] = ["tiktok", "youtube"]): Promise<SearchResult> {
+/**
+ * Searches each keyword on each platform (1 page each), drops excluded and noisy videos,
+ * adds both outlier scores for the top creators, saves to the shared cache and ranks the results.
+ */
+export async function searchKeywords(
+  keywords: string[],
+  platforms: Platform[] = ["tiktok", "youtube"],
+  exclusions: string[] = [],
+): Promise<SearchResult> {
   const errors: string[] = [];
-  const found = await Promise.all(
+  const jobs = keywords.flatMap((keyword) =>
     platforms.map(async (p) => {
       try {
-        return await adapters[p]!.searchVideos(keyword);
+        const found = await adapters[p]!.searchVideos(keyword);
+        return found.map((v) => ({ ...v, keyword }));
       } catch (e) {
-        errors.push(`${p}: ${(e as Error).message}`);
+        errors.push(`${p} "${keyword}": ${(e as Error).message}`);
         return [];
       }
     }),
   );
 
-  const all = found.flat();
-  const kept = all.filter((v) => passesNoiseFilter(v.views, v.creatorFollowers));
-  await saveVideos(kept);
+  // Dedupe across keywords: the first keyword that found a video keeps it.
+  const seen = new Set<string>();
+  const all = (await Promise.all(jobs)).flat().filter((v) => {
+    const key = `${v.platform}:${v.platformVideoId}`;
+    return !seen.has(key) && seen.add(key);
+  });
+
+  const kept = all.filter((v) => passesNoiseFilter(v.views, v.creatorFollowers) && !isExcluded(v.caption, exclusions));
+  const dbIds = await saveVideos(kept);
 
   // Usual-views baselines for the top creators (by reach) on each platform.
   const baselines = new Map<string, { usualViews: number | null; recent: { id: string; views: number | null }[] | null }>();
@@ -88,9 +106,21 @@ export async function searchKeyword(keyword: string, platforms: Platform[] = ["t
       const usualViews = base?.recent ? usualViewsExcluding(base.recent, v.platformVideoId) : (base?.usualViews ?? null);
       const reach = reachScore(v.views, v.creatorFollowers);
       const usual = usualScore(v.views, usualViews);
-      return { ...v, reach, usual, usualViews, label: labelFor(usual, reach) };
+      return {
+        ...v,
+        reach,
+        usual,
+        usualViews,
+        label: labelFor(usual, reach),
+        dbId: dbIds.get(`${v.platform}:${v.platformVideoId}`),
+      };
     })
     .sort((a, b) => (b.usual ?? b.reach ?? 0) - (a.usual ?? a.reach ?? 0));
 
   return { videos, hidden: all.length - kept.length, errors };
+}
+
+/** Single-keyword search used by the test page. */
+export function searchKeyword(keyword: string, platforms?: Platform[]) {
+  return searchKeywords([keyword], platforms);
 }

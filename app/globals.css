@@ -88,6 +88,35 @@
   --normal: oklch(0.6 0.02 285);
 }
 
+/* Peekly-style floating chip: white, hairline ring + soft shadow. Used for filters, sort and keywords. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border-radius: 0.5rem;
+  background: white;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.08),
+    0 2px 6px rgb(0 0 0 / 0.08);
+  transition: box-shadow 0.15s, background-color 0.15s;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip:hover {
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.14),
+    0 3px 10px rgb(0 0 0 / 0.1);
+}
+.chip-on {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  box-shadow: 0 0 0 1.5px var(--primary);
+}
+
 /* Lavender header wash used at the top of content panels. */
 .page-wash {
   background: linear-gradient(180deg, oklch(0.93 0.04 295) 0%, oklch(0.985 0.004 290) 100%);

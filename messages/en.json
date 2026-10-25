@@ -27,7 +27,15 @@
   "home": {
     "title": "Welcome back",
     "subtitle": "Find outlier videos in your niche, track competitors, and turn winners into your own scripts.",
-    "cta": "Try a test search"
+    "cta": "New research",
+    "recent": "Recent research",
+    "noRuns": "No research yet. Start one to see what's working in your niche.",
+    "status": {
+      "draft": "Draft",
+      "running": "Running",
+      "failed": "Failed",
+      "done": "Done"
+    }
   },
   "search": {
     "title": "Test search",
@@ -49,5 +57,109 @@
     "breakout": "Breakout",
     "strong": "Strong",
     "normal": "Normal"
+  },
+  "research": {
+    "eyebrow": "New research",
+    "title": "What should Reely look for?",
+    "subtitle": "Describe your niche in a sentence or two. Reely turns it into searches and ranks what's outperforming.",
+    "stepDescribe": "Describe",
+    "stepKeywords": "Keywords",
+    "stepRun": "Run",
+    "describeTitle": "Describe your niche",
+    "describeHint": "Write it however it comes out. Reely will suggest search keywords next.",
+    "briefPlaceholder": "e.g. Online accounting software for Thai SMEs and accounting offices. Find videos about bookkeeping tips, tax deadlines and accounting tools. Avoid stock trading content.",
+    "suggest": "Suggest keywords",
+    "goodBrief": "A good brief covers",
+    "brief": {
+      "topic": "The topic",
+      "topicExample": "e.g. bookkeeping for small shops",
+      "audience": "Who it's for",
+      "audienceExample": "e.g. Thai SME owners",
+      "angle": "The angle",
+      "angleExample": "e.g. quick tips, reviews, tax news",
+      "avoid": "What to avoid",
+      "avoidExample": "e.g. stock trading, crypto"
+    },
+    "searchFor": "Search for",
+    "searchForHint": "Reely runs each selected keyword on every platform you pick. Tap to select up to 5.",
+    "addKeyword": "Add your own keyword",
+    "filterOut": "Filter out",
+    "filterOutHint": "Videos whose caption mentions any of these are dropped before you see them.",
+    "addExclusion": "e.g. crypto",
+    "platform": {
+      "tiktok": "TikTok",
+      "youtube": "YouTube Shorts",
+      "instagramSoon": "Instagram · soon"
+    },
+    "creditEstimate": "Uses about {credits} TikTok credits. YouTube is free.",
+    "back": "Back",
+    "run": "Run research",
+    "runningTitle": "Searching TikTok and YouTube…",
+    "runningHint": "Finding videos, checking each creator's usual views and writing your summary. Usually under a minute.",
+    "sampleNotice": "Gemini key not set yet, so these keywords come from your brief as written.",
+    "errorBrief": "Write at least 10 characters.",
+    "errorRun": "The research couldn't finish. Try again in a moment."
+  },
+  "results": {
+    "back": "All research",
+    "failed": "This research didn't finish. Some results may be missing.",
+    "noSummary": "Results are ready",
+    "sampleSummary": "Sample summary — add a Gemini API key for an AI-written insight.",
+    "tileVideos": "videos found",
+    "tileTopViews": "views on the top video",
+    "tileSmall": "top results from accounts under 10K followers",
+    "tileSmallValue": "{n} of {of}",
+    "topVideos": "Top videos",
+    "topVideosHint": "The 10 biggest outliers",
+    "allVideos": "All videos",
+    "tab": {
+      "all": "All",
+      "tiktok": "TikTok",
+      "youtube": "Shorts",
+      "instagram": "Reels"
+    },
+    "filterBy": "Filter by:",
+    "any": "Any",
+    "minViews": "Min views",
+    "viewsPlus": "{n}+ views",
+    "minOutlier": "Min outlier",
+    "outlierPlus": "{n}×+ usual",
+    "minSaves": "Min saves",
+    "savesPlus": "{n}+ saves",
+    "posted": "Posted",
+    "lastDays": "Last {n} days",
+    "sort": {
+      "outlier": "Biggest outlier",
+      "views": "Most views",
+      "saves": "Most saves",
+      "recent": "Most recent"
+    },
+    "noMatch": "No videos match these filters."
+  },
+  "card": {
+    "save": "Save",
+    "saved": "Saved"
+  },
+  "video": {
+    "back": "Home",
+    "openOriginal": "Open original",
+    "likes": "likes",
+    "comments": "comments",
+    "saves": "saves",
+    "shares": "shares",
+    "breakdown": "Why it worked",
+    "hook": "Hook",
+    "hookType": "Hook type",
+    "format": "Format",
+    "angle": "Angle",
+    "cta": "Call to action",
+    "whyItWorked": "Likely reason",
+    "hypothesisNote": "AI explanation based on the caption and numbers — a hypothesis, not a fact.",
+    "sampleNote": "Sample breakdown — add a Gemini API key to analyse this video."
+  },
+  "saved": {
+    "title": "Saved",
+    "subtitle": "Your swipe file of videos worth learning from.",
+    "empty": "Nothing saved yet. Tap Save on any video."
   }
 }
