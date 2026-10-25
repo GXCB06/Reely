@@ -51,7 +51,10 @@
     "weakPassword": "Use at least {n} characters.",
     "notConfirmed": "This email isn't confirmed yet. Use the link in your confirmation email.",
     "checkEmailToConfirm": "Account created. Check your email to confirm it, then sign in.",
-    "haveLink": "Already have a sign-in email? Paste its link"
+    "haveLink": "Already have a sign-in email? Paste its link",
+    "google": "Continue with Google",
+    "or": "or",
+    "googleError": "Google sign-in isn't set up yet, or was cancelled. Try again or use email."
   },
   "home": {
     "title": "Welcome back",
