@@ -32,6 +32,8 @@ export function Thumb({ src, className = "" }: { src: string | null; className?:
       src={src!}
       alt=""
       loading="lazy"
+      // Instagram's CDN refuses some hotlinked images that send a Referer.
+      referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
       className={`size-full object-cover ${className}`}
     />

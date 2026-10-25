@@ -1,5 +1,7 @@
 import "server-only";
 import { generateText, Output } from "ai";
+import type { LinkPreview } from "@/lib/link-preview";
+import { keywordRegions, type RegionChoice } from "@/lib/region";
 import { formatMultiplier } from "@/lib/scoring";
 import { aiCallOptions, getModel, languageName } from "./model";
 import {
@@ -10,6 +12,8 @@ import {
   runSummarySchema,
   type Script,
   scriptSchema,
+  type Understanding,
+  understandingSchema,
   type VideoAnalysis,
   videoAnalysisSchema,
 } from "./schemas";
@@ -45,6 +49,91 @@ export async function suggestPlan(brief: string): Promise<ResearchPlan & { sourc
     .filter((s) => s.length >= 2);
   const keywords = [...new Set(parts.length ? parts : [brief.trim()])].slice(0, MAX_KEYWORDS).map((k) => k.slice(0, 80));
   return { keywords, exclusions: [], source: "sample" };
+}
+
+export type ProductMessage = {
+  text: string;
+  link: LinkPreview | null;
+  /** Data URL of a resized product screenshot or photo. */
+  image: string | null;
+  region: RegionChoice;
+};
+
+const REGION_RULE: Record<RegionChoice, string> = {
+  th: `All ${MAX_KEYWORDS} phrases in Thai (region "th"), as Thai creators would type them; English product terms are fine inside.`,
+  global: `All ${MAX_KEYWORDS} phrases in English (region "global"), as creators worldwide would type them.`,
+  both: `3 phrases in Thai (region "th") then 2 in English (region "global").`,
+};
+
+/**
+ * Chat home, step 1: reads the user's description, product page and/or image, then plans the search.
+ * Keyword regions are forced to match the region choice, whatever the model returns.
+ */
+export async function understandProduct(
+  msg: ProductMessage,
+  locale: string,
+): Promise<Understanding & { source: "ai" | "sample" }> {
+  const model = getModel();
+  if (model) {
+    try {
+      const prompt = [
+        "You are Reely, a research assistant that finds viral short-form videos (TikTok, YouTube Shorts,",
+        "Instagram Reels) a founder can learn from. Work out what the product is from everything below,",
+        `then plan the search. Write productName, whatItIs, audience and reply in ${languageName(locale)}.`,
+        `Keywords: up to ${MAX_KEYWORDS} search phrases, 2-4 words each, that people actually type or use as hashtags:`,
+        "mix the product category, the problem it solves and the audience's everyday topics, so results include",
+        "similar products AND content the same audience watches. " + REGION_RULE[msg.region],
+        "Exclusions: single words that would bring off-topic videos.",
+        "",
+        msg.text ? `The user wrote:
+${msg.text}` : "The user wrote nothing; rely on the link and/or image.",
+        msg.link
+          ? `
+Their product page (${msg.link.url}):
+Title: ${msg.link.title ?? ""}
+Description: ${msg.link.description ?? ""}
+Text: ${msg.link.text.slice(0, 2000)}`
+          : "",
+        msg.image ? "\nThey also attached an image of the product (below)." : "",
+      ].join("\n");
+      const imageData = msg.image?.split(",")[1];
+      const mediaType = msg.image?.match(/^data:([^;]+);/)?.[1] ?? "image/jpeg";
+      const { output } = await generateText({
+        ...aiCallOptions(),
+        model,
+        output: Output.object({ schema: understandingSchema }),
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              ...(imageData ? [{ type: "file" as const, mediaType, data: imageData }] : []),
+            ],
+          },
+        ],
+      });
+      const regions = keywordRegions(msg.region, output.keywords.length);
+      return { ...output, keywords: output.keywords.map((k, i) => ({ ...k, region: regions[i] })), source: "ai" };
+    } catch (e) {
+      console.warn("[ai] understandProduct failed, using sample", (e as Error).message);
+    }
+  }
+  const th = locale !== "en";
+  const base = msg.text || msg.link?.title || (th ? "สินค้าของคุณ" : "your product");
+  const plan = await suggestPlan(base.length >= 2 ? base : `${base} product`);
+  const regions = keywordRegions(msg.region, plan.keywords.length);
+  const name = (msg.link?.title ?? msg.text).split(/[|\-–—\n,]/)[0].trim().slice(0, 80) || (th ? "สินค้าของคุณ" : "Your product");
+  return {
+    productName: name,
+    whatItIs: msg.link?.description ?? msg.text.slice(0, 300),
+    audience: "",
+    reply: th
+      ? "นี่คือคีย์เวิร์ดตัวอย่าง (ยังไม่ได้ใช้ AI) แก้ไขได้ก่อนกดค้นหา"
+      : "These are sample keywords (AI is off). Edit them before you search.",
+    keywords: plan.keywords.map((text, i) => ({ text, region: regions[i] })),
+    exclusions: plan.exclusions,
+    source: "sample",
+  };
 }
 
 type VideoInput = { caption: string; views: number | null; usual: number | null; reach: number | null; handle: string; platform: string };

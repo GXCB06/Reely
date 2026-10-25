@@ -1,6 +1,8 @@
-import { ArrowLeft } from "lucide-react";
+import { Globe, PenLine, Radar, RotateCcw } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
+import { ReelyBubble, UserBubble } from "@/components/chat/research-chat";
+import { RegionIcon } from "@/components/chat/region-flag";
 import { OutlierCard } from "@/components/outlier-card";
 import { FilterBar } from "@/components/results/filter-bar";
 import { InsightCard } from "@/components/results/insight-card";
@@ -9,6 +11,7 @@ import { Link } from "@/i18n/navigation";
 import type { RunSummary } from "@/lib/ai/schemas";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
 import { applyFilters, outlierOf, parseFilters, type PlatformTab } from "@/lib/results";
+import type { RegionChoice } from "@/lib/region";
 import type { ScoredVideo } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
 
@@ -17,12 +20,13 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   setRequestLocale(locale);
   const sp = await searchParams;
   const t = await getTranslations("results");
+  const tc = await getTranslations("chat");
   const format = await getFormatter();
   const supabase = await createClient();
 
   const { data: run } = await supabase
     .from("research_runs")
-    .select("id, brief, keywords, exclusions, platforms, status, error, summary, created_at")
+    .select("id, brief, keywords, keyword_regions, exclusions, platforms, region, input, status, error, summary, created_at")
     .eq("id", id)
     .maybeSingle();
   if (!run) notFound();
@@ -45,30 +49,38 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
     all: all.length,
     tiktok: all.filter((v) => v.platform === "tiktok").length,
     youtube: all.filter((v) => v.platform === "youtube").length,
-    instagram: 0,
+    instagram: all.filter((v) => v.platform === "instagram").length,
   };
+  const input = run.input as { text?: string; url?: string | null; imageThumb?: string | null; reply?: string; productName?: string } | null;
+  const region = (run.region as RegionChoice | null) ?? "th";
+  const keywordRegions = (run.keyword_regions as ("th" | "global")[] | null) ?? [];
+  const lead = top[0];
+  const again = (r: RegionChoice) =>
+    `/app?${new URLSearchParams({ q: [input?.text, input?.url].filter(Boolean).join(" ") || run.brief, region: r, go: "1" })}`;
   const flatParams = Object.fromEntries(
     Object.entries(sp).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]),
   ) as Record<string, string | undefined>;
 
   return (
     <div>
-      <header className="page-wash px-10 pt-8 pb-6">
-        <Link href="/app" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" /> {t("back")}
-        </Link>
-        <p className="mt-4 max-w-3xl text-lg font-medium">{run.brief}</p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {(run.keywords as string[]).map((k) => (
-            <span key={k} className="chip chip-on pointer-events-none">
-              {k}
-            </span>
-          ))}
-          <span className="text-xs text-muted-foreground">
+      <div className="mx-auto max-w-3xl space-y-6 px-6 pt-8 pb-6">
+        <UserBubble text={input?.text ?? run.brief} link={input?.url ?? null} thumb={input?.imageThumb ?? null} />
+        <ReelyBubble>
+          {input?.reply && <p className="mb-3 leading-relaxed">{input.reply}</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            {(run.keywords as string[]).map((k, i) => (
+              <span key={k} className="chip chip-on pointer-events-none">
+                <RegionIcon region={keywordRegions[i] ?? region} /> {k}
+              </span>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            {(run.platforms as ("tiktok" | "youtube" | "instagram")[]).map((p) => tc(`platform.${p}`)).join(" · ")} ·{" "}
+            <RegionIcon region={region} /> {tc(`region.${region}`)} ·{" "}
             {format.dateTime(new Date(run.created_at), { dateStyle: "medium", timeStyle: "short" })}
-          </span>
-        </div>
-      </header>
+          </p>
+        </ReelyBubble>
+      </div>
 
       <div className="space-y-8 px-10 pb-16">
         {run.status === "failed" && <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{t("failed")}</p>}
@@ -111,6 +123,39 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
             </div>
           )}
         </section>
+
+        {run.status !== "running" && (
+          <section className="mx-auto max-w-3xl">
+            <ReelyBubble>
+              <p className="mb-3 text-sm font-semibold">{t("nextTitle")}</p>
+              <div className="flex flex-wrap gap-2">
+                {lead?.dbId && (
+                  <Link href={`/app/video/${lead.dbId}`} className="chip">
+                    <PenLine className="size-3.5" /> {t("nextScript", { handle: lead.creatorHandle })}
+                  </Link>
+                )}
+                {lead && lead.platform !== "instagram" && lead.dbId && (
+                  <Link href={`/app/video/${lead.dbId}`} className="chip">
+                    <Radar className="size-3.5" /> {t("nextTrack", { handle: lead.creatorHandle })}
+                  </Link>
+                )}
+                {region !== "global" && (
+                  <Link href={again("global")} className="chip">
+                    <Globe className="size-3.5" /> {t("nextWorldwide")}
+                  </Link>
+                )}
+                {region !== "th" && (
+                  <Link href={again("th")} className="chip">
+                    <RegionIcon region="th" /> {t("nextThailand")}
+                  </Link>
+                )}
+                <Link href={`/app?${new URLSearchParams({ q: input?.text || run.brief })}`} className="chip">
+                  <RotateCcw className="size-3.5" /> {t("nextEdit")}
+                </Link>
+              </div>
+            </ReelyBubble>
+          </section>
+        )}
       </div>
     </div>
   );

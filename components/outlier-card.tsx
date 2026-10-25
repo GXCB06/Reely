@@ -3,6 +3,8 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { SaveButton } from "@/components/save-button";
 import { Thumb } from "@/components/thumb";
 import { Link } from "@/i18n/navigation";
+import { RegionIcon } from "@/components/chat/region-flag";
+import { looksThai } from "@/lib/region";
 import { formatMultiplier } from "@/lib/scoring";
 import type { ScoredVideo } from "@/lib/search";
 
@@ -31,6 +33,8 @@ export async function OutlierCard({
   const headline = video.usual ?? video.reach;
   const href = video.dbId ? `/app/video/${video.dbId}` : null;
   const hook = (video.caption.split(/\n|#/)[0] || video.caption).trim();
+  // Caption language as a quick hint of where the video is from.
+  const flag = video.caption ? <RegionIcon region={looksThai(video.caption) ? "th" : "global"} /> : null;
 
   const rail = [
     { icon: Heart, value: video.likes },
@@ -82,7 +86,7 @@ export async function OutlierCard({
       )}
       {variant === "grid" && (
         <span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white">
-          {PLATFORM_NAME[video.platform]}
+          {PLATFORM_NAME[video.platform]} {flag}
         </span>
       )}
     </div>
@@ -96,7 +100,7 @@ export async function OutlierCard({
         <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
           <Users className="size-3 shrink-0" />@{video.creatorHandle}
           {video.creatorFollowers !== null && <> · {compact(video.creatorFollowers)} {t("followers")}</>}
-          {variant === "carousel" && <> · {PLATFORM_NAME[video.platform]}</>}
+          {variant === "carousel" && <> · {PLATFORM_NAME[video.platform]} {flag}</>}
         </p>
         <div className="flex flex-wrap gap-1.5 pt-1 text-[11px]">
           {video.usual !== null && video.usualViews !== null && (

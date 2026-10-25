@@ -82,7 +82,7 @@ async function loadVideosWithChannels(ids: string[]) {
 export const youtubeAdapter: PlatformAdapter = {
   platform: "youtube",
 
-  async searchVideos(keyword) {
+  async searchVideos(keyword, opts) {
     type Res = { items?: { id: { videoId: string } }[] };
     const sixMonthsAgo = new Date(Date.now() - 182 * 864e5).toISOString();
     const data = fixturesEnabled()
@@ -94,6 +94,7 @@ export const youtubeAdapter: PlatformAdapter = {
           maxResults: "25",
           publishedAfter: sixMonthsAgo,
           q: keyword,
+          ...(opts?.region === "global" ? { relevanceLanguage: "en" } : { regionCode: "TH", relevanceLanguage: "th" }),
         });
     return loadVideosWithChannels((data?.items ?? []).map((i) => i.id.videoId));
   },

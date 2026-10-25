@@ -8,6 +8,25 @@ export const planSchema = z.object({
 });
 export type ResearchPlan = z.infer<typeof planSchema>;
 
+/** Chat home: what Reely understood from the user's text, link and/or image, plus the search plan. */
+export const understandingSchema = z.object({
+  productName: z.string().min(1).max(80).describe("The product or brand name; a short descriptive name if none is given"),
+  whatItIs: z.string().max(300).describe("One sentence: what the product does"),
+  audience: z.string().max(200).describe("Who it is for, a few words"),
+  reply: z.string().max(400).describe("1-2 friendly sentences to the user: what you understood and what videos you will look for"),
+  keywords: z
+    .array(
+      z.object({
+        text: z.string().min(2).max(80),
+        region: z.enum(["th", "global"]).describe("th = a Thai-language phrase; global = an English phrase"),
+      }),
+    )
+    .min(1)
+    .max(MAX_KEYWORDS),
+  exclusions: z.array(z.string().min(2).max(40)).max(10),
+});
+export type Understanding = z.infer<typeof understandingSchema>;
+
 export const videoAnalysisSchema = z.object({
   hook: z.string().describe("The opening line or on-screen hook, quoted or closely paraphrased from the caption"),
   hookType: z.string().describe("Short label, e.g. question, bold claim, POV, problem callout, list, story, how-to"),

@@ -1,7 +1,8 @@
 import { setRequestLocale } from "next-intl/server";
-import { Sidebar } from "@/components/shell/sidebar";
+import { type RecentRun, Sidebar } from "@/components/shell/sidebar";
 import { redirect } from "@/i18n/navigation";
 import { isSupabaseConfigured } from "@/lib/env";
+import type { RegionChoice } from "@/lib/region";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function AppLayout({ children, params }: LayoutProps<"/[locale]/app">) {
@@ -9,10 +10,24 @@ export default async function AppLayout({ children, params }: LayoutProps<"/[loc
   setRequestLocale(locale);
 
   let email: string | null = null;
+  let recent: RecentRun[] = [];
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
     const { data } = await supabase.auth.getClaims();
     email = (data?.claims?.email as string | undefined) ?? null;
+    if (email) {
+      const { data: runs } = await supabase
+        .from("research_runs")
+        .select("id, title, brief, region, status")
+        .order("created_at", { ascending: false })
+        .limit(30);
+      recent = (runs ?? []).map((r) => ({
+        id: r.id as string,
+        title: ((r.title as string | null) || (r.brief as string)).slice(0, 60),
+        region: (r.region as RegionChoice | null) ?? "th",
+        running: r.status === "running",
+      }));
+    }
   }
 
   async function signOut() {
@@ -24,7 +39,7 @@ export default async function AppLayout({ children, params }: LayoutProps<"/[loc
 
   return (
     <div className="flex min-h-dvh items-start bg-sidebar">
-      <Sidebar email={email} onSignOut={email ? signOut : undefined} />
+      <Sidebar email={email} recent={recent} onSignOut={email ? signOut : undefined} />
       <main className="my-2 mr-2 flex-1 overflow-hidden rounded-3xl bg-background">
         {!isSupabaseConfigured() && (
           <p className="bg-amber-100 px-6 py-2 text-xs text-amber-900">

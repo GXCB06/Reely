@@ -56,7 +56,9 @@ export function passesNoiseFilter(
   return true;
 }
 
-/** 83.04 → "83", 6.53 → "6.5" */
+/** 83.04 → "83", 6.53 → "6.5", 0.004 → "<0.1" */
 export function formatMultiplier(x: number): string {
+  // Tiny ratios (e.g. views ÷ a huge follower count) would round to a misleading "0".
+  if (x > 0 && x < 0.1) return "<0.1";
   return x >= 10 ? Math.round(x).toString() : (Math.round(x * 10) / 10).toString();
 }

@@ -70,7 +70,7 @@ function toVideo(a: Aweme): NormalizedVideo {
 export const tiktokAdapter: PlatformAdapter = {
   platform: "tiktok",
 
-  async searchVideos(keyword) {
+  async searchVideos(keyword, opts) {
     type Res = { search_item_list?: (Aweme & { aweme_info?: Aweme })[] };
     const data = fixturesEnabled()
       ? await readFixture<Res>("tiktok-search")
@@ -78,6 +78,8 @@ export const tiktokAdapter: PlatformAdapter = {
           query: keyword,
           date_posted: "last-6-months",
           trim: "true",
+          // Sets where the search runs from (not a hard filter): Thai results from TH, worldwide from US.
+          region: opts?.region === "global" ? "US" : "TH",
         });
     return (data?.search_item_list ?? []).map((item) => toVideo(item.aweme_info ?? item));
   },

@@ -19,7 +19,7 @@ and turn them into a script for their own product**, then keep an eye on competi
 
 | # | Feature | What the user does | Done when |
 |---|---|---|---|
-| 1 | **Find outliers** | Writes a brief → AI suggests 5 keywords + exclusions → edits → runs. Sees a grid of videos from YouTube Shorts and TikTok ranked by outlier score, with filters (platform, date, score) | A run for "AI accounting software for Thai SMEs" returns ranked, relevant videos in under 60 s |
+| 1 | **Find outliers** | On the chat Home, describes the product, pastes its link and/or adds an image, and picks a region (Thailand / Worldwide / Both) → Reely replies with what it understood + up to 5 keywords and exclusions → edits → "Find videos". Sees a grid of TikTok, YouTube Shorts and (optional) Instagram Reels ranked by outlier score, with filters (platform, date, score) and follow-up buttons | A run for "AI accounting software for Thai SMEs" returns ranked, relevant videos in under 60 s |
 | 2 | **Track competitors** | Adds a handle (TikTok, YouTube; Instagram on Day 5) → sees recent posts, the account's usual views, and flagged breakouts. Refresh happens when the page is opened (max once/day) | FlowAccount's ~41K-view video is flagged as a breakout against its ~500 usual views |
 | 3 | **Make my version** | Opens a video → sees AI breakdown (hook, format, angle, CTA, why it may have worked) → clicks "Make my version" → gets a script for their product | Script has hook / setup / demo / payoff / CTA, in the user's language |
 
@@ -28,8 +28,8 @@ Thai/English switch.
 
 ## 3. Not in the MVP
 
-Copilot chat · automatic alerts (LINE/Telegram) · content trends, hashtags, sounds · Meta ads in-app
-(link out to Meta Ad Library only) · Facebook organic · Instagram keyword search · PDF reports · teams ·
+Open-ended Copilot chat (the Home chat only runs the research flow) · bring-your-own AI keys · automatic alerts (LINE/Telegram) · content trends, hashtags, sounds · Meta ads in-app
+(link out to Meta Ad Library only) · Facebook organic · Instagram tracking · PDF reports · teams ·
 billing · onboarding tour · mobile app.
 
 ## 4. Screens and routes
@@ -39,10 +39,10 @@ All routes live under `/[locale]` (`th` default, `en`).
 | Screen | Route | Contents |
 |---|---|---|
 | Sign in | `/login` | Email magic link (Supabase) |
-| Home | `/app` | Recent research runs, tracked accounts summary, "New research" button |
+| Home (chat) | `/app` | "What are you building?" composer: text, link (read server-side), image (read by Gemini), region chips, platform chips → Reely's understanding + editable keywords → run. `?q=&region=&go=1` pre-fills and sends |
 | Product profile | `/app/product` | Name, link, description, audience, language |
-| New research | `/app/research/new` | Brief textarea → "Suggest plan" → editable keyword chips (max 5) + exclusion chips + platform toggles → "Run" |
-| Research results | `/app/research/[id]` | Outlier grid (thumbnail, views, followers, date, both scores, platform icon), filters, sort |
+| New research | `/app/research/new` | Redirects to the chat Home |
+| Research results | `/app/research/[id]` | Chat thread (the user's message, Reely's reply + keywords with region icons), then the outlier grid (thumbnail, views, followers, date, both scores, platform icon), filters, sort |
 | Video detail | `/app/video/[id]` | Embed/link, metrics, AI breakdown, "Make my version", save |
 | Tracking | `/app/tracking` | Tracked accounts list, add handle |
 | Account detail | `/app/tracking/[platform]/[handle]` | Usual views, recent posts, breakouts highlighted |
@@ -72,14 +72,14 @@ copy Virlo's name, logo, wording or assets.
 | YouTube Shorts | YouTube Data API v3 (official, free, 10,000 units/day) | Search, video stats, channel stats |
 | TikTok | ScrapeCreators (free credits: 100 + up to ~7,000 bonus) | Search (if supported), profile, profile videos, transcript |
 | TikTok backup | Apify free plan (~$5 credit/month) | Only if ScrapeCreators fails |
-| Instagram (Day 5) | Meta Instagram Graph API — Business Discovery (official, free) | Tracking business/creator accounts (likes/comments; views may be missing) |
+| Instagram Reels | ScrapeCreators (same credits as TikTok), **off by default** | Reels search (Google-indexed, best-effort, 10 per page, no follower counts) + one page of a creator's reels (~12, play counts) as the usual-views baseline |
 
 Each source sits behind an **adapter** with one shared interface (see CLAUDE.md), so a vendor can be
 replaced by rewriting one file.
 
 ### Cost-saving rules (mandatory)
 
-1. Only TikTok uses paid calls. YouTube and Instagram are free.
+1. Only TikTok and Instagram (both ScrapeCreators) use paid calls; Instagram is off unless the user turns it on. YouTube is free.
 2. Max **5 keywords** per run, **1 page** per keyword per platform.
 3. Usual-views lookup only for the **top 5 creators** per run.
 4. **24-hour shared cache** for creators and videos (all users share it).

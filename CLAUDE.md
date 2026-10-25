@@ -2,18 +2,19 @@
 
 # CLAUDE.md — Reely
 
-Short-form content research tool (YouTube Shorts, TikTok; Instagram later) for Thai founders and
-small teams. Users find outlier videos, track competitors, and turn videos into scripts for their
-own product. Full product spec: `docs/SPEC.md`. Read it before planning any feature.
+Short-form content research tool (TikTok, YouTube Shorts, Instagram Reels) for Thai founders and
+small teams. Home is a chat: the user describes the product (text, link and/or image), picks a region
+(Thailand / Worldwide / Both), and Reely plans keywords and finds outlier videos. Users also track
+competitors and turn videos into scripts for their own product. Full product spec: `docs/SPEC.md`. Read it before planning any feature.
 
 ## Stack
 
 - **Next.js 16** (App Router) + TypeScript (strict) + Tailwind v4 + shadcn/ui (Base UI flavour).
   Next 16 differs from older versions: read `node_modules/next/dist/docs/` before using an API.
   Request interception lives in `proxy.ts` (the old `middleware.ts` name is deprecated).
-- Supabase: Postgres, Auth (email magic link), Row Level Security — via `@supabase/ssr`
+- Supabase: Postgres, Auth (Google OAuth, email + password), Row Level Security — via `@supabase/ssr`
 - next-intl v4: locales `th` (default) and `en`; all pages under `app/[locale]/`
-- Gemini Flash via the Vercel AI SDK (Day 2); zod for every structured AI output
+- Gemini Flash-Lite via the Vercel AI SDK (reads text, product pages and images); zod for every structured AI output
 - Hosting: Vercel Hobby. Package manager: **npm**
 
 ## Commands
@@ -32,10 +33,13 @@ app/auth/callback             # magic-link landing (outside the locale segment)
 components/ui/                # shadcn components (generated — don't hand-edit)
 components/shell/             # sidebar, logo
 components/                   # app components (OutlierCard, ...)
-lib/adapters/                 # types.ts, youtube.ts, tiktok-scrapecreators.ts, index.ts, fixtures.ts
+lib/adapters/                 # types.ts, youtube.ts, tiktok-scrapecreators.ts, instagram-scrapecreators.ts, index.ts, fixtures.ts
 lib/adapters/__fixtures__/    # real vendor responses saved on Day 0 (used when USE_FIXTURES=true)
 lib/scoring.ts                # reach score, usual-views score, labels, noise filter (+ scoring.test.ts)
-lib/search.ts                 # keyword → adapters → noise filter → baselines → ranked results
+lib/search.ts                 # keywords (with region) → adapters → noise filter → baselines → ranked results
+lib/region.ts                 # Thailand / Worldwide / Both → keyword regions; Thai-caption check
+lib/link-preview.ts           # reads a pasted product link (blocks private addresses — keep that check)
+components/chat/              # chat Home (ResearchChat), bubbles, region icons
 lib/cache.ts                  # 24-hour shared cache (creators, videos)
 lib/usage.ts                  # api_usage logging
 lib/supabase/                 # server.ts, client.ts, admin.ts (service role, server only)
@@ -50,12 +54,13 @@ docs/                         # SPEC.md, DAY0.md, reports/
 ## Adapter interface (do not change without asking)
 
 Defined in `lib/adapters/types.ts`: `NormalizedVideo`, `NormalizedCreator`, `PlatformAdapter`
-(`searchVideos`, `getCreator`, `getCreatorVideos`, optional `getTranscript`).
+(`searchVideos(keyword, { region })`, `getCreator`, `getCreatorVideos`, optional `getTranscript`).
 The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor APIs directly.
 
 ## Cost rules (mandatory — this project must stay free)
 
-1. Only the TikTok adapter makes paid calls. Never add another paid provider without asking.
+1. Only the TikTok and Instagram adapters (ScrapeCreators) make paid calls. Instagram is off by default
+   in the composer. Never add another paid provider without asking.
 2. Max 5 keywords per run, 1 page per keyword per platform.
 3. Usual-views lookups only for the top 5 creators per platform in a run, and for tracked accounts.
 4. Before any external call, check the 24-hour cache (`lib/cache.ts`).
@@ -67,6 +72,8 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 9. TikTok (ScrapeCreators) call parameters: search always `trim=true&date_posted=last-6-months`;
    profile videos always `trim=true&include_pinned=false`, max 2 pages for a baseline.
 10. Never call `/v1/tiktok/user/audience` (26 credits) or transcripts with `use_ai_as_fallback`.
+11. Instagram: search `/v2/instagram/reels/search` (1 page, `date_posted=last-year`); baseline = one page
+    of `/v1/instagram/user/reels` (`trim=true`). No profile calls (search has no follower counts).
 
 ## Security rules
 
@@ -102,4 +109,5 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 
 - Copy Virlo's or Peekly's name, logo, wording, or assets.
 - Use Virlo's API (its terms forbid competing products).
-- Build billing, teams, Copilot chat, alerts, or anything listed in docs/SPEC.md §3.
+- Build billing, teams, an open-ended Copilot chat (the Home chat only runs the research flow),
+  bring-your-own AI keys, alerts, or anything listed in docs/SPEC.md §3.

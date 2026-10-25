@@ -4,17 +4,16 @@
     "tagline": "Find the short videos worth copying"
   },
   "nav": {
-    "overview": "Overview",
-    "home": "Home",
-    "research": "Research",
     "newResearch": "New research",
     "tracking": "Tracking",
     "saved": "Saved",
+    "recent": "Recent",
+    "noRecent": "Your research chats will show here.",
     "product": "My product",
-    "devSearch": "Test search",
-    "signOut": "Sign out",
     "language": "ภาษาไทย",
-    "account": "Account"
+    "account": "Account",
+    "signOut": "Sign out",
+    "menu": "Account menu"
   },
   "login": {
     "title": "Sign in to Reely",
@@ -56,18 +55,70 @@
     "or": "or",
     "googleError": "Google sign-in isn't set up yet, or was cancelled. Try again or use email."
   },
-  "home": {
-    "title": "Welcome back",
-    "subtitle": "Find outlier videos in your niche, track competitors, and turn winners into your own scripts.",
-    "cta": "New research",
-    "recent": "Recent research",
-    "noRuns": "No research yet. Start one to see what's working in your niche.",
-    "status": {
-      "draft": "Draft",
-      "running": "Running",
-      "failed": "Failed",
-      "done": "Done"
-    }
+  "chat": {
+    "greeting": "What are you building?",
+    "subtitle": "Describe your product, paste its link or add a screenshot. Reely finds short videos that went viral for products like yours.",
+    "placeholder": "e.g. AI accounting app for Thai SMEs — or paste your website",
+    "attach": "Add a product image",
+    "removeImage": "Remove image",
+    "linkDetected": "Reely will read {host}",
+    "send": "Send",
+    "region": {
+      "th": "Thailand",
+      "global": "Worldwide",
+      "both": "Both"
+    },
+    "regionHint": {
+      "th": "Thai keywords, searched from Thailand",
+      "global": "English keywords, creators worldwide",
+      "both": "3 Thai + 2 English keywords"
+    },
+    "platform": {
+      "tiktok": "TikTok",
+      "youtube": "Shorts",
+      "instagram": "Reels"
+    },
+    "instagramHint": "Reels search is best-effort and costs credits, so it is off by default.",
+    "suggestions": {
+      "s1": "AI accounting app for Thai SMEs and accounting offices",
+      "s2": "Windows AI agent that automates tasks for developers",
+      "s3": "Skincare brand for Thai teens with acne"
+    },
+    "thinking": {
+      "link": "Reading your link…",
+      "image": "Looking at your image…",
+      "text": "Understanding your product…"
+    },
+    "linkFailed": "Couldn’t open that link, so I used your text instead.",
+    "understood": "What I understood",
+    "product": "Product",
+    "audience": "For",
+    "searchFor": "I’ll search for",
+    "keywordsHint": "Tap to turn a keyword off. Up to 5.",
+    "addKeyword": "Add a keyword",
+    "filterOut": "Filter out",
+    "addExclusion": "Add a word to filter out",
+    "searchOn": "On",
+    "credits": "About {credits} credits",
+    "free": "Free (YouTube only)",
+    "find": "Find videos",
+    "changeRegion": "Switch region",
+    "running": {
+      "title": "Finding videos…",
+      "s1": "Searching {platforms}",
+      "s2": "Checking each creator’s usual views",
+      "s3": "Scoring outliers",
+      "s4": "Writing your summary"
+    },
+    "runningHint": "Usually under a minute.",
+    "sampleNotice": "AI is off (no Gemini key), so these keywords are a rough guess.",
+    "errorEmpty": "Write a few words, paste a link or add an image.",
+    "errorImage": "That image couldn’t be read. Try a JPG or PNG under 10 MB.",
+    "errorUnderstand": "Something went wrong. Try again.",
+    "errorRun": "The research couldn’t finish. Try again in a moment.",
+    "retry": "Try again",
+    "you": "You",
+    "reely": "Reely"
   },
   "search": {
     "title": "Test search",
@@ -91,48 +142,6 @@
     "breakout": "Breakout",
     "strong": "Strong",
     "normal": "Normal"
-  },
-  "research": {
-    "eyebrow": "New research",
-    "title": "What should Reely look for?",
-    "subtitle": "Describe your niche in a sentence or two. Reely turns it into searches and ranks what's outperforming.",
-    "stepDescribe": "Describe",
-    "stepKeywords": "Keywords",
-    "stepRun": "Run",
-    "describeTitle": "Describe your niche",
-    "describeHint": "Write it however it comes out. Reely will suggest search keywords next.",
-    "briefPlaceholder": "e.g. Online accounting software for Thai SMEs and accounting offices. Find videos about bookkeeping tips, tax deadlines and accounting tools. Avoid stock trading content.",
-    "suggest": "Suggest keywords",
-    "goodBrief": "A good brief covers",
-    "brief": {
-      "topic": "The topic",
-      "topicExample": "e.g. bookkeeping for small shops",
-      "audience": "Who it's for",
-      "audienceExample": "e.g. Thai SME owners",
-      "angle": "The angle",
-      "angleExample": "e.g. quick tips, reviews, tax news",
-      "avoid": "What to avoid",
-      "avoidExample": "e.g. stock trading, crypto"
-    },
-    "searchFor": "Search for",
-    "searchForHint": "Reely runs each selected keyword on every platform you pick. Tap to select up to 5.",
-    "addKeyword": "Add your own keyword",
-    "filterOut": "Filter out",
-    "filterOutHint": "Videos whose caption mentions any of these are dropped before you see them.",
-    "addExclusion": "e.g. crypto",
-    "platform": {
-      "tiktok": "TikTok",
-      "youtube": "YouTube Shorts",
-      "instagramSoon": "Instagram · soon"
-    },
-    "creditEstimate": "Uses about {credits} TikTok credits. YouTube is free.",
-    "back": "Back",
-    "run": "Run research",
-    "runningTitle": "Searching TikTok and YouTube…",
-    "runningHint": "Finding videos, checking each creator's usual views and writing your summary. Usually under a minute.",
-    "sampleNotice": "Gemini key not set yet, so these keywords come from your brief as written.",
-    "errorBrief": "Write at least 10 characters.",
-    "errorRun": "The research couldn't finish. Try again in a moment."
   },
   "results": {
     "back": "All research",
@@ -168,7 +177,13 @@
       "saves": "Most saves",
       "recent": "Most recent"
     },
-    "noMatch": "No videos match these filters."
+    "noMatch": "No videos match these filters.",
+    "nextTitle": "What next?",
+    "nextScript": "Write my version of @{handle}’s video",
+    "nextTrack": "Track @{handle}",
+    "nextWorldwide": "Search worldwide instead",
+    "nextThailand": "Search Thailand instead",
+    "nextEdit": "Edit my request"
   },
   "card": {
     "save": "Save",

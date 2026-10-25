@@ -1,6 +1,6 @@
 import "server-only";
 import { adapters } from "@/lib/adapters";
-import type { NormalizedVideo, Platform } from "@/lib/adapters/types";
+import type { NormalizedVideo, Platform, SearchRegion } from "@/lib/adapters/types";
 import { getFreshCreator, saveCreator, saveVideos } from "@/lib/cache";
 import { isExcluded } from "@/lib/results";
 import {
@@ -26,12 +26,13 @@ export type ScoredVideo = NormalizedVideo & {
 };
 
 export type SearchResult = { videos: ScoredVideo[]; hidden: number; errors: string[] };
+export type KeywordQuery = { text: string; region: SearchRegion };
 
 async function creatorBaseline(platform: Platform, handle: string) {
   const cached = await getFreshCreator(platform, handle);
   if (cached?.usualViews) return { usualViews: cached.usualViews, recent: null };
 
-  const recent = await adapters[platform]!.getCreatorVideos(handle);
+  const recent = await adapters[platform].getCreatorVideos(handle);
   const posts = recent.map((v) => ({ id: v.platformVideoId, views: v.views }));
   const usualViews = usualViewsExcluding(posts);
   if (recent.length) {
@@ -52,15 +53,15 @@ async function creatorBaseline(platform: Platform, handle: string) {
  * adds both outlier scores for the top creators, saves to the shared cache and ranks the results.
  */
 export async function searchKeywords(
-  keywords: string[],
+  keywords: KeywordQuery[],
   platforms: Platform[] = ["tiktok", "youtube"],
   exclusions: string[] = [],
 ): Promise<SearchResult> {
   const errors: string[] = [];
-  const jobs = keywords.flatMap((keyword) =>
+  const jobs = keywords.flatMap(({ text: keyword, region }) =>
     platforms.map(async (p) => {
       try {
-        const found = await adapters[p]!.searchVideos(keyword);
+        const found = await adapters[p].searchVideos(keyword, { region });
         return found.map((v) => ({ ...v, keyword }));
       } catch (e) {
         errors.push(`${p} "${keyword}": ${(e as Error).message}`);
@@ -79,14 +80,18 @@ export async function searchKeywords(
   const kept = all.filter((v) => passesNoiseFilter(v.views, v.creatorFollowers) && !isExcluded(v.caption, exclusions));
   const dbIds = await saveVideos(kept);
 
-  // Usual-views baselines for the top creators (by reach) on each platform.
+  // Usual-views baselines for the top creators (by reach, or by views where followers are unknown, as on Instagram).
   const baselines = new Map<string, { usualViews: number | null; recent: { id: string; views: number | null }[] | null }>();
   for (const p of platforms) {
     const top = [
       ...new Set(
         kept
           .filter((v) => v.platform === p)
-          .sort((a, b) => (reachScore(b.views, b.creatorFollowers) ?? 0) - (reachScore(a.views, a.creatorFollowers) ?? 0))
+          .sort(
+            (a, b) =>
+              (reachScore(b.views, b.creatorFollowers) ?? 0) - (reachScore(a.views, a.creatorFollowers) ?? 0) ||
+              (b.views ?? 0) - (a.views ?? 0),
+          )
           .map((v) => v.creatorHandle),
       ),
     ].slice(0, BASELINE_CREATORS);
@@ -106,10 +111,14 @@ export async function searchKeywords(
       const base = baselines.get(`${v.platform}:${v.creatorHandle}`);
       // Recompute the median without this video when we have the raw posts.
       const usualViews = base?.recent ? usualViewsExcluding(base.recent, v.platformVideoId) : (base?.usualViews ?? null);
-      const reach = reachScore(v.views, v.creatorFollowers);
-      const usual = usualScore(v.views, usualViews);
+      // Prefer the profile feed's count when it has this video: same metric as the baseline (Instagram search
+      // reports "views", profile reels report "plays").
+      const views = base?.recent?.find((p) => p.id === v.platformVideoId)?.views ?? v.views;
+      const reach = reachScore(views, v.creatorFollowers);
+      const usual = usualScore(views, usualViews);
       return {
         ...v,
+        views,
         reach,
         usual,
         usualViews,
@@ -124,5 +133,5 @@ export async function searchKeywords(
 
 /** Single-keyword search used by the test page. */
 export function searchKeyword(keyword: string, platforms?: Platform[]) {
-  return searchKeywords([keyword], platforms);
+  return searchKeywords([{ text: keyword, region: "th" }], platforms);
 }

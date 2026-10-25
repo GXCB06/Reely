@@ -1,5 +1,8 @@
 export type Platform = "youtube" | "tiktok" | "instagram";
 
+/** Where a keyword search should look: Thai audience or worldwide (mostly English). */
+export type SearchRegion = "th" | "global";
+
 /** One short video in the same shape for every platform. */
 export interface NormalizedVideo {
   platform: Platform;
@@ -31,7 +34,7 @@ export interface NormalizedCreator {
 export interface PlatformAdapter {
   platform: Platform;
   /** One page of results for a keyword. */
-  searchVideos(keyword: string): Promise<NormalizedVideo[]>;
+  searchVideos(keyword: string, opts?: { region?: SearchRegion }): Promise<NormalizedVideo[]>;
   getCreator(handle: string): Promise<NormalizedCreator>;
   /** ~20 most recent posts, pinned posts excluded. */
   getCreatorVideos(handle: string): Promise<NormalizedVideo[]>;

@@ -1,99 +1,116 @@
 "use client";
 
-import { Bookmark, FlaskConical, Home, Languages, LogOut, Package, Radar, Sparkles, UserRound } from "lucide-react";
+import { Bookmark, ChevronUp, Languages, LogOut, Package, Radar, SquarePen, UserRound } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { Link, usePathname } from "@/i18n/navigation";
+import { Link, usePathname, useRouter } from "@/i18n/navigation";
+import type { RegionChoice } from "@/lib/region";
+import { RegionIcon } from "@/components/chat/region-flag";
 import { Logo } from "./logo";
 
-type NavItem = { href: string; key: string; icon: React.ComponentType<{ className?: string }>; soon?: boolean };
+export type RecentRun = { id: string; title: string; region: RegionChoice; running: boolean };
 
-const SECTIONS: { key: string; items: NavItem[] }[] = [
-  { key: "overview", items: [{ href: "/app", key: "home", icon: Home }] },
-  {
-    key: "research",
-    items: [
-      { href: "/app/research/new", key: "newResearch", icon: Sparkles },
-      { href: "/app/tracking", key: "tracking", icon: Radar },
-      { href: "/app/saved", key: "saved", icon: Bookmark },
-      { href: "/app/product", key: "product", icon: Package },
-      { href: "/app/dev-search", key: "devSearch", icon: FlaskConical },
-    ],
-  },
-];
+const NAV = [
+  { href: "/app/tracking", key: "tracking", icon: Radar },
+  { href: "/app/saved", key: "saved", icon: Bookmark },
+] as const;
 
-export function Sidebar({ email, onSignOut }: { email: string | null; onSignOut?: () => Promise<void> }) {
+const rowClass = (active: boolean) =>
+  `flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${
+    active ? "bg-sidebar-accent text-white" : "text-sidebar-foreground/85 hover:bg-sidebar-accent/60"
+  }`;
+
+/** ChatGPT-style sidebar: New research, two pages, recent research chats, and one account menu at the bottom. */
+export function Sidebar({
+  email,
+  recent,
+  onSignOut,
+}: {
+  email: string | null;
+  recent: RecentRun[];
+  onSignOut?: () => Promise<void>;
+}) {
   const t = useTranslations("nav");
   const pathname = usePathname();
+  const router = useRouter();
   const locale = useLocale();
   const otherLocale = locale === "th" ? "en" : "th";
 
   return (
-    <aside className="sticky top-0 flex h-dvh w-60 shrink-0 flex-col overflow-y-auto bg-sidebar px-3 py-5 text-sidebar-foreground">
-      <Link href="/app" className="mb-6 px-2">
+    <aside className="sticky top-0 flex h-dvh w-64 shrink-0 flex-col bg-sidebar px-3 py-5 text-sidebar-foreground">
+      <Link href="/app" className="mb-5 px-2">
         <Logo onDark height={26} />
       </Link>
 
-      <nav className="flex-1 space-y-6">
-        {SECTIONS.map((section) => (
-          <div key={section.key}>
-            <p className="mb-2 px-2 text-[11px] font-semibold tracking-widest text-sidebar-foreground/50 uppercase">
-              {t(section.key)}
-            </p>
-            <ul className="space-y-1">
-              {section.items.map((item) => {
-                const active = pathname === item.href;
-                const Icon = item.icon;
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      aria-disabled={item.soon}
-                      className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${
-                        active
-                          ? "bg-sidebar-accent text-white ring-1 ring-sidebar-primary/60"
-                          : "hover:bg-sidebar-accent/60"
-                      } ${item.soon ? "pointer-events-none opacity-40" : ""}`}
-                    >
-                      <Icon className="size-4" />
-                      {t(item.key)}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+      <button
+        type="button"
+        // A fresh query each time so an open chat resets.
+        onClick={() => router.push(`/app?n=${Date.now()}`)}
+        className="mb-3 flex items-center gap-3 rounded-xl bg-sidebar-primary px-3 py-2.5 text-sm font-medium text-white hover:bg-sidebar-primary/90"
+      >
+        <SquarePen className="size-4" />
+        {t("newResearch")}
+      </button>
+
+      <nav className="space-y-1">
+        {NAV.map(({ href, key, icon: Icon }) => (
+          <Link key={href} href={href} className={rowClass(pathname.startsWith(href))}>
+            <Icon className="size-4" />
+            {t(key)}
+          </Link>
         ))}
       </nav>
 
-      <div className="space-y-1 border-t border-sidebar-border pt-3 text-sm">
-        <Link
-          href={pathname}
-          locale={otherLocale}
-          className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-sidebar-accent/60"
-        >
-          <Languages className="size-4" />
-          {t("language")}
-        </Link>
-        {email && (
-          <Link
-            href="/app/account"
-            className={`flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-sidebar-accent/60 ${
-              pathname === "/app/account" ? "bg-sidebar-accent text-white" : ""
-            }`}
+      <p className="mt-6 mb-2 px-3 text-[11px] font-semibold tracking-widest text-sidebar-foreground/45 uppercase">
+        {t("recent")}
+      </p>
+      <ul className="-mr-1 flex-1 space-y-0.5 overflow-y-auto pr-1">
+        {recent.length === 0 && <li className="px-3 text-xs text-sidebar-foreground/50">{t("noRecent")}</li>}
+        {recent.map((r) => {
+          const href = `/app/research/${r.id}`;
+          return (
+            <li key={r.id}>
+              <Link href={href} title={r.title} className={`${rowClass(pathname === href)} py-1.5`}>
+                <RegionIcon region={r.region} className="text-xs" />
+                <span className="truncate">{r.title}</span>
+                {r.running && <span className="ml-auto size-1.5 shrink-0 animate-pulse rounded-full bg-sidebar-primary" />}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+
+      {email && (
+        <details className="group relative mt-3 border-t border-sidebar-border pt-3">
+          <summary
+            aria-label={t("menu")}
+            className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2 text-sm hover:bg-sidebar-accent/60"
           >
-            <UserRound className="size-4" />
-            {t("account")}
-          </Link>
-        )}
-        {email && onSignOut && (
-          <form action={onSignOut}>
-            <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-sidebar-accent/60">
-              <LogOut className="size-4" />
-              <span className="truncate">{email}</span>
-            </button>
-          </form>
-        )}
-      </div>
+            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-sidebar-primary text-xs font-bold text-white uppercase">
+              {email[0]}
+            </span>
+            <span className="truncate">{email}</span>
+            <ChevronUp className="ml-auto size-4 shrink-0 transition group-open:rotate-180" />
+          </summary>
+          <div className="absolute inset-x-0 bottom-full mb-2 space-y-0.5 rounded-2xl border border-sidebar-border bg-sidebar p-1.5 shadow-xl">
+            <Link href="/app/product" className={rowClass(pathname === "/app/product")}>
+              <Package className="size-4" /> {t("product")}
+            </Link>
+            <Link href="/app/account" className={rowClass(pathname === "/app/account")}>
+              <UserRound className="size-4" /> {t("account")}
+            </Link>
+            <Link href={pathname} locale={otherLocale} className={rowClass(false)}>
+              <Languages className="size-4" /> {t("language")}
+            </Link>
+            {onSignOut && (
+              <form action={onSignOut}>
+                <button className={`${rowClass(false)} w-full text-left`}>
+                  <LogOut className="size-4" /> {t("signOut")}
+                </button>
+              </form>
+            )}
+          </div>
+        </details>
+      )}
     </aside>
   );
 }

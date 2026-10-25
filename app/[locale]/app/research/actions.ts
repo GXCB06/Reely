@@ -1,27 +1,62 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import type { Platform } from "@/lib/adapters/types";
 import { MAX_KEYWORDS } from "@/lib/ai/schemas";
-import { suggestPlan, summarizeRun } from "@/lib/ai/tasks";
+import { summarizeRun, understandProduct } from "@/lib/ai/tasks";
+import { readLink } from "@/lib/link-preview";
 import { searchKeywords } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
 
-const briefSchema = z.string().trim().min(10).max(1000);
+const regionChoice = z.enum(["th", "global", "both"]);
+const locale = z.enum(["th", "en"]);
+// A resized JPEG/PNG/WebP from the composer (~100-300 KB as base64).
+const imageDataUrl = z
+  .string()
+  .max(1_400_000)
+  .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/);
+const thumbDataUrl = imageDataUrl.max(60_000);
 
-export async function suggestPlanAction(brief: string) {
-  const parsed = briefSchema.safeParse(brief);
-  if (!parsed.success) return { ok: false as const, error: "brief" };
-  const plan = await suggestPlan(parsed.data);
-  return { ok: true as const, plan };
+const messageSchema = z
+  .object({
+    text: z.string().trim().max(1000),
+    url: z.union([z.literal(""), z.string().trim().max(300)]),
+    image: imageDataUrl.nullable(),
+    region: regionChoice,
+    locale,
+  })
+  .refine((m) => m.text.length >= 3 || m.url || m.image, { message: "empty" });
+
+export type ChatMessageInput = z.infer<typeof messageSchema>;
+
+/** Chat step 1: read the link (if any) and let AI work out the product and plan the keywords. */
+export async function understandAction(input: ChatMessageInput) {
+  const parsed = messageSchema.safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: "empty" };
+  const { text, url, image, region, locale } = parsed.data;
+  const link = url ? await readLink(url) : null;
+  const understanding = await understandProduct({ text, link, image, region }, locale);
+  return { ok: true as const, understanding, linkRead: url ? link !== null : null, linkTitle: link?.title ?? null };
 }
 
 const runSchema = z.object({
-  brief: briefSchema,
-  keywords: z.array(z.string().trim().min(2).max(80)).min(1).max(MAX_KEYWORDS),
+  text: z.string().trim().max(1000),
+  url: z.union([z.literal(""), z.string().trim().max(300)]),
+  imageThumb: thumbDataUrl.nullable(),
+  understanding: z.object({
+    productName: z.string().trim().min(1).max(80),
+    whatItIs: z.string().trim().max(300),
+    audience: z.string().trim().max(200),
+    reply: z.string().trim().max(400),
+  }),
+  keywords: z
+    .array(z.object({ text: z.string().trim().min(2).max(80), region: z.enum(["th", "global"]) }))
+    .min(1)
+    .max(MAX_KEYWORDS),
   exclusions: z.array(z.string().trim().min(1).max(40)).max(10),
-  platforms: z.array(z.enum(["tiktok", "youtube"])).min(1),
-  locale: z.enum(["th", "en"]),
+  platforms: z.array(z.enum(["tiktok", "youtube", "instagram"])).min(1),
+  region: regionChoice,
+  locale,
 });
 
 export type RunInput = z.infer<typeof runSchema>;
@@ -30,18 +65,41 @@ export type RunInput = z.infer<typeof runSchema>;
 export async function runResearchAction(input: RunInput) {
   const parsed = runSchema.safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
-  const { brief, keywords, exclusions, platforms, locale } = parsed.data;
+  const { text, url, imageThumb, understanding, keywords, exclusions, platforms, region, locale } = parsed.data;
+  const brief = (text || `${understanding.productName}: ${understanding.whatItIs}`).slice(0, 1000);
 
   const supabase = await createClient();
   const { data: run, error: runError } = await supabase
     .from("research_runs")
-    .insert({ brief, keywords, exclusions, platforms, status: "running" })
+    .insert({
+      brief,
+      title: understanding.productName,
+      keywords: keywords.map((k) => k.text),
+      keyword_regions: keywords.map((k) => k.region),
+      exclusions,
+      platforms,
+      region,
+      input: { text, url: url || null, imageThumb, ...understanding },
+      status: "running",
+    })
     .select("id")
     .single();
   if (runError || !run) return { ok: false as const, error: "save" };
 
+  // First run with no saved product: save what Reely understood, so "Make my version" works right away.
+  const { data: product } = await supabase.from("products").select("id").limit(1).maybeSingle();
+  if (!product) {
+    await supabase.from("products").insert({
+      name: understanding.productName,
+      url: url ? (/^https?:\/\//i.test(url) ? url : `https://${url}`) : null,
+      description: understanding.whatItIs || null,
+      audience: understanding.audience || null,
+      language: locale,
+    });
+  }
+
   try {
-    const result = await searchKeywords(keywords, platforms as Platform[], exclusions);
+    const result = await searchKeywords(keywords, platforms, exclusions);
     const rows = result.videos
       .filter((v) => v.dbId !== undefined)
       .map((v, i) => ({
@@ -72,7 +130,7 @@ export async function runResearchAction(input: RunInput) {
     const top = result.videos.slice(0, 10);
     const summary = await summarizeRun(
       {
-        keywords,
+        keywords: keywords.map((k) => k.text),
         totalVideos: result.videos.length,
         topViews: result.videos.reduce<number | null>((m, v) => Math.max(m ?? 0, v.views ?? 0), null),
         smallAccountsInTop10: top.filter((v) => (v.creatorFollowers ?? Infinity) < 10_000).length,
@@ -88,12 +146,14 @@ export async function runResearchAction(input: RunInput) {
       locale,
     );
     await supabase.from("research_runs").update({ summary }).eq("id", run.id);
+    revalidatePath("/[locale]/app", "layout");
     return { ok: true as const, runId: run.id as string };
   } catch (e) {
     await supabase
       .from("research_runs")
       .update({ status: "failed", error: (e as Error).message.slice(0, 2000), finished_at: new Date().toISOString() })
       .eq("id", run.id);
+    revalidatePath("/[locale]/app", "layout");
     return { ok: false as const, error: "search", runId: run.id as string };
   }
 }

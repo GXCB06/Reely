@@ -67,5 +67,6 @@ describe("labels and filters", () => {
   it("formats multipliers", () => {
     expect(formatMultiplier(83.04)).toBe("83");
     expect(formatMultiplier(6.53)).toBe("6.5");
+    expect(formatMultiplier(0.004)).toBe("<0.1");
   });
 });
