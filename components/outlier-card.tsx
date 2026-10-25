@@ -58,7 +58,7 @@ export async function OutlierCard({
           </span>
         )}
       </div>
-      {rail.length > 0 && (
+      {variant === "grid" && rail.length > 0 && (
         <div className="absolute right-2 bottom-12 flex flex-col gap-2 rounded-full bg-black/55 px-1.5 py-2 text-[10px] font-semibold text-white">
           {rail.map(({ icon: Icon, value }, i) => (
             <span key={i} className="flex flex-col items-center gap-0.5">
@@ -73,9 +73,11 @@ export async function OutlierCard({
           <p className="line-clamp-2 text-sm font-semibold text-white">“{hook}”</p>
         </div>
       )}
-      <span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white">
-        {PLATFORM_NAME[video.platform]}
-      </span>
+      {variant === "grid" && (
+        <span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white">
+          {PLATFORM_NAME[video.platform]}
+        </span>
+      )}
     </div>
   );
 
@@ -87,6 +89,7 @@ export async function OutlierCard({
         <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
           <Users className="size-3 shrink-0" />@{video.creatorHandle}
           {video.creatorFollowers !== null && <> · {compact(video.creatorFollowers)} {t("followers")}</>}
+          {variant === "carousel" && <> · {PLATFORM_NAME[video.platform]}</>}
         </p>
         <div className="flex flex-wrap gap-1.5 pt-1 text-[11px]">
           {video.usual !== null && video.usualViews !== null && (

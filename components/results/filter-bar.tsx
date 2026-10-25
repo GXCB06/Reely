@@ -17,13 +17,16 @@ function ChipMenu({
   label,
   activeLabel,
   options,
+  stateKey,
 }: {
   label: string;
   activeLabel: string | null;
   options: { label: string; href: string; active: boolean }[];
+  /** Changes whenever the URL filters change, so the menu remounts closed after a choice. */
+  stateKey: string;
 }) {
   return (
-    <details className="group relative">
+    <details key={stateKey} className="group relative">
       <summary className={`chip list-none ${activeLabel ? "chip-on" : ""}`}>
         {activeLabel ?? label}
         <ChevronDown className="size-3.5 opacity-60 transition group-open:rotate-180" />
@@ -65,6 +68,7 @@ export async function FilterBar({
     ...values.map((v) => ({ label: fmt(v), href: hrefWith(basePath, params, { [key]: String(v) }), active: current === v })),
   ];
   const sorts: Sort[] = ["outlier", "views", "saves", "recent"];
+  const stateKey = JSON.stringify(params);
 
   return (
     <div className="space-y-3">
@@ -87,27 +91,32 @@ export async function FilterBar({
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground">{t("filterBy")}</span>
           <ChipMenu
+            stateKey={stateKey}
             label={t("minViews")}
             activeLabel={filters.minViews ? t("viewsPlus", { n: compact(filters.minViews) }) : null}
             options={menu("minViews", FILTER_PRESETS.minViews, filters.minViews, (n) => t("viewsPlus", { n: compact(n) }))}
           />
           <ChipMenu
+            stateKey={stateKey}
             label={t("minOutlier")}
             activeLabel={filters.minOutlier ? t("outlierPlus", { n: filters.minOutlier }) : null}
             options={menu("minOutlier", FILTER_PRESETS.minOutlier, filters.minOutlier, (n) => t("outlierPlus", { n }))}
           />
           <ChipMenu
+            stateKey={stateKey}
             label={t("minSaves")}
             activeLabel={filters.minSaves ? t("savesPlus", { n: compact(filters.minSaves) }) : null}
             options={menu("minSaves", FILTER_PRESETS.minSaves, filters.minSaves, (n) => t("savesPlus", { n: compact(n) }))}
           />
           <ChipMenu
+            stateKey={stateKey}
             label={t("posted")}
             activeLabel={filters.postedDays ? t("lastDays", { n: filters.postedDays }) : null}
             options={menu("posted", FILTER_PRESETS.postedDays, filters.postedDays, (n) => t("lastDays", { n }))}
           />
         </div>
         <ChipMenu
+            stateKey={stateKey}
           label={t(`sort.${filters.sort}`)}
           activeLabel={null}
           options={sorts.map((s) => ({

@@ -28,7 +28,7 @@ export function Sidebar({ email, onSignOut }: { email: string | null; onSignOut?
   const otherLocale = locale === "th" ? "en" : "th";
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col bg-sidebar px-3 py-5 text-sidebar-foreground">
+    <aside className="sticky top-0 flex h-dvh w-60 shrink-0 flex-col overflow-y-auto bg-sidebar px-3 py-5 text-sidebar-foreground">
       <Link href="/app" className="mb-6 px-2">
         <Logo onDark height={26} />
       </Link>

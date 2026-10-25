@@ -23,7 +23,7 @@ export default async function AppLayout({ children, params }: LayoutProps<"/[loc
   }
 
   return (
-    <div className="flex min-h-dvh bg-sidebar">
+    <div className="flex min-h-dvh items-start bg-sidebar">
       <Sidebar email={email} onSignOut={email ? signOut : undefined} />
       <main className="my-2 mr-2 flex-1 overflow-hidden rounded-3xl bg-background">
         {!isSupabaseConfigured() && (
