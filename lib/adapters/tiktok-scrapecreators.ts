@@ -21,7 +21,7 @@ type Aweme = {
     share_count?: number;
     collect_count?: number;
   };
-  video?: { cover?: Media; origin_cover?: Media; duration?: number };
+  video?: { cover?: Media; origin_cover?: Media; dynamic_cover?: Media; duration?: number };
   author?: { unique_id?: string; nickname?: string; follower_count?: number };
 };
 
@@ -37,6 +37,12 @@ async function call<T>(endpoint: string, params: Record<string, string>): Promis
   return (await res.json()) as T;
 }
 
+/** Prefers a JPEG/WebP cover: some TikTok covers are HEIC, which Chrome can't display. */
+function pickThumbnail(video: Aweme["video"]): string | null {
+  const urls = [video?.cover, video?.origin_cover, video?.dynamic_cover].flatMap((m) => m?.url_list ?? []);
+  return urls.find((u) => !/\.heic(\?|~|$)/i.test(u)) ?? urls[0] ?? null;
+}
+
 function toVideo(a: Aweme): NormalizedVideo {
   const handle = a.author?.unique_id ?? "";
   const s = a.statistics ?? {};
@@ -46,7 +52,7 @@ function toVideo(a: Aweme): NormalizedVideo {
     platform: "tiktok",
     platformVideoId: a.aweme_id,
     url: a.url ?? `https://www.tiktok.com/@${handle}/video/${a.aweme_id}`,
-    thumbnailUrl: a.video?.cover?.url_list?.[0] ?? a.video?.origin_cover?.url_list?.[0] ?? null,
+    thumbnailUrl: pickThumbnail(a.video),
     caption: a.desc ?? "",
     creatorHandle: handle,
     creatorName: a.author?.nickname ?? null,

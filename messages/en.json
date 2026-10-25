@@ -83,7 +83,9 @@
     "usually": "usually {views}",
     "reach": "{x}× followers",
     "usual": "{x}× usual views",
-    "open": "Open"
+    "open": "Open",
+    "fireUsualTip": "{views} views ÷ this account usually gets {usual} = {x}× ({label})",
+    "fireReachTip": "{views} views ÷ {followers} followers = {x}× ({label}). We don't have this account's usual views yet."
   },
   "labels": {
     "breakout": "Breakout",
@@ -273,5 +275,16 @@
     "allPosts": "Recent posts · biggest outliers first",
     "tracking": "Tracking",
     "trackHandle": "Track @{handle}"
+  },
+  "score": {
+    "question": "What does the 🔥 number mean?",
+    "show": "Show",
+    "usual": "It shows how many times more views a video got than that account normally gets. \"Normally\" = the middle value (median) of its ~20 most recent posts, not counting this one.",
+    "example": "41.3K views ÷ usually 499 views = 82×",
+    "reach": "If we haven't checked the account's recent posts yet, we compare views with its followers instead (views ÷ followers).",
+    "breakout": "{n}×+ Breakout",
+    "strong": "{from}–{to}× Strong",
+    "normal": "under {n}× Normal",
+    "caveat": "Views show attention, not sales. Use the 🔥 to find ideas worth studying, then test them yourself."
   }
 }

@@ -4,6 +4,7 @@ import { getFormatter, getTranslations, setRequestLocale } from "next-intl/serve
 import { OutlierCard } from "@/components/outlier-card";
 import { FilterBar } from "@/components/results/filter-bar";
 import { InsightCard } from "@/components/results/insight-card";
+import { ScoreExplainer } from "@/components/results/score-explainer";
 import { Link } from "@/i18n/navigation";
 import type { RunSummary } from "@/lib/ai/schemas";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
@@ -99,6 +100,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
         <section className="space-y-4">
           <h3 className="font-heading text-lg font-bold">{t("allVideos")}</h3>
           <FilterBar basePath={`/app/research/${id}`} filters={filters} params={flatParams} counts={counts} />
+          <ScoreExplainer />
           {shown.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">{t("noMatch")}</p>
           ) : (

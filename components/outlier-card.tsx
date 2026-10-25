@@ -42,14 +42,24 @@ export async function OutlierCard({
   const thumb = (
     <div className="relative aspect-[9/14] overflow-hidden bg-muted">
       <Thumb src={video.thumbnailUrl} className="transition group-hover:scale-[1.02]" />
-      <div className="absolute inset-x-2 top-2 flex items-center justify-between gap-1">
+      {/* Views and 🔥 sit together (Virlo-style); the tooltip shows how the 🔥 number was worked out. */}
+      <div className="absolute top-2 right-2 flex items-center gap-1">
         <span className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-xs font-semibold text-white">
           <Eye className="size-3" /> {video.views !== null ? compact(video.views) : "–"}
         </span>
         {headline !== null && (
           <span
-            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${LABEL_STYLE[video.label]}`}
-            title={tl(video.label)}
+            className={`inline-flex cursor-help items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${LABEL_STYLE[video.label]}`}
+            title={
+              video.usual !== null && video.usualViews !== null && video.views !== null
+                ? t("fireUsualTip", { views: compact(video.views), usual: compact(video.usualViews), x: formatMultiplier(video.usual), label: tl(video.label) })
+                : t("fireReachTip", {
+                    views: video.views !== null ? compact(video.views) : "–",
+                    followers: video.creatorFollowers !== null ? compact(video.creatorFollowers) : "–",
+                    x: formatMultiplier(headline),
+                    label: tl(video.label),
+                  })
+            }
           >
             <Flame className="size-3" /> {formatMultiplier(headline)}×
           </span>
