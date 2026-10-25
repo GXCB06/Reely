@@ -19,10 +19,18 @@
     "title": "Sign in to Reely",
     "subtitle": "We'll email you a sign-in link. No password needed.",
     "email": "Email",
-    "send": "Send sign-in link",
+    "send": "Email me a sign-in link",
     "sending": "Sending…",
-    "sent": "Check your inbox for the sign-in link.",
-    "error": "Couldn't send the link. Try again in a minute."
+    "error": "Couldn't send the email. Try again in a minute.",
+    "verifying": "Signing in…",
+    "changeEmail": "Use a different email",
+    "linkTitle": "Check your email",
+    "linkSubtitle": "We sent a sign-in link to {email}.",
+    "linkStep1": "On this device, just click the link in the email.",
+    "linkStep2": "If it opens in a different browser, right-click the link, copy it, and paste it below.",
+    "pastePlaceholder": "Paste the sign-in link (or code) here",
+    "continue": "Continue",
+    "badLink": "That isn't a Reely sign-in link. Copy the whole link from the email, or request a new one."
   },
   "home": {
     "title": "Welcome back",
