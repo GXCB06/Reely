@@ -1,0 +1,1112 @@
+{
+  "kind": "youtube#searchListResponse",
+  "etag": "-H5h-IHEgOklEpOxJ6m3xyO8fbo",
+  "nextPageToken": "CBkQAA",
+  "regionCode": "TH",
+  "pageInfo": {
+    "totalResults": 90409,
+    "resultsPerPage": 25
+  },
+  "items": [
+    {
+      "kind": "youtube#searchResult",
+      "etag": "7ny6dY8foJxArcENp4-ij0VPplU",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "ZDijOHHL8VE"
+      },
+      "snippet": {
+        "publishedAt": "2026-08-31T05:03:44Z",
+        "channelId": "UCcPuBGnr3ngA0kW9x13m14Q",
+        "title": "บิลเยอะ ใบเสร็จกองเต็มโต๊ะ? จัดการบัญชีให้เป๊ะด้วย AI + AccPax",
+        "description": "ห้แบบไม่มีกั๊ก AccPax ทำคลิปสอนการใช้ AI แปลงข้อมูลภาพใบเสร็จเป็นไฟล์ Excel มาให้ ใช้ได้ทั้ง ChatGPT, Gemini, Claude ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/ZDijOHHL8VE/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/ZDijOHHL8VE/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/ZDijOHHL8VE/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/ZDijOHHL8VE/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/ZDijOHHL8VE/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "fhd": {
+            "url": "https://i.ytimg.com/vi/ZDijOHHL8VE/fhddefault.jpg",
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "channelTitle": "AccPax",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-08-31T05:03:44Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "t4jN52Uo4gf0aL4afBQ5O_MRDrY",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "KhjV4teB8gA"
+      },
+      "snippet": {
+        "publishedAt": "2026-10-05T09:52:33Z",
+        "channelId": "UCk6O6Qrrw77dr0rSPsOb_Pw",
+        "title": "โปรแกรมบัญชีออนไลน์ ช่วยลดขั้นตอนการยื่นภาษีได้อย่างไร",
+        "description": "ลงทะเบียนทดลองใช้งานโปรแกรมได้ฟรี 60 วัน แบบเต็มระบบ ลงทะเบียนใช้งานเลย https://www.myaccount-cloud.com/ContactUs ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/KhjV4teB8gA/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/KhjV4teB8gA/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/KhjV4teB8gA/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/KhjV4teB8gA/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/KhjV4teB8gA/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "myAccount Cloud",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-10-05T09:52:33Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "fRXBQ0aoLIthDEo6gCDUDKx_umM",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "nQKM13maZqE"
+      },
+      "snippet": {
+        "publishedAt": "2026-06-30T12:06:48Z",
+        "channelId": "UCgUMwCA0dBgpOEqQSAFckog",
+        "title": "หมดยุคเปิด Excel หลายสิบไฟล์!  โปรแกรมบัญชีตัวจบ — BKKHolding",
+        "description": "",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/nQKM13maZqE/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/nQKM13maZqE/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/nQKM13maZqE/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/nQKM13maZqE/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/nQKM13maZqE/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "BKKHolding",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-06-30T12:06:48Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "5shL-DvkeYdSTQp34Y9OvP7_HXA",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "QvQJO480pfM"
+      },
+      "snippet": {
+        "publishedAt": "2026-10-21T10:27:35Z",
+        "channelId": "UC7MMplRMrXPgwgsu3OQRCeA",
+        "title": "แนะนำโปรแกรมบัญชี PRAGMA CLOUD ERP EP.11 กำหนดวันที่ใช้ในระบบ",
+        "description": "สนใจใช้งานระบบติดต่อ บริษัท ไอ แอม พลัส จำกัด Line ID : iamplus หรือ email : iamplus.th@gmail.com.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/QvQJO480pfM/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/QvQJO480pfM/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/QvQJO480pfM/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/QvQJO480pfM/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/QvQJO480pfM/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "iAMPLUS",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-10-21T10:27:35Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "3z8G4zKuZf8SStdWYJz6NlEpP48",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "70GvolK01KY"
+      },
+      "snippet": {
+        "publishedAt": "2026-10-13T10:00:48Z",
+        "channelId": "UC1tQZhD7kJ2fFg_CfCNuAOg",
+        "title": "โปรแกรม ERP กับโปรแกรมบัญชีออนไลน์ต่างกันอย่างไร และธุรกิจควรเลือกอะไร? #บัญชี #โปรแกรมบัญชีฟรี #ERP",
+        "description": "ERP กับโปรแกรมบัญชีออนไลน์ ต่างกันยังไง? แล้วธุรกิจคุณควรเลือกแบบไหน? เริ่มจากโปรแกรมบัญชีออนไลน์ ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/70GvolK01KY/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/70GvolK01KY/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/70GvolK01KY/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/70GvolK01KY/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/70GvolK01KY/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "Prosoft ibiz",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-10-13T10:00:48Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "cPB3dXS64dslu8h3k2hYtDylh50",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "GcRvUUR0d4Q"
+      },
+      "snippet": {
+        "publishedAt": "2026-09-08T12:25:22Z",
+        "channelId": "UCcPuBGnr3ngA0kW9x13m14Q",
+        "title": "สร้างใบเสนอราคาภายใน 1 นาที ด้วย AccPax โปรแกรมบัญชีออนไลน์",
+        "description": "ลูกค้าขอใบเสนอราคาด่วน? ไม่ต้องเปิด Excel คีย์ใหม่ให้เสียเวลา! ⚡ ปิดดีลได้ไวกว่าใครด้วย **AccPax** ออกใบเสนอราคามืออาชีพได้ ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/GcRvUUR0d4Q/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/GcRvUUR0d4Q/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/GcRvUUR0d4Q/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/GcRvUUR0d4Q/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/GcRvUUR0d4Q/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "fhd": {
+            "url": "https://i.ytimg.com/vi/GcRvUUR0d4Q/fhddefault.jpg",
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "channelTitle": "AccPax",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-09-08T12:25:22Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "fPIr5OoYuY3EE24hjtbGWhcZJTY",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "Gobjk4ujIbU"
+      },
+      "snippet": {
+        "publishedAt": "2026-08-20T13:31:21Z",
+        "channelId": "UCOrjUwhRld-XO34xMLa9JgQ",
+        "title": "Ai ทำบัญชีได้ไหม",
+        "description": "เพิ่งรู้ว่า Claude เชื่อมกับบัญชี FlowAccount ได้ตรง ๆ สร้างใบเสนอราคา บันทึกค่าใช้จ่ายจากสลิป ไปจนถึงทำ Dashboard ลูกหนี้ ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/Gobjk4ujIbU/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/Gobjk4ujIbU/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/Gobjk4ujIbU/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/Gobjk4ujIbU/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/Gobjk4ujIbU/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "Lazyproductive",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-08-20T13:31:21Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "V7f7ySdBy89VdXGKwun6B0Nodxo",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "905kPobt0ao"
+      },
+      "snippet": {
+        "publishedAt": "2026-08-14T07:39:53Z",
+        "channelId": "UCS0bpN1WSrjlfZINq_Rq_jA",
+        "title": "การเพิ่มข้อมูลสินค้าบริการ โปรแกรมบัญชีเมท",
+        "description": "วิดิโอนี้สร้างขึ้นเพื่อแนะนำวิธีการใช้งานที่ถูกต้องสำหรับผู้ทดลองใช้งาน หรือผู้ที่กำลังศึกษา โดยมีความประสงค์จะใช้งานโปรแกรมบัญชีเมท.",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/905kPobt0ao/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/905kPobt0ao/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/905kPobt0ao/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/905kPobt0ao/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          }
+        },
+        "channelTitle": "BANCHEEMATE  BY YAKYAI SOLUTION CO., LTD.",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-08-14T07:39:53Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "bDEH-oPRGeJ4RVYb16AC6XJIrjo",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "1uzyzZ944qo"
+      },
+      "snippet": {
+        "publishedAt": "2026-05-11T07:00:17Z",
+        "channelId": "UCPQ_g-oZBwyLPKk_1IWAWOg",
+        "title": "FlowAccount โปรแกรมบัญชีออนไลน์ มือใหม่ก็ใช้ได้ ทำบัญชีเป็นอยู่แล้วก็ทำงานง่ายขึ้นไปอีก",
+        "description": "บิลเยอะ จดไม่ครบ เอกสารหาไม่เจอ นักบัญชีทำงานต่อยาก ให้ FlowAccount ช่วยจัดการบัญชีของคุณให้ง่ายขึ้น ✓ ตั้งแต่การเปิดบิล ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/1uzyzZ944qo/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/1uzyzZ944qo/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/1uzyzZ944qo/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/1uzyzZ944qo/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/1uzyzZ944qo/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "FlowAccount",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-05-11T07:00:17Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "cJ2NZJ8LXVStOU-7P1mvotQ0S5s",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "vgIkXyCfd2U"
+      },
+      "snippet": {
+        "publishedAt": "2026-09-13T07:26:37Z",
+        "channelId": "UCdti1OuDlgFJH7-qa6s22PQ",
+        "title": "โปรแกรมบัญชี AI",
+        "description": "AccOS Pro โปรแกรมบัญชีออนไลน์ยุคใหม่ สำหรับสำนักงานบัญชีและธุรกิจไทย โปรแกรมบัญชีที่ผสาน AI เข้ากับการทำงานด้านบัญชี ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/vgIkXyCfd2U/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/vgIkXyCfd2U/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/vgIkXyCfd2U/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/vgIkXyCfd2U/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/vgIkXyCfd2U/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "AccOS Pro",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-09-13T07:26:37Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "ii-kbCGs0QV4qwBzP2VgCk1sCT0",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "J353RkWdJ1o"
+      },
+      "snippet": {
+        "publishedAt": "2026-05-15T23:00:17Z",
+        "channelId": "UCPQ_g-oZBwyLPKk_1IWAWOg",
+        "title": "5 เรื่องที่ต้องรู้ก่อนจดทะเบียนบริษัท  #flowaccount  #โปรแกรมบัญชีออนไลน์",
+        "description": "5 เรื่องที่ต้องรู้ ก่อนจดทะเบียนบริษัท แต่ถ้าไม่รู้จะปรึกษาใคร FlowAccount ก็พร้อมดูแล #FlowAccount #tiktokuni #จดทะเบียนบริษัท ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/J353RkWdJ1o/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/J353RkWdJ1o/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/J353RkWdJ1o/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/J353RkWdJ1o/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/J353RkWdJ1o/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "FlowAccount",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-05-15T23:00:17Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "PdI7dBrgdgztQztOMURUIMPg1m0",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "QMuOv-Ierj4"
+      },
+      "snippet": {
+        "publishedAt": "2026-07-03T09:40:13Z",
+        "channelId": "UCgUMwCA0dBgpOEqQSAFckog",
+        "title": "บัญชี E-Commerce ครบทุกแพลตฟอร์ม ใน 30 นาที! | BKKHolding ฟรี",
+        "description": "BKKHolding — โปรแกรมบัญชี E-Commerce ที่ดีที่สุด ใช้ฟรี! ขายออนไลน์หลายแพลตฟอร์มแล้วปวดหัวกับบัญชีไหม? ✓ ยอดขายไม่ตรง ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/QMuOv-Ierj4/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/QMuOv-Ierj4/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/QMuOv-Ierj4/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/QMuOv-Ierj4/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/QMuOv-Ierj4/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "BKKHolding",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-07-03T09:40:13Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "gVKesmUn5KF_OWgxID-c6Qny7SI",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "nMEShpd5GFQ"
+      },
+      "snippet": {
+        "publishedAt": "2026-08-28T08:49:48Z",
+        "channelId": "UCmhgb9vEsjWP_fNRtDoo0fg",
+        "title": "ทำบัญชีในยุค AI ง่ายมาก #flowaccount",
+        "description": "",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/nMEShpd5GFQ/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/nMEShpd5GFQ/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/nMEShpd5GFQ/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/nMEShpd5GFQ/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/nMEShpd5GFQ/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "Andrew Warodom",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-08-28T08:49:48Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "JW85pt-6QFRHeisr51vIeU8Ygy4",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "zVOgKvEz5Fg"
+      },
+      "snippet": {
+        "publishedAt": "2026-10-24T12:18:28Z",
+        "channelId": "UCZW8Rl5_3HlVH5HXt3qr9-g",
+        "title": "ERP = โปรแกรมบัญชี? เข้าใจผิดกันเยอะ!",
+        "description": "ERP ไม่ได้มีไว้ให้ฝ่ายบัญชีใช้คนเดียว แต่ช่วยเชื่อมงานทั้งองค์กร #ERPคืออะไร #ระบบERP #ERPสำหรับSME #บริหารธุรกิจ ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/zVOgKvEz5Fg/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/zVOgKvEz5Fg/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/zVOgKvEz5Fg/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          }
+        },
+        "channelTitle": "Office Kit by K&O",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-10-24T12:18:28Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "XCLVK96wObmI4ntM-nASxtNuToA",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "gm6df0Zbk38"
+      },
+      "snippet": {
+        "publishedAt": "2026-08-14T15:36:57Z",
+        "channelId": "UC7NffN_o5kMzdJo6Ohagfag",
+        "title": "สาธิต AutoPilotX | แปลง Excel เป็น CSV สร้าง Template และรันงานโปรแกรมบัญชีอัตโนมัติ",
+        "description": "ลดเวลาคีย์ข้อมูลซ้ำด้วย AutoPilotX โปรแกรมช่วยกรอกข้อมูลจาก CSV ลงใน โปรแกรมบัญชีตามขั้นตอนที่บันทึกไว้ คลิปนี้สาธิตตั้งแต่ต้นจนจบ: ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/gm6df0Zbk38/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/gm6df0Zbk38/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/gm6df0Zbk38/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/gm6df0Zbk38/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/gm6df0Zbk38/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "AutoPilotX",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-08-14T15:36:57Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "GpYdxjhyMOhJrvlWJNodkvaCXZ8",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "KtqabuvfvvM"
+      },
+      "snippet": {
+        "publishedAt": "2026-08-11T11:06:44Z",
+        "channelId": "UCvv3KqKJxQGQECMSCyAQpuQ",
+        "title": "โปรแกรมบัญชีออนไลน์ ออกใบเสนอราคา ใบกำกับภาษี ใบวางบิล ใบเสร็จ ได้เร็วมากไม่ยุ่งยาก",
+        "description": "",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/KtqabuvfvvM/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/KtqabuvfvvM/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/KtqabuvfvvM/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/KtqabuvfvvM/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/KtqabuvfvvM/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "cdagain",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-08-11T11:06:44Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "unBPBdWtQQ726TaDlSHBmkAletA",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "KAIwFQqHgg8"
+      },
+      "snippet": {
+        "publishedAt": "2026-06-28T19:38:35Z",
+        "channelId": "UCgUMwCA0dBgpOEqQSAFckog",
+        "title": "โปรแกรมบัญชี E-Commerce ตัวเดียวจบ — BKKHolding",
+        "description": "",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/KAIwFQqHgg8/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/KAIwFQqHgg8/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/KAIwFQqHgg8/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/KAIwFQqHgg8/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/KAIwFQqHgg8/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "BKKHolding",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-06-28T19:38:35Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "0sT3OWQapNjpqRDm31_5ymz0W5Q",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "8kPv2kY2eoc"
+      },
+      "snippet": {
+        "publishedAt": "2026-07-27T13:08:21Z",
+        "channelId": "UCgUMwCA0dBgpOEqQSAFckog",
+        "title": "AutoKey ด้วย Super Key — ทำบัญชีอัตโนมัติ ไม่ต้องพิมพ์เอง! ⚡",
+        "description": "",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/8kPv2kY2eoc/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/8kPv2kY2eoc/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/8kPv2kY2eoc/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/8kPv2kY2eoc/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/8kPv2kY2eoc/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "BKKHolding",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-07-27T13:08:21Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "1EHqAfmercfqgPJtFF4QVFf0nrM",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "Fa7Mb5Hqu2I"
+      },
+      "snippet": {
+        "publishedAt": "2026-04-30T10:00:20Z",
+        "channelId": "UCPQ_g-oZBwyLPKk_1IWAWOg",
+        "title": "17 ก.ค. 69 นักบัญชีเรามีนัดกัน ที่งาน FlowAccount Digital Accounting Conference 2026",
+        "description": "กลับมาแล้วกับงานใหญ่แห่งปีที่นักบัญชีตั้งตารอ FlowAccount Digital Accounting Conference 2026 งานสัมมนาเพื่อนักบัญชียุคดิจิทัล ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/Fa7Mb5Hqu2I/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/Fa7Mb5Hqu2I/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/Fa7Mb5Hqu2I/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/Fa7Mb5Hqu2I/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/Fa7Mb5Hqu2I/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "fhd": {
+            "url": "https://i.ytimg.com/vi/Fa7Mb5Hqu2I/fhddefault.jpg",
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "channelTitle": "FlowAccount",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-04-30T10:00:20Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "uHmZYtQ0i_ofF1czHUadaJrJN98",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "vhOsk0KqpN8"
+      },
+      "snippet": {
+        "publishedAt": "2026-05-30T11:29:39Z",
+        "channelId": "UCa3QT1zpV_1pNoqQ6018eUg",
+        "title": "ตอนนี้ใช้โปรแกรมบัญชีอะไรอยู่?",
+        "description": "ตอนนี้ใช้โปรแกรมบัญชีอะไรอยู่? คอมเมนต์บอกได้เลย Finovas ช่วยวางระบบให้เหมาะกับธุรกิจคุณได้. 🗣️ปรึกษาบัญชี/ภาษีฟรี ☎️โทร ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/vhOsk0KqpN8/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/vhOsk0KqpN8/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/vhOsk0KqpN8/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/vhOsk0KqpN8/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/vhOsk0KqpN8/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "สำนักงานบัญชี finovas",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-05-30T11:29:39Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "zbds73oeRBbRkoaPL034DvhY3RE",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "L61oM02w7kY"
+      },
+      "snippet": {
+        "publishedAt": "2026-09-13T08:28:50Z",
+        "channelId": "UCdti1OuDlgFJH7-qa6s22PQ",
+        "title": "โปรแกรมบัญชี AI",
+        "description": "AccOS Pro — โปรแกรมบัญชีออนไลน์ยุคใหม่ สำหรับสำนักงานบัญชีและธุรกิจไทย โปรแกรมบัญชีที่ผสาน AI เข้ากับการทำงานด้านบัญชี ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/L61oM02w7kY/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/L61oM02w7kY/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/L61oM02w7kY/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/L61oM02w7kY/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/L61oM02w7kY/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "AccOS Pro",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-09-13T08:28:50Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "URAj-JZI6GH1sxmLpS1JH3Jcg9Q",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "JwXGylFs9Ug"
+      },
+      "snippet": {
+        "publishedAt": "2026-10-20T14:33:44Z",
+        "channelId": "UCqM47mnihExaLocs_4j6HvA",
+        "title": "ผู้ตรวจสอบบัญชี ระบบ PulseInvScanner  #shorts  #โปรแกรมบัญชี #novapulse #audit #howto",
+        "description": "สรุปฟีเจอร์สิทธิ์การใช้งานตำแหน่ง Auditor (ผู้ตรวจสอบ) ใน PulseInvScanner ✓ ตรวจสอบรายการสแกนและความถูกต้องของข้อมูลได้แบบ ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/JwXGylFs9Ug/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/JwXGylFs9Ug/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/JwXGylFs9Ug/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/JwXGylFs9Ug/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/JwXGylFs9Ug/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "NovaPulse AI",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-10-20T14:33:44Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "YL-XOq-i-kXgjHKUQ7-DifrI634",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "Dy9puzvKKt4"
+      },
+      "snippet": {
+        "publishedAt": "2026-07-27T04:07:17Z",
+        "channelId": "UC934-CijhZBa3p6pNaDBvwg",
+        "title": "ปิดภาษีซื้อ และภาษีขายในโปรแกรมExpress",
+        "description": "งานวิทยากร I งานทำบัญชี I งานตรวจสอบบัญชี I งานคดีทางธุรกิจ △ www.yellowaccounting △ สำนักงานบัญชีYellow △ ติดต่องาน LIneID ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/Dy9puzvKKt4/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/Dy9puzvKKt4/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/Dy9puzvKKt4/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/Dy9puzvKKt4/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/Dy9puzvKKt4/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "manopyellow",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-07-27T04:07:17Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "437l2y3UrvmvmFtAo6XpyMUNgQY",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "fNGXE3Y8x8I"
+      },
+      "snippet": {
+        "publishedAt": "2026-08-30T08:30:16Z",
+        "channelId": "UCD-qFnLvh-g7yI62VAjjc8g",
+        "title": "สอนใช้ KierAccount EP.1 | ภาพรวมโปรแกรมและเมนูการใช้งาน — โปรแกรมบัญชีออนไลน์ธุรกิจไทย",
+        "description": "รู้จักหน้าแดชบอร์ดและเมนูทั้งหมดของ KierAccount โปรแกรมบัญชีออนไลน์สำหรับธุรกิจไทย ดูรายได้ ค่าใช้จ่าย กำไร และเงินสดได้ในหน้าเดียว ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/fNGXE3Y8x8I/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/fNGXE3Y8x8I/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/fNGXE3Y8x8I/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/fNGXE3Y8x8I/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/fNGXE3Y8x8I/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "KierAccount",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-08-30T08:30:16Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "lQ6PX6UvwcHAJpNXY6ipvnEE9aE",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "-ZY57OnfB4M"
+      },
+      "snippet": {
+        "publishedAt": "2026-05-01T13:00:54Z",
+        "channelId": "UCxnlUcJ8GWZBWShhMGUYhfg",
+        "title": "แนะนำการทำงานโปรแกรมแปลงโปรแกรมบัญชี Express เข้าระบบ odoo เวอร์ชั่นล่าสุด สนใจโปรแกรมโทร 0816198579",
+        "description": "แนะนำการทำงานโปรแกรมแปลงโปรแกรมบัญชี Express เข้าระบบ odoo เวอร์ชั่นล่าสุด สนใจโปรแกรมโทร 0816198579 โปรแกรมบัญชีไทย ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/-ZY57OnfB4M/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/-ZY57OnfB4M/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/-ZY57OnfB4M/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/-ZY57OnfB4M/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/-ZY57OnfB4M/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "เอ็ม.ดี.ซอฟต์ จำกัด",
+        "liveBroadcastContent": "none",
+        "publishTime": "2026-05-01T13:00:54Z"
+      }
+    }
+  ]
+}

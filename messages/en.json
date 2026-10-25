@@ -1,0 +1,53 @@
+{
+  "brand": {
+    "name": "Reely",
+    "tagline": "Find the short videos worth copying"
+  },
+  "nav": {
+    "overview": "Overview",
+    "home": "Home",
+    "research": "Research",
+    "newResearch": "New research",
+    "tracking": "Tracking",
+    "saved": "Saved",
+    "product": "My product",
+    "devSearch": "Test search",
+    "signOut": "Sign out",
+    "language": "ภาษาไทย"
+  },
+  "login": {
+    "title": "Sign in to Reely",
+    "subtitle": "We'll email you a sign-in link. No password needed.",
+    "email": "Email",
+    "send": "Send sign-in link",
+    "sending": "Sending…",
+    "sent": "Check your inbox for the sign-in link.",
+    "error": "Couldn't send the link. Try again in a minute."
+  },
+  "home": {
+    "title": "Welcome back",
+    "subtitle": "Find outlier videos in your niche, track competitors, and turn winners into your own scripts.",
+    "cta": "Try a test search"
+  },
+  "search": {
+    "title": "Test search",
+    "subtitle": "Search one keyword on TikTok and YouTube and rank results by outlier score.",
+    "placeholder": "e.g. โปรแกรมบัญชี",
+    "button": "Search",
+    "fixtures": "Sample data mode: results come from saved samples and cost no credits.",
+    "live": "Live mode: this search uses real API calls.",
+    "noResults": "No videos passed the filters.",
+    "hiddenByFilter": "{count} small or low-view results hidden by the noise filter.",
+    "views": "views",
+    "followers": "followers",
+    "usually": "usually {views}",
+    "reach": "{x}× followers",
+    "usual": "{x}× usual views",
+    "open": "Open"
+  },
+  "labels": {
+    "breakout": "Breakout",
+    "strong": "Strong",
+    "normal": "Normal"
+  }
+}
