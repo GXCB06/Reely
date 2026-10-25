@@ -26,8 +26,8 @@ async function call<T>(endpoint: string, params: Record<string, string>): Promis
   const key = process.env.YOUTUBE_API_KEY;
   if (!key) throw new Error("YOUTUBE_API_KEY is not set");
   const res = await fetch(`${BASE}/${endpoint}?${new URLSearchParams({ ...params, key })}`, { cache: "no-store" });
-  await logApiCall("youtube", endpoint);
   if (!res.ok) throw new Error(`YouTube ${endpoint} failed: ${res.status}`);
+  await logApiCall("youtube", endpoint);
   return (await res.json()) as T;
 }
 

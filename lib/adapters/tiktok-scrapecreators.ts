@@ -32,8 +32,8 @@ async function call<T>(endpoint: string, params: Record<string, string>): Promis
     headers: { "x-api-key": key },
     cache: "no-store",
   });
-  await logApiCall("scrapecreators", endpoint);
   if (!res.ok) throw new Error(`ScrapeCreators ${endpoint} failed: ${res.status}`);
+  await logApiCall("scrapecreators", endpoint);
   return (await res.json()) as T;
 }
 

@@ -1,7 +1,7 @@
 import "server-only";
 import { generateText, Output } from "ai";
 import { formatMultiplier } from "@/lib/scoring";
-import { getModel, languageName } from "./model";
+import { aiCallOptions, getModel, languageName } from "./model";
 import {
   MAX_KEYWORDS,
   planSchema,
@@ -22,6 +22,7 @@ export async function suggestPlan(brief: string): Promise<ResearchPlan & { sourc
   if (model) {
     try {
       const { output } = await generateText({
+        ...aiCallOptions(),
         model,
         output: Output.object({ schema: planSchema }),
         prompt: [
@@ -53,6 +54,7 @@ export async function analyzeVideo(v: VideoInput, locale: string): Promise<Video
   if (model) {
     try {
       const { output } = await generateText({
+        ...aiCallOptions(),
         model,
         output: Output.object({ schema: videoAnalysisSchema }),
         prompt: [
@@ -98,6 +100,7 @@ export async function makeMyVersion(
   if (model) {
     try {
       const { output } = await generateText({
+        ...aiCallOptions(),
         model,
         output: Output.object({ schema: scriptSchema }),
         prompt: [
@@ -159,6 +162,7 @@ export async function summarizeRun(input: RunInput, locale: string): Promise<Run
   if (model && input.top.length) {
     try {
       const { output } = await generateText({
+        ...aiCallOptions(),
         model,
         output: Output.object({ schema: runSummarySchema }),
         prompt: [

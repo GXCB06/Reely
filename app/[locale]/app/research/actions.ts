@@ -59,6 +59,16 @@ export async function runResearchAction(input: RunInput) {
       if (error) throw new Error(error.message);
     }
 
+    // Results are saved: mark the run done now, so a slow or failed AI summary never blocks them.
+    await supabase
+      .from("research_runs")
+      .update({
+        status: "done",
+        error: result.errors.length ? result.errors.join("\n").slice(0, 2000) : null,
+        finished_at: new Date().toISOString(),
+      })
+      .eq("id", run.id);
+
     const top = result.videos.slice(0, 10);
     const summary = await summarizeRun(
       {
@@ -77,16 +87,7 @@ export async function runResearchAction(input: RunInput) {
       },
       locale,
     );
-
-    await supabase
-      .from("research_runs")
-      .update({
-        status: "done",
-        summary,
-        error: result.errors.length ? result.errors.join("\n").slice(0, 2000) : null,
-        finished_at: new Date().toISOString(),
-      })
-      .eq("id", run.id);
+    await supabase.from("research_runs").update({ summary }).eq("id", run.id);
     return { ok: true as const, runId: run.id as string };
   } catch (e) {
     await supabase
