@@ -534,7 +534,11 @@ export async function makeMyVersion(
         prompt: [
           `Write a short-form video script for the product below. Write every field (including title, caption and borrowed) in ${languageName(locale)}.`,
           "Borrow the STRUCTURE of the reference video (hook style, format, pacing, angle) — never copy its",
-          "words, jokes or footage. Make it filmable by a founder with a phone in one take. 20-45 seconds.",
+          `words, jokes or footage. Make it filmable by a founder with a phone in one take. ${
+            v.spoken?.duration
+              ? `About ${Math.max(10, Math.round(v.spoken.duration))} seconds long, like the reference (durationSeconds and the beat times must fit that).`
+              : "20-45 seconds."
+          }`,
           ...(goal ? [`The user ${GOAL_BRIEF[goal]}.`, ...GOAL_BEATS[goal]] : ["Beats in order: hook, setup, demo, payoff, cta."]),
           "Keep the first beat under 12 words. Only claim what the product description says it does.",
           NO_MADE_UP_NUMBERS,
@@ -555,7 +559,6 @@ export async function makeMyVersion(
                 v.spoken.beats.length
                   ? `Its real structure: ${v.spoken.beats.map((b) => `${b.label} ${b.start.toFixed(0)}-${b.end.toFixed(0)}s (${b.summary})`).join("; ")}. Match this pacing: start each beat at about the same time.`
                   : "",
-                v.spoken.duration ? `It runs ${Math.round(v.spoken.duration)} s: keep durationSeconds within about 30% of that (10-45 s).` : "",
               ]
             : []),
           `Its caption: ${v.caption.slice(0, 400)}`,
