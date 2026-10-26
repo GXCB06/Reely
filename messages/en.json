@@ -294,7 +294,7 @@
   "card": {
     "save": "Save",
     "saved": "Saved",
-    "useful": "Useful for this product?",
+    "useful": "Useful?",
     "upTip": "Useful: the next research for this product looks for more clips like this",
     "downTip": "Not useful: the next research leaves this clip out and looks for fewer like it",
     "learned": "Reely will remember: the next research for this product uses it as an example",
