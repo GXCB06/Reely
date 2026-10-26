@@ -7,7 +7,7 @@ import { type ProductBrief, rateRelevance } from "@/lib/ai/tasks";
 import { getFreshCreator, saveCreator, saveVideos } from "@/lib/cache";
 import { type Goal, goalScore } from "@/lib/goals";
 import { captionLanguage } from "@/lib/region";
-import { isExcluded } from "@/lib/results";
+import { isExcluded, isOwnAccount } from "@/lib/results";
 import {
   labelFor,
   type OutlierLabel,
@@ -141,6 +141,12 @@ export async function searchKeywords(
     if (reason) s.dropped[reason] = (s.dropped[reason] ?? 0) + 1;
     return !reason;
   });
+  // The user's own account (e.g. @accospro.app for AccOS Pro) is not something to learn from: leave it out quietly.
+  const own = opts.product ? clean.filter((v) => isOwnAccount(v.creatorHandle, opts.product!.name)) : [];
+  if (own.length) {
+    own.forEach((v) => statOf(v.platform).found--);
+    clean.splice(0, clean.length, ...clean.filter((v) => !own.includes(v)));
+  }
   // AI relevance check before any paid baseline lookups, so off-topic creators cost nothing.
   // Score 1 ("same audience, not the product") only fills in when there are few clearly on-topic videos.
   const relevance = opts.product ? await rateRelevance(opts.product, clean, opts.goal) : null;

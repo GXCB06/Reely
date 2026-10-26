@@ -32,6 +32,17 @@ export function isExcluded(caption: string, exclusions: string[]) {
   return exclusions.some((w) => w.trim() && text.includes(w.trim().toLowerCase()));
 }
 
+const squash = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+
+/**
+ * True for the product's own account (e.g. @accospro.app for "AccOS Pro"): its clips are not ideas to borrow.
+ * Names under 5 letters are skipped, so a short word doesn't hide other creators.
+ */
+export function isOwnAccount(handle: string, productName: string | undefined) {
+  const name = squash(productName ?? "");
+  return name.length >= 5 && squash(handle).includes(name);
+}
+
 function presetOrNull(raw: string | string[] | undefined, allowed: readonly number[]) {
   const n = Number(Array.isArray(raw) ? raw[0] : raw);
   return allowed.includes(n) ? n : null;

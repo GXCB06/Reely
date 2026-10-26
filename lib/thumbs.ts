@@ -8,6 +8,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const BUCKET = "thumbs";
 const MAX_BYTES = 600_000;
 const CONCURRENCY = 8;
+const FETCH_TIMEOUT_MS = 10_000;
+// Some vendor CDNs (TikTok's US one in particular) refuse requests that don't look like a browser.
+const BROWSER_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36",
+  Accept: "image/avif,image/webp,image/jpeg,image/png,*/*",
+};
 const TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/webp": "webp", "image/png": "png" };
 
 export const isStoredThumb = (url: string | null) => !!url && url.includes(`/storage/v1/object/public/${BUCKET}/`);
@@ -22,21 +28,30 @@ function isVendorCdn(url: string) {
   }
 }
 
-async function copyOne(admin: NonNullable<ReturnType<typeof createAdminClient>>, v: NormalizedVideo): Promise<string | null> {
-  if (!v.thumbnailUrl || !isVendorCdn(v.thumbnailUrl)) return null;
+type CopyResult = { url: string } | { failed: string };
+
+async function fetchCover(url: string) {
+  return fetch(url, { headers: BROWSER_HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), cache: "no-store" });
+}
+
+async function copyOne(admin: NonNullable<ReturnType<typeof createAdminClient>>, v: NormalizedVideo): Promise<CopyResult> {
+  if (!v.thumbnailUrl || !isVendorCdn(v.thumbnailUrl)) return { failed: "not a vendor cover" };
   try {
-    const res = await fetch(v.thumbnailUrl, { signal: AbortSignal.timeout(6000), cache: "no-store" });
+    // One retry for a timeout or a server error (CDNs hiccup); a 403/404 won't get better.
+    let res = await fetchCover(v.thumbnailUrl).catch(() => null);
+    if (!res || res.status >= 500) res = await fetchCover(v.thumbnailUrl);
     const type = res.headers.get("content-type")?.split(";")[0] ?? "";
     const ext = TYPES[type];
-    if (!res.ok || !ext) return null;
+    if (!res.ok) return { failed: `http ${res.status}` };
+    if (!ext) return { failed: `type ${type || "none"}` };
     const body = Buffer.from(await res.arrayBuffer());
-    if (body.length > MAX_BYTES) return null;
+    if (body.length > MAX_BYTES) return { failed: "too big" };
     const path = `${v.platform}/${v.platformVideoId.replace(/[^\w-]/g, "_")}.${ext}`;
     const { error } = await admin.storage.from(BUCKET).upload(path, body, { contentType: type, upsert: true, cacheControl: "31536000" });
-    if (error) return null;
-    return admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-  } catch {
-    return null;
+    if (error) return { failed: "upload" };
+    return { url: admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl };
+  } catch (e) {
+    return { failed: (e as Error).name === "TimeoutError" ? "timeout" : "fetch error" };
   }
 }
 
@@ -49,10 +64,20 @@ export async function storeThumbnails(videos: NormalizedVideo[], alreadyStored: 
   const admin = createAdminClient();
   if (!admin || fixturesEnabled()) return out;
   const todo = videos.filter((v) => !alreadyStored.has(`${v.platform}:${v.platformVideoId}`) && v.thumbnailUrl);
+  // Why covers failed, by platform and reason, so a gap in stored covers can be explained from the logs.
+  const failures = new Map<string, number>();
   for (let i = 0; i < todo.length; i += CONCURRENCY) {
     const batch = todo.slice(i, i + CONCURRENCY);
-    const urls = await Promise.all(batch.map((v) => copyOne(admin, v)));
-    batch.forEach((v, j) => urls[j] && out.set(`${v.platform}:${v.platformVideoId}`, urls[j]!));
+    const results = await Promise.all(batch.map((v) => copyOne(admin, v)));
+    batch.forEach((v, j) => {
+      const r = results[j];
+      if ("url" in r) out.set(`${v.platform}:${v.platformVideoId}`, r.url);
+      else failures.set(`${v.platform} ${r.failed}`, (failures.get(`${v.platform} ${r.failed}`) ?? 0) + 1);
+    });
+  }
+  if (todo.length) {
+    const why = [...failures].map(([k, n]) => `${k}: ${n}`).join(", ");
+    console.log(`[thumbs] stored ${out.size} of ${todo.length} covers${why ? `; failed: ${why}` : ""}`);
   }
   return out;
 }

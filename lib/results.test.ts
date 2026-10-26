@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyFilters, diverseTop, isExcluded, parseFilters } from "./results";
+import { applyFilters, diverseTop, isExcluded, isOwnAccount, parseFilters } from "./results";
 
 describe("isExcluded", () => {
   it("matches Thai and English words inside captions", () => {
@@ -7,6 +7,18 @@ describe("isExcluded", () => {
     expect(isExcluded("Best CRYPTO apps", ["crypto"])).toBe(true);
     expect(isExcluded("โปรแกรมบัญชีออนไลน์", ["หุ้น", "crypto"])).toBe(false);
     expect(isExcluded("anything", ["  "])).toBe(false);
+  });
+});
+
+describe("isOwnAccount", () => {
+  it("spots the product's own handle, ignoring case, spaces and dots", () => {
+    expect(isOwnAccount("accospro.app", "AccOS Pro")).toBe(true);
+    expect(isOwnAccount("AetoxOfficial", "Aetox")).toBe(true);
+    expect(isOwnAccount("flowaccountchannel", "AccOS Pro")).toBe(false);
+  });
+  it("ignores names too short to be sure", () => {
+    expect(isOwnAccount("goodapp_review", "App")).toBe(false);
+    expect(isOwnAccount("anyone", undefined)).toBe(false);
   });
 });
 

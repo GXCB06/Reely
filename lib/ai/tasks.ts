@@ -124,6 +124,10 @@ const GOAL_RELEVANCE: Record<Goal, string> = {
   brand: "The user is a creator in this niche: 2 covers videos on the niche's topics; 1 covers adjacent topics the same viewers watch.",
 };
 
+/** Scripts and ideas get posted as-is, so they must not promise results nobody measured. */
+const NO_MADE_UP_NUMBERS =
+  "Never invent numbers about the product (percentages, time or money saved, prices, user counts, ratings) unless the description states them; say it in words instead (e.g. 'much faster').";
+
 /** What the per-clip idea should achieve for each goal. */
 const GOAL_ACTION: Record<Goal, string> = {
   sell: "get viewers to buy it (end on the TikTok Shop basket or link)",
@@ -455,6 +459,7 @@ export async function makeMyVersion(
           "words, jokes or footage. Make it filmable by a founder with a phone in one take. 20-45 seconds.",
           ...(goal ? [`The user ${GOAL_BRIEF[goal]}.`, ...GOAL_BEATS[goal]] : ["Beats in order: hook, setup, demo, payoff, cta."]),
           "Keep the first beat under 12 words. Only claim what the product description says it does.",
+          NO_MADE_UP_NUMBERS,
           "",
           `Product: ${product.name}`,
           product.url ? `Link: ${product.url}` : "",
@@ -540,6 +545,7 @@ export async function summarizeRun(input: RunInput, locale: string): Promise<Run
           "Then group the videos into 3-5 formulas the founder can copy tomorrow with a phone. Each formula needs",
           "1-3 example line numbers; skip videos that fit no useful formula. The idea must be about THEIR product.",
           input.goal ? GOAL_FORMULAS[input.goal] : "",
+          NO_MADE_UP_NUMBERS,
         ].join("\n"),
       });
       const patterns = output.patterns
@@ -597,6 +603,7 @@ export async function ideasForClips(
         `For EVERY video below write one sentence (max 25 words): how they could reuse its hook or format for their product to ${GOAL_ACTION[goal]}.`,
         "Be concrete: name the hook or format to borrow and what to show on screen. Never suggest copying its words or footage.",
         "Only mention what the product description says it does; never give it a brand, product or feature name taken from the video.",
+        NO_MADE_UP_NUMBERS,
         "Videos (line | platform | handle | views | multiplier | shop link | caption):",
         ...clips.map(
           (v, i) =>
@@ -641,6 +648,7 @@ export async function pickTodayIdeas(
           ),
           "Pick the 3-5 most useful for this founder (different formats, prefer high saves+shares and real views),",
           "and turn each into one video they could film today with a phone. Never suggest copying words or footage.",
+          NO_MADE_UP_NUMBERS,
         ].join("\n"),
       });
       const seen = new Set<number>();
