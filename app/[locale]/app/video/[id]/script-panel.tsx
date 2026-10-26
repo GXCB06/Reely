@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
+import type { Goal } from "@/lib/goals";
 import { makeMyVersionAction, type SavedScript } from "./actions";
 
 function scriptToText(s: SavedScript["content"]) {
@@ -25,15 +26,17 @@ export function ScriptPanel({
   initialScripts,
 }: {
   videoId: number;
-  products: { id: string; name: string }[];
+  products: { id: string; name: string; goal: Goal | null }[];
   initialScripts: SavedScript[];
 }) {
   const t = useTranslations("script");
+  const tg = useTranslations("goals");
   const locale = useLocale();
   const [scripts, setScripts] = useState(initialScripts);
   const [pending, startTransition] = useTransition();
   const [productId, setProductId] = useState(products[0]?.id ?? null);
   const productName = products.find((p) => p.id === productId)?.name ?? null;
+  const goal = products.find((p) => p.id === productId)?.goal ?? null;
 
   if (!productName) {
     return (
@@ -78,7 +81,12 @@ export function ScriptPanel({
         ) : (
           <p className="text-sm text-muted-foreground">{t("forProduct", { product: productName })}</p>
         )}
-        <Button onClick={generate} disabled={pending} className="rounded-full">
+        {goal && (
+          <span className="rounded-full bg-accent px-2.5 py-1 text-xs text-accent-foreground" title={tg(`${goal}.desc`)}>
+            {t("structure", { goal: tg(`${goal}.short`) })}
+          </span>
+        )}
+        <Button onClick={generate} disabled={pending} className="ml-auto rounded-full">
           {pending ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
           {scripts.length ? t("again") : t("make")}
         </Button>

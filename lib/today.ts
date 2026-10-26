@@ -1,7 +1,8 @@
 import "server-only";
 import type { Platform, SearchRegion } from "@/lib/adapters/types";
 import { type ProductBrief, pickTodayIdeas } from "@/lib/ai/tasks";
-import { bestScore, keepRate, type OutlierLabel } from "@/lib/scoring";
+import { goalScore, isGoal } from "@/lib/goals";
+import { keepRate, type OutlierLabel } from "@/lib/scoring";
 import { type ScoredVideo, searchKeywords } from "@/lib/search";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -58,9 +59,9 @@ export async function buildTodayDigest(locale: string): Promise<{ ok: true } | {
     supabase.from("tracked_accounts").select("platform, handle"),
     supabase
       .from("research_runs")
-      .select("id, title, brief, keywords, keyword_regions, exclusions, platforms, input")
+      .select("id, title, brief, keywords, keyword_regions, exclusions, platforms, input, goal")
       .not("followed_at", "is", null),
-    supabase.from("products").select("name, description, audience").limit(1).maybeSingle(),
+    supabase.from("products").select("name, description, audience, goal").order("created_at").limit(1).maybeSingle(),
     supabase
       .from("daily_digests")
       .select("items")
@@ -97,17 +98,24 @@ export async function buildTodayDigest(locale: string): Promise<{ ok: true } | {
       const regions = (t.keyword_regions as SearchRegion[] | null) ?? [];
       const keywords = (t.keywords as string[]).slice(0, TOPIC_KEYWORDS).map((text, i) => ({ text, region: regions[i] ?? "th" }));
       const product = input.productName ? { name: input.productName, whatItIs: input.whatItIs ?? "", audience: input.audience ?? "" } : undefined;
-      const result = await searchKeywords(keywords, ["tiktok"], (t.exclusions as string[]) ?? [], { product, days: 7, minViews: 5_000 });
+      const result = await searchKeywords(keywords, ["tiktok"], (t.exclusions as string[]) ?? [], {
+        product,
+        goal: isGoal(t.goal) ? t.goal : null,
+        days: 7,
+        minViews: 5_000,
+      });
       after(() => persistThumbnails(result.videos));
       const label = (t.title as string | null) || (t.brief as string).slice(0, 40);
       return result.videos.filter(isNewWinner).map((v) => ({ ...v, source: "topic", sourceLabel: label }));
     }),
   );
 
+  // Today's ideas are for the main product, so its goal decides what is most useful.
+  const goal = productRow && isGoal(productRow.goal) ? productRow.goal : null;
   const seen = new Set<number>();
   const candidates = [...fromAccounts.flat(), ...fromTopics.flat()]
     .filter((v) => !seen.has(v.dbId!) && seen.add(v.dbId!))
-    .sort((a, b) => bestScore(b) - bestScore(a))
+    .sort((a, b) => goalScore(b, goal) - goalScore(a, goal))
     .slice(0, MAX_CANDIDATES);
 
   const product: ProductBrief | null = productRow
@@ -124,6 +132,7 @@ export async function buildTodayDigest(locale: string): Promise<{ ok: true } | {
       source: v.source === "tracked" ? `tracked ${v.sourceLabel}` : `topic "${v.sourceLabel}"`,
     })),
     locale,
+    goal,
   );
 
   const items: TodayItem[] = ideas.map((idea) => {

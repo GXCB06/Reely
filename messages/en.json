@@ -361,9 +361,17 @@
       "setup": "Setup",
       "demo": "Demo",
       "payoff": "Payoff",
-      "cta": "CTA"
+      "cta": "CTA",
+      "pain": "Pain",
+      "feature": "Feature",
+      "result": "Result",
+      "proof": "Proof",
+      "story": "Story",
+      "offer": "Offer",
+      "takeaway": "Takeaway"
     },
-    "forWhich": "Script for"
+    "forWhich": "Script for",
+    "structure": "{goal} structure"
   },
   "account": {
     "title": "Account",

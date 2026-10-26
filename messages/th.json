@@ -360,9 +360,17 @@
       "setup": "ปูเรื่อง",
       "demo": "เดโม",
       "payoff": "ผลลัพธ์",
-      "cta": "CTA"
+      "cta": "CTA",
+      "pain": "ปัญหา",
+      "feature": "ฟีเจอร์",
+      "result": "ผลที่ได้",
+      "proof": "หลักฐาน",
+      "story": "เรื่องเล่า",
+      "offer": "ข้อเสนอ",
+      "takeaway": "ทิปส์"
     },
-    "forWhich": "เขียนให้"
+    "forWhich": "เขียนให้",
+    "structure": "โครงแบบ{goal}"
   },
   "account": {
     "title": "บัญชี",

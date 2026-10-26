@@ -3,6 +3,7 @@
 import { z } from "zod";
 import type { Script } from "@/lib/ai/schemas";
 import { makeMyVersion } from "@/lib/ai/tasks";
+import { isGoal } from "@/lib/goals";
 import type { VideoRow } from "@/lib/db-mappers";
 import { reachScore, usualScore } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
@@ -17,7 +18,7 @@ export async function makeMyVersionAction(videoId: number, locale: string, produ
   const supabase = await createClient();
 
   // The chosen product, or the first one saved.
-  let query = supabase.from("products").select("id, name, url, description, audience");
+  let query = supabase.from("products").select("id, name, url, description, audience, goal");
   query = chosen ? query.eq("id", chosen) : query.order("created_at").limit(1);
   const { data: product } = await query.maybeSingle();
   if (!product) return { ok: false as const, error: "no-product" };
@@ -44,6 +45,8 @@ export async function makeMyVersionAction(videoId: number, locale: string, produ
       angle: analysis?.angle ?? null,
     },
     lang,
+    // The product's goal picks the script structure (e.g. demo → proof → Shop basket for sellers).
+    isGoal(product.goal) ? product.goal : null,
   );
 
   const { data: saved, error } = await supabase

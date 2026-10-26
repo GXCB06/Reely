@@ -100,7 +100,8 @@ export const videoAnalysisSchema = z.object({
 });
 export type VideoAnalysis = z.infer<typeof videoAnalysisSchema>;
 
-export const BEAT_LABELS = ["hook", "setup", "demo", "payoff", "cta"] as const;
+// The first 5 are the default structure; the rest are used by the goal structures (GOAL_BEATS in tasks.ts).
+export const BEAT_LABELS = ["hook", "setup", "demo", "payoff", "cta", "pain", "feature", "result", "proof", "story", "offer", "takeaway"] as const;
 
 export const scriptSchema = z.object({
   title: z.string().describe("Working title for the video, max 8 words"),

@@ -132,6 +132,45 @@ const GOAL_ACTION: Record<Goal, string> = {
   brand: "grow followers with their own take",
 };
 
+/** Script structure per goal: beats in order, and what each must do. */
+const GOAL_BEATS: Record<Goal, string[]> = {
+  sell: [
+    "Beats in order: hook, demo, proof, cta.",
+    "hook: the problem or the result, in the first second. demo: the product in someone's hands, close up, doing its job.",
+    "proof: before/after, a result, a comparison or a real reaction. cta: tap the TikTok Shop basket (ตะกร้า) or link, with a reason to buy now.",
+  ],
+  shop: [
+    "Beats in order: hook, story, offer, cta.",
+    "story: behind the scenes, or the owner saying what makes the place special. offer: one menu item, service, price or promotion.",
+    "cta: come visit: where it is, opening hours or how to book.",
+  ],
+  startup: [
+    "Beats in order: pain, feature, result, cta.",
+    "pain: a relatable moment of the everyday work pain the product solves (this is the hook). feature: ONE feature that fixes it, shown",
+    "on screen. result: the time or money saved, before/after. cta: try it free, link in bio.",
+  ],
+  brand: [
+    "Beats in order: hook, story, takeaway, cta.",
+    "story: the creator's own experience or opinion. takeaway: one useful tip viewers will save. cta: follow for more on the niche.",
+  ],
+};
+
+/** What the formulas on a research should look like for each goal. */
+const GOAL_FORMULAS: Record<Goal, string> = {
+  sell: "Formulas that SELL: demos, before/after, unboxings, comparisons, honest reviews; each idea ends with a reason to tap the Shop basket.",
+  shop: "Formulas that bring customers IN: owner stories, behind the scenes, menu or service reveals, customer reactions, an offer plus where to find the place.",
+  startup: "Formulas that promote ONE feature: a pain skit then the fix, a screen-recorded demo, a founder talking head, myth-busting; each idea names the feature it shows.",
+  brand: "Formulas that grow FOLLOWERS: strong talking-head hooks, stories, tip lists, opinions; each idea ends with a reason to follow.",
+};
+
+/** What to look for when picking Today's videos for each goal. */
+const GOAL_TODAY: Record<Goal, string> = {
+  sell: "Prefer videos that sell a product (Shop links, demos, reviews).",
+  shop: "Prefer videos a small local business could film in its own place.",
+  startup: "Prefer videos about the work pain the product solves, or tool demos in its field.",
+  brand: "Prefer videos where one creator's hook or story carried the video.",
+};
+
 function goalPlan(goal: Goal | null | undefined): string[] {
   if (goal) return [`The user ${GOAL_BRIEF[goal]}. Set goal to "${goal}". Keywords (${MAX_KEYWORDS}):`, ...GOAL_KEYWORDS[goal]];
   return [
@@ -400,6 +439,7 @@ export async function makeMyVersion(
   product: ProductInput,
   v: ScriptVideoInput,
   locale: string,
+  goal?: Goal | null,
 ): Promise<Script & { source: "ai" | "sample" }> {
   const model = getModel();
   if (model) {
@@ -412,7 +452,8 @@ export async function makeMyVersion(
           `Write a short-form video script for the product below, in ${languageName(locale)}.`,
           "Borrow the STRUCTURE of the reference video (hook style, format, pacing, angle) — never copy its",
           "words, jokes or footage. Make it filmable by a founder with a phone in one take. 20-45 seconds.",
-          "Beats in order: hook, setup, demo, payoff, cta. Keep the hook under 12 words.",
+          ...(goal ? [`The user ${GOAL_BRIEF[goal]}.`, ...GOAL_BEATS[goal]] : ["Beats in order: hook, setup, demo, payoff, cta."]),
+          "Keep the first beat under 12 words. Only claim what the product description says it does.",
           "",
           `Product: ${product.name}`,
           product.url ? `Link: ${product.url}` : "",
@@ -497,6 +538,7 @@ export async function summarizeRun(input: RunInput, locale: string): Promise<Run
           "names the shared pattern (hook, format or angle) behind the winners. Cite @handles. No hype words.",
           "Then group the videos into 3-5 formulas the founder can copy tomorrow with a phone. Each formula needs",
           "1-3 example line numbers; skip videos that fit no useful formula. The idea must be about THEIR product.",
+          input.goal ? GOAL_FORMULAS[input.goal] : "",
         ].join("\n"),
       });
       const patterns = output.patterns
@@ -574,7 +616,12 @@ export type TodayCandidate = { handle: string; caption: string; views: number | 
 export type TodayIdea = { i: number; title: string; why: string; hook: string; angle: string };
 
 /** Today page: picks 3-5 of the new breakouts and turns each into a "post this today" idea for the product. */
-export async function pickTodayIdeas(product: ProductBrief | null, candidates: TodayCandidate[], locale: string): Promise<TodayIdea[]> {
+export async function pickTodayIdeas(
+  product: ProductBrief | null,
+  candidates: TodayCandidate[],
+  locale: string,
+  goal?: Goal | null,
+): Promise<TodayIdea[]> {
   const model = getModel();
   if (model && candidates.length) {
     try {
@@ -585,6 +632,7 @@ export async function pickTodayIdeas(product: ProductBrief | null, candidates: T
         prompt: [
           `You are a content strategist. Answer in ${languageName(locale)}.`,
           product ? `The founder's product: ${product.name} — ${product.whatItIs}. Audience: ${product.audience}` : "",
+          goal ? `The user ${GOAL_BRIEF[goal]}. ${GOAL_TODAY[goal]} Each angle says how to ${GOAL_ACTION[goal]}.` : "",
           "These short videos broke out in the last 7 days (line | source | handle | views | multiplier | saves+shares per view | caption):",
           ...candidates.map(
             (v, i) =>
