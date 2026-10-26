@@ -19,6 +19,7 @@ export const understandingSchema = z.object({
       z.object({
         text: z.string().min(2).max(80),
         region: z.enum(["th", "global"]).describe("th = a Thai-language phrase; global = an English phrase"),
+        english: z.string().max(80).describe("The same phrase in natural English (for Instagram search)"),
       }),
     )
     .min(1)

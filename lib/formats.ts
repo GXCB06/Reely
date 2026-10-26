@@ -4,7 +4,9 @@ import { tiktokSoundVideos } from "@/lib/adapters/tiktok-scrapecreators";
 import type { NormalizedVideo } from "@/lib/adapters/types";
 import type { FormatDescription } from "@/lib/ai/schemas";
 import { describeFormat, matchFormat } from "@/lib/ai/tasks";
+import { after } from "next/server";
 import { saveVideos } from "@/lib/cache";
+import { persistThumbnails } from "@/lib/thumbs";
 import { type VideoRow, videoFromRow } from "@/lib/db-mappers";
 import { type FormatStage, formatStage, postsPerDay, topSounds } from "@/lib/format-stats";
 import { looksThai } from "@/lib/region";
@@ -133,6 +135,7 @@ export async function buildFormat(seedVideoId: number, userId: string | null, lo
       `${candidates.length} candidates, ${kept.length} kept (AI ${match ? "on" : "off"})`,
   );
   const dbIds = await saveVideos(kept);
+  after(() => persistThumbnails(kept));
   const idOf = (v: NormalizedVideo) => dbIds.get(`${v.platform}:${v.platformVideoId}`) ?? (v as ScoredVideo).dbId;
   const keptIds = [seedVideoId, ...kept.map(idOf).filter((id): id is number => id !== undefined)];
 

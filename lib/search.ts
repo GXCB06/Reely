@@ -1,5 +1,6 @@
 import "server-only";
 import { adapters } from "@/lib/adapters";
+import { INSTAGRAM_MIN_DAYS } from "@/lib/adapters/instagram-scrapecreators";
 import { DEFAULT_WINDOW, type NormalizedVideo, type Platform, type SearchRegion } from "@/lib/adapters/types";
 import type { SearchSettings } from "@/lib/search-settings";
 import { type ProductBrief, rateRelevance } from "@/lib/ai/tasks";
@@ -15,6 +16,9 @@ import {
   usualScore,
   usualViewsExcluding,
 } from "@/lib/scoring";
+
+/** With at least this many clearly on-topic results, drop the "same audience" ones (score 1). */
+const STRICT_RELEVANCE_AT = 15;
 
 /** Max creators per platform that get a usual-views lookup (CLAUDE.md cost rule 3). */
 const BASELINE_CREATORS = 5;
@@ -35,9 +39,30 @@ export type SearchResult = {
   hidden: number;
   /** Dropped by the AI relevance check. */
   offTopic: number;
+  /** Per platform: how many were found, kept, and why the rest were dropped (shown under the results). */
+  platforms: Partial<Record<Platform, PlatformStats>>;
   errors: string[];
 };
-export type KeywordQuery = { text: string; region: SearchRegion };
+
+export type DropReason = "views" | "old" | "language" | "excluded" | "offTopic";
+export type PlatformStats = { found: number; kept: number; dropped: Partial<Record<DropReason, number>> };
+
+/** Why a video did not make it, checked in this order (the first failing rule is the reason). */
+function dropReason(
+  v: NormalizedVideo,
+  rules: { minViews: number; sinceMs: number; language?: string; exclusions: string[]; thaiSearch: boolean },
+): DropReason | null {
+  if (!passesNoiseFilter(v.views, v.creatorFollowers) || (v.views ?? 0) < rules.minViews) return "views";
+  if (v.publishedAt && new Date(v.publishedAt).getTime() < rules.sinceMs) return "old";
+  const lang = captionLanguage(v);
+  if (rules.language && rules.language !== "any" && lang !== rules.language) return "language";
+  // A Thai search keeps Thai and English captions (Top search also returns other languages).
+  if ((!rules.language || rules.language === "any") && rules.thaiSearch && lang && lang !== "th" && lang !== "en") return "language";
+  if (isExcluded(v.caption, rules.exclusions)) return "excluded";
+  return null;
+}
+/** `english`: the same phrase in English, for Instagram (its popular search only understands English). */
+export type KeywordQuery = { text: string; region: SearchRegion; english?: string };
 
 async function creatorBaseline(platform: Platform, handle: string) {
   const cached = await getFreshCreator(platform, handle);
@@ -72,12 +97,18 @@ export async function searchKeywords(
   const days = opts.days ?? DEFAULT_WINDOW;
   const since = Date.now() - days * 864e5;
   const errors: string[] = [];
+  const igSince = Date.now() - Math.max(days, INSTAGRAM_MIN_DAYS) * 864e5;
   // Alternate the two rankings that surface viral videos: most-liked and the platform's "Top" (same cost).
-  const jobs = keywords.flatMap(({ text: keyword, region }, i) =>
+  // Instagram searches the English phrase, once per distinct phrase.
+  const queried = new Set<string>();
+  const jobs = keywords.flatMap(({ text: keyword, region, english }, i) =>
     platforms.map(async (p) => {
+      const query = p === "instagram" ? english || keyword : keyword;
+      if (queried.has(`${p}:${query.toLowerCase()}`)) return [];
+      queried.add(`${p}:${query.toLowerCase()}`);
       try {
         const order = i % 2 === 0 ? "popular" : "top";
-        const found = await adapters[p].searchVideos(keyword, { region, days, order });
+        const found = await adapters[p].searchVideos(query, { region, days, order });
         return found.map((v) => ({ ...v, keyword }));
       } catch (e) {
         errors.push(`${p} "${keyword}": ${(e as Error).message}`);
@@ -94,17 +125,32 @@ export async function searchKeywords(
   });
 
   // Platforms filter dates loosely (Instagram only knows "last year"), so enforce the window here too.
-  const clean = all.filter(
-    (v) =>
-      passesNoiseFilter(v.views, v.creatorFollowers) &&
-      (v.views ?? 0) >= (opts.minViews ?? 0) &&
-      (!v.publishedAt || new Date(v.publishedAt).getTime() >= since) &&
-      (!opts.language || opts.language === "any" || captionLanguage(v) === opts.language) &&
-      !isExcluded(v.caption, exclusions),
-  );
+  const thaiKeywords = new Set(keywords.filter((k) => k.region === "th").map((k) => k.text));
+  const stats: Partial<Record<Platform, PlatformStats>> = {};
+  const statOf = (p: Platform) => (stats[p] ??= { found: 0, kept: 0, dropped: {} });
+  const clean = all.filter((v) => {
+    const s = statOf(v.platform);
+    s.found++;
+    const reason = dropReason(v, {
+      minViews: opts.minViews ?? 0,
+      sinceMs: v.platform === "instagram" ? igSince : since,
+      language: opts.language,
+      exclusions,
+      thaiSearch: thaiKeywords.has(v.keyword),
+    });
+    if (reason) s.dropped[reason] = (s.dropped[reason] ?? 0) + 1;
+    return !reason;
+  });
   // AI relevance check before any paid baseline lookups, so off-topic creators cost nothing.
+  // Score 1 ("same audience, not the product") only fills in when there are few clearly on-topic videos.
   const relevance = opts.product ? await rateRelevance(opts.product, clean) : null;
-  const kept = relevance ? clean.filter((_, i) => relevance[i] > 0) : clean;
+  const onTopic = relevance ? relevance.filter((r) => r === 2).length : 0;
+  const minScore = onTopic >= STRICT_RELEVANCE_AT ? 2 : 1;
+  const kept = relevance ? clean.filter((_, i) => relevance[i] >= minScore) : clean;
+  clean.forEach((v, i) => {
+    if (relevance && relevance[i] < minScore) statOf(v.platform).dropped.offTopic = (statOf(v.platform).dropped.offTopic ?? 0) + 1;
+  });
+  kept.forEach((v) => statOf(v.platform).kept++);
   const dbIds = await saveVideos(kept);
 
   // Usual-views baselines for the top creators (by reach, or by views where followers are unknown, as on Instagram).
@@ -155,7 +201,7 @@ export async function searchKeywords(
     })
     .sort((a, b) => bestScore(b) - bestScore(a));
 
-  return { videos, hidden: all.length - clean.length, offTopic: clean.length - kept.length, errors };
+  return { videos, hidden: all.length - clean.length, offTopic: clean.length - kept.length, platforms: stats, errors };
 }
 
 /** Single-keyword search used by the test page. */

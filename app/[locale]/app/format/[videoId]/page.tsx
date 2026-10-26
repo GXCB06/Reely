@@ -12,6 +12,9 @@ import { FormatBuilder } from "./format-builder";
 
 const SEGMENT_ICON = { b2b: Building2, consumer: ShoppingBag, local: Store } as const;
 
+/** Searches run as server actions on this page and can take 30-60 s (Vercel's default limit is lower). */
+export const maxDuration = 120;
+
 /** "Who else made this kind of clip?": one format, the topics people used it for, its sounds and examples. */
 export default async function FormatPage({ params }: PageProps<"/[locale]/app/format/[videoId]">) {
   const { locale, videoId } = await params;

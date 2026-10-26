@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 
 const REGIONS = new Set<RegionChoice>(["th", "global", "both"]);
 
+/** Searches run as server actions on this page and can take 30-60 s (Vercel's default limit is lower). */
+export const maxDuration = 120;
+
 /**
  * Home = the research chat. `?q=…&region=…&go=1` pre-fills and sends it (used by "search again" on results);
  * `?product=<id>` starts from a saved product.

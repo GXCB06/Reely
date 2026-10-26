@@ -81,3 +81,18 @@ export function applyFilters<T extends FilterableResult>(rows: T[], f: ResultFil
   };
   return filtered.sort((a, b) => key[f.sort](b) - key[f.sort](a));
 }
+
+/**
+ * The n best results, but with up to `minPer` from each platform that has any: a list sorted only by score is
+ * all TikTok (it has the most data), which hides good Shorts and Reels.
+ */
+export function diverseTop<T extends FilterableResult>(rows: T[], n = 10, minPer = 2): T[] {
+  const sorted = [...rows].sort((a, b) => bestScore(b) - bestScore(a));
+  const reserved = [...new Set(sorted.map((r) => r.platform))].flatMap((p) => sorted.filter((r) => r.platform === p).slice(0, minPer));
+  const picked = new Set(reserved.slice(0, n));
+  for (const r of sorted) {
+    if (picked.size >= n) break;
+    picked.add(r);
+  }
+  return sorted.filter((r) => picked.has(r));
+}

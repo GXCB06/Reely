@@ -56,3 +56,29 @@ export async function storeThumbnails(videos: NormalizedVideo[], alreadyStored: 
   }
   return out;
 }
+
+/**
+ * Copies the covers of these videos to storage and updates their rows. Meant to run with after(), once the
+ * results are already shown (vendor cover links stay valid for at least ~5 h, plenty for this).
+ */
+export async function persistThumbnails(videos: NormalizedVideo[]): Promise<void> {
+  const admin = createAdminClient();
+  if (!admin || fixturesEnabled() || !videos.length) return;
+  const stored = new Set<string>();
+  for (const platform of [...new Set(videos.map((v) => v.platform))]) {
+    const { data } = await admin
+      .from("videos")
+      .select("platform, platform_video_id")
+      .eq("platform", platform)
+      .in("platform_video_id", videos.filter((v) => v.platform === platform).map((v) => v.platformVideoId))
+      .like("thumbnail_url", `%/storage/v1/object/public/${BUCKET}/%`);
+    data?.forEach((r) => stored.add(`${r.platform}:${r.platform_video_id}`));
+  }
+  const urls = await storeThumbnails(videos, stored);
+  await Promise.all(
+    [...urls].map(([key, url]) => {
+      const [platform, ...id] = key.split(":");
+      return admin.from("videos").update({ thumbnail_url: url }).eq("platform", platform).eq("platform_video_id", id.join(":"));
+    }),
+  );
+}

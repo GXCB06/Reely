@@ -8,6 +8,33 @@ import { DEFAULT_WINDOW, type NormalizedCreator, type NormalizedVideo, type Plat
 // Instagram only offers week / month / year; search.ts trims anything older than the window afterwards.
 const IG_WINDOW: Record<SearchWindow, string> = { 7: "last-week", 30: "last-month", 90: "last-year" };
 
+/**
+ * Instagram has far less searchable data than TikTok (its "popular" search is mostly older posts; a 6-month
+ * window returned nothing in a test), so Reels always look back at least a year. Cards show the date.
+ */
+export const INSTAGRAM_MIN_DAYS = 365;
+const INSTAGRAM_EPOCH_MS = 1314220021721;
+
+/** An Instagram media id holds its creation time (ms since Instagram's epoch, shifted left 23 bits). */
+export function instagramIdDate(id: string): string | null {
+  const digits = id.replace(/\D/g, "");
+  if (!digits) return null;
+  const ms = Number(BigInt(digits) >> BigInt(23)) + INSTAGRAM_EPOCH_MS;
+  return ms > INSTAGRAM_EPOCH_MS && ms < Date.now() + 864e5 ? new Date(ms).toISOString() : null;
+}
+
+/** Instagram "popular" (curated top posts for a topic; English queries only, Thai returns nothing). */
+type PopularPost = {
+  id: string;
+  shortcode: string;
+  url?: string;
+  type?: string;
+  caption?: string | null;
+  display_url?: string;
+  play_count?: string | number | null;
+  owner?: { username?: string };
+};
+
 // ScrapeCreators Instagram, checked 2026-10-25: 1 credit per call. Reels search is Google-indexed
 // (best-effort, 10 per page) and returns no follower counts, so Reels are scored on usual views only.
 // Videos are keyed by shortcode, which is the same in search results and profile reels.
@@ -76,6 +103,30 @@ function fromSearch(r: SearchReel): NormalizedVideo {
   };
 }
 
+function fromPopular(p: PopularPost): NormalizedVideo {
+  const views = p.play_count === null || p.play_count === undefined ? null : Number(p.play_count);
+  return {
+    platform: "instagram",
+    platformVideoId: p.shortcode,
+    url: p.url ?? `https://www.instagram.com/reel/${p.shortcode}/`,
+    thumbnailUrl: p.display_url ?? null,
+    caption: p.caption ?? "",
+    creatorHandle: p.owner?.username ?? "",
+    creatorName: null,
+    creatorFollowers: null,
+    views: Number.isFinite(views) ? views : null,
+    likes: null,
+    comments: null,
+    shares: null,
+    saves: null,
+    durationSeconds: null,
+    publishedAt: instagramIdDate(p.id),
+    country: null,
+    hasShop: false,
+    sound: null,
+  };
+}
+
 function fromProfile(r: ProfileReel): NormalizedVideo {
   return {
     platform: "instagram",
@@ -103,11 +154,20 @@ export const instagramAdapter: PlatformAdapter = {
   platform: "instagram",
 
   async searchVideos(keyword, opts) {
-    // No region option: the keyword's language decides whose Reels come back.
+    // "Popular" first: Instagram's own top reels for the topic (test 2026-10-26: median 44.6K views vs
+    // ~9K from reels search). It only understands English, so search.ts passes the English keyword.
+    // Falls back to the Google-indexed reels search when popular has nothing (1 more credit).
+    type PopRes = { posts?: PopularPost[] };
+    const popular = fixturesEnabled()
+      ? await readFixture<PopRes>("instagram-popular")
+      : await call<PopRes>("/v1/instagram/search/popular", { query: keyword });
+    const reels = (popular?.posts ?? []).filter((p) => p.shortcode && (!p.type || p.type === "reel")).map(fromPopular);
+    if (reels.length) return reels;
     type Res = { reels?: SearchReel[] };
+    const days = Math.max(opts?.days ?? DEFAULT_WINDOW, INSTAGRAM_MIN_DAYS) as SearchWindow;
     const data = fixturesEnabled()
       ? await readFixture<Res>("instagram-search")
-      : await call<Res>("/v2/instagram/reels/search", { query: keyword, date_posted: IG_WINDOW[opts?.days ?? DEFAULT_WINDOW] });
+      : await call<Res>("/v2/instagram/reels/search", { query: keyword, date_posted: IG_WINDOW[days] ?? "last-year" });
     return (data?.reels ?? []).filter((r) => r.shortcode).map(fromSearch);
   },
 

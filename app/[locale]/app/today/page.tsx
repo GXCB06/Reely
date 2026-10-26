@@ -8,6 +8,9 @@ import { createClient } from "@/lib/supabase/server";
 import { bangkokDay, countTodaySources, getTodayDigest } from "@/lib/today";
 import { TodayBuilder } from "./today-builder";
 
+/** Searches run as server actions on this page and can take 30-60 s (Vercel's default limit is lower). */
+export const maxDuration = 120;
+
 /** "What to post today": 3-5 ideas from this week's new breakouts. Built on the first visit of the day. */
 export default async function TodayPage({ params }: PageProps<"/[locale]/app/today">) {
   const { locale } = await params;

@@ -22,7 +22,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { enhanceBriefAction, runResearchAction, understandAction } from "@/app/[locale]/app/research/actions";
 import { PlatformIcon } from "@/components/platform-icon";
-import { Logo } from "@/components/shell/logo";
+import { Mascot } from "@/components/mascot";
 import { useRouter } from "@/i18n/navigation";
 import type { Understanding } from "@/lib/ai/schemas";
 import type { SearchWindow } from "@/lib/adapters/types";
@@ -37,6 +37,7 @@ import {
 } from "@/lib/search-settings";
 import { findLink, hostOf, resizeImage } from "./image-utils";
 import { RegionIcon } from "./region-flag";
+import { ResearchStory } from "./research-story";
 
 const MAX_KEYWORDS = 5;
 const PLATFORMS = ["tiktok", "youtube", "instagram"] as const;
@@ -67,8 +68,9 @@ export function ResearchChat({
   const [text, setText] = useState(initialText);
   const [image, setImage] = useState<{ full: string; thumb: string } | null>(null);
   const [region, setRegion] = useState<RegionChoice>(initialRegion);
-  // TikTok only by default: it is the one platform with saves and shares, and the most on-topic results.
-  const [platforms, setPlatforms] = useState<PlatformId[]>(["tiktok"]);
+  // TikTok + Shorts by default (Shorts costs no credits). Reels stay optional: they cost credits and
+  // Instagram's search only works in English.
+  const [platforms, setPlatforms] = useState<PlatformId[]>(["tiktok", "youtube"]);
   const [product, setProduct] = useState<SavedProduct | null>(products.find((p) => p.id === initialProductId) ?? null);
   // Trends move fast: 90 days by default, and only videos with real views.
   const [days, setDays] = useState<SearchWindow>(90);
@@ -81,7 +83,6 @@ export function ResearchChat({
   const [exclusions, setExclusions] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState("");
   const [newExclusion, setNewExclusion] = useState("");
-  const [runStep, setRunStep] = useState(0);
   // "Enhance": which of the 4 parts of a good brief the text covers (set by the AI after enhancing).
   const [covered, setCovered] = useState<Record<"topic" | "audience" | "angle" | "avoid", boolean> | null>(null);
   const [enhancing, setEnhancing] = useState(false);
@@ -96,13 +97,6 @@ export function ResearchChat({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [phase]);
-
-  // Progress steps while the run is working (the server does them in this order).
-  useEffect(() => {
-    if (phase !== "running") return;
-    const timers = [5000, 14000, 22000].map((ms, i) => setTimeout(() => setRunStep(i + 1), ms));
-    return () => timers.forEach(clearTimeout);
   }, [phase]);
 
   async function onPickImage(file: File | undefined) {
@@ -168,7 +162,7 @@ export function ResearchChat({
     const k = newKeyword.trim();
     if (k.length < 2 || keywords.some((x) => x.text === k)) return;
     const on = selected.length < MAX_KEYWORDS;
-    setKeywords((ks) => [...ks, { text: k, region: region === "global" ? "global" : "th", on }]);
+    setKeywords((ks) => [...ks, { text: k, region: region === "global" ? "global" : "th", english: k, on }]);
     setNewKeyword("");
   }
 
@@ -186,7 +180,6 @@ export function ResearchChat({
 
   function run() {
     if (!sent || !plan || !selected.length) return;
-    setRunStep(0);
     setPhase("running");
     startTransition(async () => {
       const res = await runResearchAction({
@@ -200,7 +193,7 @@ export function ResearchChat({
           reply: plan.reply,
           competitors: plan.competitors ?? [],
         },
-        keywords: selected.map(({ text: k, region: r }) => ({ text: k, region: r })),
+        keywords: selected.map(({ text: k, region: r, english }) => ({ text: k, region: r, english })),
         exclusions,
         platforms,
         region,
@@ -215,7 +208,6 @@ export function ResearchChat({
     });
   }
 
-  const platformNames = platforms.map((p) => t(`platform.${p}`)).join(", ");
 
   const composer = (
     <div className="rounded-3xl border bg-card p-3 shadow-[0_8px_30px_-12px_rgba(86,54,186,0.25)] focus-within:ring-2 focus-within:ring-primary/30">
@@ -350,6 +342,7 @@ export function ResearchChat({
     return (
       <div className="mx-auto flex min-h-[calc(100dvh-1rem)] max-w-3xl flex-col justify-center px-6 py-10">
         <div className="mb-6 text-center">
+          <Mascot size={76} className="mx-auto mb-3" />
           <h1 className="font-heading text-3xl font-bold md:text-4xl">{t("greeting")}</h1>
           <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{t("subtitle")}</p>
         </div>
@@ -513,24 +506,12 @@ export function ResearchChat({
         </ReelyBubble>
 
         {phase === "running" && (
-          <ReelyBubble>
-            <p className="font-semibold">{t("running.title")}</p>
-            <ol className="mt-3 space-y-2 text-sm">
-              {(["s1", "s2", "s3", "s4"] as const).map((s, i) => (
-                <li key={s} className={`flex items-center gap-2 ${i > runStep ? "text-muted-foreground/60" : ""}`}>
-                  {i < runStep ? (
-                    <Check className="size-4 text-primary" />
-                  ) : i === runStep ? (
-                    <Loader2 className="size-4 animate-spin text-primary" />
-                  ) : (
-                    <span className="size-4 rounded-full border" />
-                  )}
-                  {t(`running.${s}`, { platforms: platformNames })}
-                </li>
-              ))}
-            </ol>
-            <p className="mt-3 text-xs text-muted-foreground">{t("runningHint")}</p>
-          </ReelyBubble>
+          <ResearchStory
+            brief={sent.text || plan?.whatItIs || ""}
+            keywords={selected.map((k) => k.text)}
+            exclusions={exclusions}
+            platforms={platforms}
+          />
         )}
         <div ref={bottomRef} />
       </div>
@@ -573,7 +554,7 @@ export function ReelyBubble({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex gap-3">
       <span className="mt-1 grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-accent">
-        <Logo markOnly height={20} />
+        <Mascot size={26} />
       </span>
       <div className="min-w-0 flex-1 rounded-3xl rounded-tl-md border bg-card px-5 py-4 shadow-sm">{children}</div>
     </div>

@@ -80,9 +80,14 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
    window (7/30/90 days, default 90);
    profile videos always `trim=true&include_pinned=false`, max 2 pages for a baseline.
 10. Never call `/v1/tiktok/user/audience` (26 credits) or transcripts with `use_ai_as_fallback`.
-11. Instagram: search `/v2/instagram/reels/search` (1 page, `date_posted=last-year`); baseline = one page
-    of `/v1/instagram/user/reels` (`trim=true`). No profile calls (search has no follower counts).
+11. Instagram: `/v1/instagram/search/popular` with the keyword's English version (Thai returns nothing;
+    test: median 44.6K views vs ~9K from reels search), falling back to `/v2/instagram/reels/search` only when
+    popular is empty. Reels look back at least 365 days (popular is mostly older posts; dates come from the
+    media id). Baseline = one page of `/v1/instagram/user/reels` (`trim=true`). No profile calls.
 12. Run the AI relevance check (`rateRelevance`) BEFORE baseline lookups, so off-topic creators cost nothing.
+    Score 1 means "inside the product's field", not just "same audience"; with 15+ clear matches, only score 2 stays.
+16. Covers are copied to storage with `after()` (`persistThumbnails`), never inside the search itself:
+    copying ~200 covers inline made a run take 66-80 s instead of ~25 s.
 13. Today page: built at most once per user per day (`daily_digests`), only when the page is opened.
     Followed topics: max 2 per user, first 3 keywords, TikTok only, `date_posted=this-week`.
 14. "Update with new videos" on a research: at most once per ~20 h per research, only the time since

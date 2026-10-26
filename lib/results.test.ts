@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyFilters, isExcluded, parseFilters } from "./results";
+import { applyFilters, diverseTop, isExcluded, parseFilters } from "./results";
 
 describe("isExcluded", () => {
   it("matches Thai and English words inside captions", () => {
@@ -45,5 +45,33 @@ describe("applyFilters", () => {
   it("sorts by views and recency", () => {
     expect(applyFilters(rows, { ...base, sort: "views" }, now).map((r) => r.id)).toEqual(["c", "a", "b"]);
     expect(applyFilters(rows, { ...base, sort: "recent" }, now).map((r) => r.id)).toEqual(["b", "a", "c"]);
+  });
+});
+
+describe("diverseTop", () => {
+  const row = (id: string, platform: string, views: number) => ({
+    id,
+    platform,
+    views,
+    saves: null,
+    shares: null,
+    label: "breakout" as const,
+    publishedAt: null,
+    usual: 10,
+    reach: null,
+  });
+  it("keeps the best overall but gives each platform a couple of places", () => {
+    const rows = [
+      ...Array.from({ length: 12 }, (_, i) => row(`t${i}`, "tiktok", 1_000_000 - i)),
+      row("y1", "youtube", 50_000),
+      row("y2", "youtube", 40_000),
+      row("y3", "youtube", 30_000),
+      row("i1", "instagram", 20_000),
+    ];
+    const top = diverseTop(rows, 10, 2).map((r) => r.id);
+    expect(top).toHaveLength(10);
+    expect(top.slice(0, 7)).toEqual(["t0", "t1", "t2", "t3", "t4", "t5", "t6"]);
+    expect(top).toEqual(expect.arrayContaining(["y1", "y2", "i1"]));
+    expect(top).not.toContain("y3");
   });
 });

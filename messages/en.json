@@ -90,7 +90,7 @@
       "youtube": "Shorts",
       "instagram": "Reels"
     },
-    "instagramHint": "Reels search is best-effort and costs credits, so it is off by default.",
+    "instagramHint": "Reels are searched in English and look back at least 6 months (Instagram has less searchable data). Costs credits.",
     "suggestions": {
       "s1": "AI accounting app for Thai SMEs and accounting offices",
       "s2": "Windows AI agent that automates tasks for developers",
@@ -260,7 +260,16 @@
     "refreshedAt": "Updated {when}",
     "refreshExplain": "Come back later and update this research instead of starting a new one.",
     "freshTitle": "New since last update ({n})",
-    "nextFormat": "See who else made this kind of clip"
+    "nextFormat": "See who else made this kind of clip",
+    "platformKept": "{kept} of {found} kept",
+    "mostlyDropped": "most dropped: {reason} ({n})",
+    "dropReason": {
+      "views": "below the minimum views",
+      "old": "older than the time window",
+      "language": "other language",
+      "excluded": "words you filtered out",
+      "offTopic": "not about your product"
+    }
   },
   "card": {
     "save": "Save",
@@ -475,5 +484,33 @@
     "boardEmpty": "No formats yet",
     "boardEmptyHint": "Open any video and press “Same format” to see who else made that kind of clip.",
     "boardStats": "{week} creators this week · {videos} videos · {views} views"
+  },
+  "story": {
+    "step": "How it works · {n} of {of}",
+    "wait": "Usually under a minute. Your videos will open here when it’s done.",
+    "read": {
+      "title": "First, I read your brief",
+      "body": "I pull out exactly what to look for. Your own words drive everything from here."
+    },
+    "search": {
+      "title": "Then I search every platform",
+      "body": "Each of your keywords runs on every platform you picked, sorted by what’s most-liked and on top."
+    },
+    "filter": {
+      "title": "Next, I keep only what fits",
+      "body": "Words on your avoid list are dropped before you ever see them.",
+      "dropped": "Dropped before you see them",
+      "offTopic": "off-topic videos",
+      "ai": "AI also reads every caption and removes anything that isn’t about your product."
+    },
+    "score": {
+      "title": "And I score every keeper",
+      "body": "Each video gets a 🔥 score: how far it beat the account’s usual views, not just raw views.",
+      "example": "Example",
+      "usually": "An account that usually gets",
+      "got": "gets",
+      "breakout": "Breakout",
+      "note": "A clip that blows past its own account’s normal is one worth learning from, no matter how big the creator is."
+    }
   }
 }

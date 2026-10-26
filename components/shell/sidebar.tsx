@@ -1,6 +1,7 @@
 "use client";
 
-import { Bookmark, ChevronUp, Languages, Layers, LogOut, Package, Radar, SquarePen, Sun, UserRound } from "lucide-react";
+import { Bookmark, ChevronUp, Languages, Layers, LogOut, Package, Radar, Sun, UserRound } from "lucide-react";
+import { Mascot } from "@/components/mascot";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { Logo } from "./logo";
@@ -49,7 +50,7 @@ export function Sidebar({
         onClick={() => router.push(`/app?n=${Date.now()}`)}
         className="mb-3 flex items-center gap-3 rounded-xl bg-sidebar-primary px-3 py-2.5 text-sm font-medium text-white hover:bg-sidebar-primary/90"
       >
-        <SquarePen className="size-4" />
+        <Mascot size={22} tone="light" />
         {t("newResearch")}
       </button>
 

@@ -14,15 +14,18 @@ import { ScoreExplainer } from "@/components/results/score-explainer";
 import { Link } from "@/i18n/navigation";
 import type { RunSummary } from "@/lib/ai/schemas";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
-import { applyFilters, parseFilters, type PlatformTab } from "@/lib/results";
+import { applyFilters, diverseTop, parseFilters, type PlatformTab } from "@/lib/results";
 import { bestScore } from "@/lib/scoring";
 import type { RegionChoice } from "@/lib/region";
-import type { ScoredVideo } from "@/lib/search";
+import type { DropReason, PlatformStats, ScoredVideo } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
 
 /** Matches the server action: a research can pull in new videos about once a day. */
 const REFRESH_COOLDOWN_MS = 20 * 3600e3;
 const olderThan = (iso: string, ms: number) => Date.now() - new Date(iso).getTime() > ms;
+
+/** Searches run as server actions on this page and can take 30-60 s (Vercel's default limit is lower). */
+export const maxDuration = 120;
 
 export default async function ResearchResultsPage({ params, searchParams }: PageProps<"/[locale]/app/research/[id]">) {
   const { locale, id } = await params;
@@ -66,9 +69,12 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   // Default view: the 10 best. "Show all" (?all=1) opens every result with filters and sorting.
   const showAll = sp.all === "1";
   const shown = applyFilters(all, filters);
-  const top = [...all].sort((a, b) => bestScore(b) - bestScore(a)).slice(0, 10);
+  const top = diverseTop(all, 10, 2);
   const summary = run.summary as RunSummary | null;
-  const stats = run.stats as { hidden?: number; offTopic?: number } | null;
+  const stats = run.stats as { hidden?: number; offTopic?: number; platforms?: Partial<Record<"tiktok" | "youtube" | "instagram", PlatformStats>> } | null;
+  // The main reason each platform's videos were dropped, so a thin platform is explained, not hidden.
+  const mainDrop = (s: PlatformStats) =>
+    (Object.entries(s.dropped) as [DropReason, number][]).sort((a, b) => b[1] - a[1])[0] ?? null;
   const counts: Record<PlatformTab, number> = {
     all: all.length,
     tiktok: all.filter((v) => v.platform === "tiktok").length,
@@ -145,10 +151,28 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
         />
 
         {stats && (stats.offTopic ?? 0) + (stats.hidden ?? 0) > 0 && (
-          <p className="-mt-4 flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
-            <Sparkles className="size-3.5 text-primary" />
-            {t("statsLine", { offTopic: stats.offTopic ?? 0, hidden: stats.hidden ?? 0 })}
-          </p>
+          <div className="-mt-4 space-y-1.5 px-1 text-xs text-muted-foreground">
+            <p className="flex items-center gap-1.5">
+              <Sparkles className="size-3.5 text-primary" />
+              {t("statsLine", { offTopic: stats.offTopic ?? 0, hidden: stats.hidden ?? 0 })}
+            </p>
+            {stats.platforms && (
+              <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                {(Object.entries(stats.platforms) as ["tiktok" | "youtube" | "instagram", PlatformStats][]).map(([p, s]) => {
+                  const drop = mainDrop(s);
+                  return (
+                    <span key={p} className="inline-flex items-center gap-1.5">
+                      <PlatformIcon platform={p} className="size-3.5" />
+                      {t("platformKept", { kept: s.kept, found: s.found })}
+                      {drop && s.kept < s.found && (
+                        <span className="text-muted-foreground/80">· {t("mostlyDropped", { reason: t(`dropReason.${drop[0]}`), n: drop[1] })}</span>
+                      )}
+                    </span>
+                  );
+                })}
+              </p>
+            )}
+          </div>
         )}
 
         {fresh.length > 0 && !showAll && (

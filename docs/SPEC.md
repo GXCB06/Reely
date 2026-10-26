@@ -52,6 +52,13 @@ line into a brief and ticks topic / audience / angle / avoid; optional caption-l
 covers are copied to Supabase Storage (vendor links expire); Vercel functions run in Singapore; a loading
 skeleton shows on every page switch.
 
+**Balance and quality (2026-10-26):** Shorts are on by default (free); Reels use Instagram's popular search in
+English; the 10 best keep up to 2 per platform; each research shows per platform how many videos were kept and
+the main reason the rest were dropped (Thai Shorts in niche B2B topics rarely pass 10K views, so TikTok
+dominates Thai results by nature). Keyword mix: 2 competitor phrases, 1 category, 2 viral audience topics.
+A mascot whose eyes follow the pointer; while searching, an animated "how it works" story built from the
+user's own brief, keywords and filters.
+
 ## 3. Not in the MVP
 
 Open-ended Copilot chat (the Home chat only runs the research flow) · bring-your-own AI keys · automatic alerts (LINE/Telegram) · content trends, hashtags, sounds · Meta ads in-app

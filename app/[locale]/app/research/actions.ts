@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { MAX_KEYWORDS } from "@/lib/ai/schemas";
 import { enhanceBrief, summarizeRun, understandProduct } from "@/lib/ai/tasks";
@@ -9,6 +10,7 @@ import { keepRate } from "@/lib/scoring";
 import { type ScoredVideo, searchKeywords } from "@/lib/search";
 import { DEFAULT_MIN_VIEWS } from "@/lib/search-settings";
 import { createClient } from "@/lib/supabase/server";
+import { persistThumbnails } from "@/lib/thumbs";
 
 const MAX_PRODUCTS = 5;
 /** A research can pull in new videos at most about once a day (credits). */
@@ -77,7 +79,13 @@ const runSchema = z.object({
     competitors: z.array(z.string().trim().min(1).max(40)).max(6).default([]),
   }),
   keywords: z
-    .array(z.object({ text: z.string().trim().min(2).max(80), region: z.enum(["th", "global"]) }))
+    .array(
+      z.object({
+        text: z.string().trim().min(2).max(80),
+        region: z.enum(["th", "global"]),
+        english: z.string().trim().max(80).optional(),
+      }),
+    )
     .min(1)
     .max(MAX_KEYWORDS),
   exclusions: z.array(z.string().trim().min(1).max(40)).max(10),
@@ -149,6 +157,7 @@ export async function runResearchAction(input: RunInput) {
       product_id: productRowId,
       keywords: keywords.map((k) => k.text),
       keyword_regions: keywords.map((k) => k.region),
+      keyword_english: keywords.map((k) => k.english || k.text),
       exclusions,
       platforms,
       region,
@@ -164,6 +173,7 @@ export async function runResearchAction(input: RunInput) {
     const product = { name: understanding.productName, whatItIs: understanding.whatItIs, audience: understanding.audience };
     const result = await searchKeywords(keywords, platforms, exclusions, { product, ...settings });
     const rows = result.videos.filter((v) => v.dbId !== undefined).map((v, i) => resultRow(run.id, v, i + 1));
+    after(() => persistThumbnails(result.videos));
     if (rows.length) {
       const { error } = await supabase.from("run_results").insert(rows);
       if (error) throw new Error(error.message);
@@ -175,7 +185,7 @@ export async function runResearchAction(input: RunInput) {
       .update({
         status: "done",
         error: result.errors.length ? result.errors.join("\n").slice(0, 2000) : null,
-        stats: { hidden: result.hidden, offTopic: result.offTopic },
+        stats: { hidden: result.hidden, offTopic: result.offTopic, platforms: result.platforms },
         finished_at: new Date().toISOString(),
       })
       .eq("id", run.id);
@@ -226,7 +236,7 @@ export async function refreshRunAction(id: string) {
   const supabase = await createClient();
   const { data: run } = await supabase
     .from("research_runs")
-    .select("id, keywords, keyword_regions, exclusions, platforms, settings, input, created_at, last_refreshed_at, status")
+    .select("id, keywords, keyword_regions, keyword_english, exclusions, platforms, settings, input, created_at, last_refreshed_at, status")
     .eq("id", parsed.data)
     .maybeSingle();
   if (!run || run.status === "running") return { ok: false as const, error: "invalid" as const };
@@ -238,7 +248,12 @@ export async function refreshRunAction(id: string) {
   const settings = (run.settings as { minViews?: number; language?: "any" | "th" | "en" } | null) ?? {};
   const input = (run.input ?? {}) as { productName?: string; whatItIs?: string; audience?: string };
   const regions = (run.keyword_regions as ("th" | "global")[] | null) ?? [];
-  const keywords = (run.keywords as string[]).map((text, i) => ({ text, region: regions[i] ?? ("th" as const) }));
+  const english = (run.keyword_english as string[] | null) ?? [];
+  const keywords = (run.keywords as string[]).map((text, i) => ({
+    text,
+    region: regions[i] ?? ("th" as const),
+    english: english[i],
+  }));
   const product = input.productName
     ? { name: input.productName, whatItIs: input.whatItIs ?? "", audience: input.audience ?? "" }
     : undefined;
@@ -253,6 +268,7 @@ export async function refreshRunAction(id: string) {
   const have = new Set((existing ?? []).map((r) => r.video_id as number));
   const maxRank = Math.max(0, ...(existing ?? []).map((r) => (r.rank as number | null) ?? 0));
   const fresh = result.videos.filter((v) => v.dbId !== undefined && !have.has(v.dbId));
+  after(() => persistThumbnails(fresh));
   if (fresh.length) {
     const { error } = await supabase.from("run_results").insert(fresh.map((v, i) => resultRow(run.id, v, maxRank + i + 1)));
     if (error) return { ok: false as const, error: "failed" as const };

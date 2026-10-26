@@ -1,7 +1,9 @@
 import "server-only";
 import { adapters } from "@/lib/adapters";
 import type { Platform } from "@/lib/adapters/types";
+import { after } from "next/server";
 import { saveCreator, saveVideos } from "@/lib/cache";
+import { persistThumbnails } from "@/lib/thumbs";
 import { type VideoRow, videoFromRow } from "@/lib/db-mappers";
 import { BREAKOUT_AT, labelFor, reachScore, usualScore, usualViewsExcluding } from "@/lib/scoring";
 import type { ScoredVideo } from "@/lib/search";
@@ -45,6 +47,7 @@ export async function refreshIfStale(platform: Platform, handle: string): Promis
     const recent = await adapters[platform]!.getCreatorVideos(handle);
     if (!recent.length) return { refreshed: false, error: "empty" };
     await saveVideos(recent);
+    after(() => persistThumbnails(recent));
     await saveCreator(platform, handle, {
       followers: recent[0].creatorFollowers,
       usualViews: usualViewsExcluding(recent.map((v) => ({ id: v.platformVideoId, views: v.views }))),
