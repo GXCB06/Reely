@@ -4,6 +4,7 @@ import { AudioLines, ChevronDown, Loader2, Megaphone, RotateCcw } from "lucide-r
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import type { HookBreakdown } from "@/lib/ai/schemas";
+import { looksThai } from "@/lib/region";
 import { clock, type Segment, speechStats } from "@/lib/transcript";
 import { readHookAction } from "./actions";
 
@@ -79,13 +80,16 @@ export function HookPanel({
   const b = view.breakdown;
   const stats = speechStats(view.segments, duration);
   const total = Math.max(stats?.duration ?? 0, b?.beats.at(-1)?.end ?? 0, 1);
+  // A translation only helps when the clip speaks another language than the user's.
+  const hook = b?.hook || view.segments[0]?.text || "";
+  const translated = b?.hookTranslated?.trim() && (locale === "th") !== looksThai(hook) ? b.hookTranslated : null;
 
   return (
     <div className="space-y-4 rounded-3xl border bg-card p-5 shadow-sm">
       <div>
         <p className="text-xs font-semibold tracking-widest text-primary uppercase">{t("firstSeconds")}</p>
-        <blockquote className="mt-1 font-heading text-2xl leading-snug font-bold">“{b?.hook || view.segments[0]?.text}”</blockquote>
-        {b?.hookTranslated && <p className="mt-1 text-muted-foreground">{b.hookTranslated}</p>}
+        <blockquote className="mt-1 font-heading text-2xl leading-snug font-bold">“{hook}”</blockquote>
+        {translated && <p className="mt-1 text-muted-foreground">{translated}</p>}
         <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
           {b?.hookType && <span className="rounded-full bg-primary px-2.5 py-1 font-medium text-primary-foreground">{b.hookType}</span>}
           {stats && <span className="rounded-full bg-muted px-2.5 py-1">{t("startsAt", { s: stats.startsAt.toFixed(1) })}</span>}
