@@ -192,7 +192,9 @@ Text: ${msg.link.text.slice(0, 2000)}`
       const imageData = msg.image?.split(",")[1];
       const mediaType = msg.image?.match(/^data:([^;]+);/)?.[1] ?? "image/jpeg";
       const { output } = await generateText({
-        ...aiCallOptions(),
+        // The whole plan (goal, product, 5 keywords with English versions) can take Gemini 20-30 s; a timeout
+        // falls back to much weaker sample keywords, so this step gets more time than the others.
+        ...aiCallOptions(45_000),
         model,
         output: Output.object({ schema: understandingSchema }),
         messages: [
