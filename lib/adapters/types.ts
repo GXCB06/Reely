@@ -3,8 +3,14 @@ export type Platform = "youtube" | "tiktok" | "instagram";
 /** Where a keyword search should look: Thai audience or worldwide (mostly English). */
 export type SearchRegion = "th" | "global";
 
-/** `recent`: only videos from the last ~7 days (the Today page); otherwise the last 6-12 months. */
-export type SearchOptions = { region?: SearchRegion; recent?: boolean };
+/** How far back a search looks. Trends move fast, so the default is 90 days, never a year or more. */
+export type SearchWindow = 7 | 30 | 90;
+export const DEFAULT_WINDOW: SearchWindow = 90;
+
+export type SearchOptions = { region?: SearchRegion; days?: SearchWindow };
+
+/** The sound a video uses (TikTok). The same sound across many videos usually means the same trend. */
+export type VideoSound = { id: string; title: string; author: string | null; original: boolean };
 
 /** One short video in the same shape for every platform. */
 export interface NormalizedVideo {
@@ -23,6 +29,11 @@ export interface NormalizedVideo {
   saves: number | null;
   durationSeconds: number | null;
   publishedAt: string | null;
+  /** ISO country code of the post (TikTok) or channel (YouTube); null when unknown. */
+  country: string | null;
+  /** Linked to a TikTok Shop product (useful for affiliates). */
+  hasShop: boolean;
+  sound: VideoSound | null;
 }
 
 export interface NormalizedCreator {

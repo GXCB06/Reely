@@ -1,17 +1,39 @@
 import { setRequestLocale } from "next-intl/server";
 import { ResearchChat } from "@/components/chat/research-chat";
+import { isSupabaseConfigured } from "@/lib/env";
 import type { RegionChoice } from "@/lib/region";
+import { createClient } from "@/lib/supabase/server";
 
 const REGIONS = new Set<RegionChoice>(["th", "global", "both"]);
 
-/** Home = the research chat. `?q=…&region=…&go=1` pre-fills it (used by "search again" on results). */
+/**
+ * Home = the research chat. `?q=…&region=…&go=1` pre-fills and sends it (used by "search again" on results);
+ * `?product=<id>` starts from a saved product.
+ */
 export default async function HomePage({ params, searchParams }: PageProps<"/[locale]/app">) {
   const { locale } = await params;
   setRequestLocale(locale);
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.slice(0, 1000) : "";
   const region = typeof sp.region === "string" && REGIONS.has(sp.region as RegionChoice) ? (sp.region as RegionChoice) : "th";
+  const productId = typeof sp.product === "string" ? sp.product : null;
+
+  let products: { id: string; name: string }[] = [];
+  if (isSupabaseConfigured()) {
+    const supabase = await createClient();
+    const { data } = await supabase.from("products").select("id, name").order("created_at");
+    products = (data ?? []).map((p) => ({ id: p.id as string, name: p.name as string }));
+  }
 
   // key: a fresh chat each time the link changes (e.g. "New research" while a chat is open).
-  return <ResearchChat key={`${q}|${region}|${String(sp.n ?? "")}`} initialText={q} initialRegion={region} autoSend={sp.go === "1" && !!q} />;
+  return (
+    <ResearchChat
+      key={`${q}|${region}|${productId}|${String(sp.n ?? "")}`}
+      initialText={q}
+      initialRegion={region}
+      autoSend={sp.go === "1" && !!q}
+      products={products}
+      initialProductId={productId}
+    />
+  );
 }

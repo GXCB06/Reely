@@ -1,16 +1,19 @@
 "use client";
 
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { type ProductForm as Values, saveProductAction } from "./actions";
+import { useRouter } from "@/i18n/navigation";
+import { deleteProductAction, type ProductForm as Values, saveProductAction } from "./actions";
 
-export function ProductForm({ initial }: { initial: Values }) {
+/** Edits one saved product (with `id`), or adds a new one. */
+export function ProductForm({ initial, id = null }: { initial: Values; id?: string | null }) {
   const t = useTranslations("product");
+  const router = useRouter();
   const [values, setValues] = useState(initial);
   const [pending, startTransition] = useTransition();
   const set = (k: keyof Values) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -19,9 +22,11 @@ export function ProductForm({ initial }: { initial: Values }) {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      const res = await saveProductAction(values);
-      if (res.ok) toast.success(t("saved"));
-      else toast.error(res.field === "url" ? t("badUrl") : t("error"));
+      const res = await saveProductAction(values, id);
+      if (!res.ok) return void toast.error(t(res.field === "url" ? "badUrl" : res.field === "limit" ? "limit" : "error"));
+      toast.success(t("saved"));
+      if (!id) setValues(initial);
+      router.refresh();
     });
   }
 
@@ -34,7 +39,7 @@ export function ProductForm({ initial }: { initial: Values }) {
   );
 
   return (
-    <form onSubmit={submit} className="max-w-2xl space-y-5 rounded-3xl border bg-card p-6 shadow-sm">
+    <form onSubmit={submit} className={`space-y-5 ${id ? "" : "rounded-3xl border bg-card p-6 shadow-sm"}`}>
       {field("name", t("name"), t("nameHint"), <Input required maxLength={80} value={values.name} onChange={set("name")} className="bg-white" />)}
       {field("url", t("url"), t("urlHint"), <Input type="url" placeholder="https://" value={values.url} onChange={set("url")} className="bg-white" />)}
       {field(
@@ -61,9 +66,28 @@ export function ProductForm({ initial }: { initial: Values }) {
         </div>
         <span className="block text-xs text-muted-foreground">{t("languageHint")}</span>
       </div>
-      <Button type="submit" disabled={pending || !values.name.trim()} className="h-11 rounded-full px-6">
-        {pending && <Loader2 className="size-4 animate-spin" />} {t("save")}
-      </Button>
+      <div className="flex items-center justify-between gap-3">
+        <Button type="submit" disabled={pending || !values.name.trim()} className="h-11 rounded-full px-6">
+          {pending && <Loader2 className="size-4 animate-spin" />} {t(id ? "save" : "add")}
+        </Button>
+        {id && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              if (!window.confirm(t("deleteConfirm", { name: initial.name }))) return;
+              startTransition(async () => {
+                const res = await deleteProductAction(id);
+                if (!res.ok) return void toast.error(t("error"));
+                router.refresh();
+              });
+            }}
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+          >
+            <Trash2 className="size-4" /> {t("delete")}
+          </button>
+        )}
+      </div>
     </form>
   );
 }

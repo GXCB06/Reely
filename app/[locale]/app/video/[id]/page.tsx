@@ -90,7 +90,7 @@ export default async function VideoPage({ params }: PageProps<"/[locale]/app/vid
   const [{ data: creator }, { data: savedRow }, { data: product }, { data: scripts }, { data: trackedRow }] = await Promise.all([
     supabase.from("creators").select("usual_views").eq("platform", video.platform).eq("handle", video.creator_handle).maybeSingle(),
     supabase.from("saved_videos").select("video_id").eq("video_id", videoId).maybeSingle(),
-    supabase.from("products").select("name").order("created_at").limit(1).maybeSingle(),
+    supabase.from("products").select("id, name").order("created_at"),
     supabase.from("scripts").select("id, content, created_at").eq("video_id", videoId).order("created_at", { ascending: false }),
     supabase.from("tracked_accounts").select("id").eq("platform", video.platform).eq("handle", video.creator_handle).maybeSingle(),
   ]);
@@ -190,7 +190,7 @@ export default async function VideoPage({ params }: PageProps<"/[locale]/app/vid
             <h2 className="mb-3 font-heading text-xl font-bold">{t("makeMyVersion")}</h2>
             <ScriptPanel
               videoId={video.id}
-              productName={(product?.name as string | undefined) ?? null}
+              products={(product ?? []).map((p) => ({ id: p.id as string, name: p.name as string }))}
               initialScripts={(scripts ?? []) as SavedScript[]}
             />
           </section>

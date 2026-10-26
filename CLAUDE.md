@@ -40,6 +40,8 @@ lib/search.ts                 # keywords (with region) → adapters → noise fi
 lib/region.ts                 # Thailand / Worldwide / Both → keyword regions; Thai-caption check
 lib/link-preview.ts           # reads a pasted product link (blocks private addresses — keep that check)
 lib/today.ts                  # Today page: new breakouts (7 days) from tracked accounts + followed topics → 3-5 ideas
+lib/formats.ts                # format explorer: same sound + format search → topics, sounds, stage (lib/format-stats.ts)
+lib/search-settings.ts        # time window + minimum views (shared by client and server)
 components/chat/              # chat Home (ResearchChat), bubbles, region icons
 lib/cache.ts                  # 24-hour shared cache (creators, videos)
 lib/usage.ts                  # api_usage logging
@@ -70,7 +72,8 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 7. Every external call goes through `lib/usage.ts` to log to `api_usage`.
 8. Develop and test with `USE_FIXTURES=true` (the default). Never call real APIs in loops, tests,
    or seed scripts.
-9. TikTok (ScrapeCreators) call parameters: search always `trim=true&date_posted=last-6-months`;
+9. TikTok (ScrapeCreators) call parameters: keyword search is NOT trimmed (the trimmed response drops the
+   sound; same 1 credit) and uses `date_posted` from the run window (7/30/90 days, default 90);
    profile videos always `trim=true&include_pinned=false`, max 2 pages for a baseline.
 10. Never call `/v1/tiktok/user/audience` (26 credits) or transcripts with `use_ai_as_fallback`.
 11. Instagram: search `/v2/instagram/reels/search` (1 page, `date_posted=last-year`); baseline = one page
@@ -78,6 +81,10 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 12. Run the AI relevance check (`rateRelevance`) BEFORE baseline lookups, so off-topic creators cost nothing.
 13. Today page: built at most once per user per day (`daily_digests`), only when the page is opened.
     Followed topics: max 2 per user, first 3 keywords, TikTok only, `date_posted=this-week`.
+14. "Update with new videos" on a research: at most once per ~20 h per research, only the time since
+    the last update, only new videos are added.
+15. Format explorer (`lib/formats.ts`): 1 call to `/v1/tiktok/song/videos` for the seed's sound + max 2
+    keyword searches (~3 credits); shared `formats` cache for 3 days. Never page through a sound.
 
 ## Security rules
 

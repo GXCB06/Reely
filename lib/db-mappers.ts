@@ -19,6 +19,12 @@ export type VideoRow = {
   saves: number | null;
   duration_seconds: number | null;
   published_at: string | null;
+  country: string | null;
+  has_shop: boolean | null;
+  sound_id: string | null;
+  sound_title: string | null;
+  sound_author: string | null;
+  sound_original: boolean | null;
 };
 
 export type ResultRow = {
@@ -50,6 +56,11 @@ export function videoFromRow(
     saves: v.saves,
     durationSeconds: v.duration_seconds,
     publishedAt: v.published_at,
+    country: v.country ?? null,
+    hasShop: Boolean(v.has_shop),
+    sound: v.sound_id
+      ? { id: v.sound_id, title: v.sound_title ?? "", author: v.sound_author, original: Boolean(v.sound_original) }
+      : null,
     reach: scores.reach,
     usual: scores.usual,
     usualViews: scores.usualViews,

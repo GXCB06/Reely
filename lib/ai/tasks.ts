@@ -11,6 +11,9 @@ import {
   relevanceSchema,
   type RunSummary,
   runSummarySchema,
+  type FormatDescription,
+  formatMatchSchema,
+  formatSchema,
   type Script,
   todaySchema,
   scriptSchema,
@@ -59,6 +62,8 @@ export type ProductMessage = {
   /** Data URL of a resized product screenshot or photo. */
   image: string | null;
   region: RegionChoice;
+  /** A product the user saved earlier ("agent memory"); the text then refines what to look for. */
+  saved?: { name: string; url: string | null; description: string | null; audience: string | null } | null;
 };
 
 const REGION_RULE: Record<RegionChoice, string> = {
@@ -89,8 +94,14 @@ export async function understandProduct(
         "celebrity, a TV show): every phrase should still clearly point at the product's topic.",
         "Exclusions: single words that would bring off-topic videos.",
         "",
-        msg.text ? `The user wrote:
-${msg.text}` : "The user wrote nothing; rely on the link and/or image.",
+        msg.saved
+          ? `Their saved product: ${msg.saved.name} — ${msg.saved.description ?? ""}. Audience: ${msg.saved.audience ?? ""}. Link: ${msg.saved.url ?? ""}. Keep this product name.`
+          : "",
+        msg.text
+          ? `The user wrote${msg.saved ? " (what to look for this time)" : ""}:\n${msg.text}`
+          : msg.saved
+            ? "The user wrote nothing extra; plan a broad search for the saved product."
+            : "The user wrote nothing; rely on the link and/or image.",
         msg.link
           ? `
 Their product page (${msg.link.url}):
@@ -123,14 +134,16 @@ Text: ${msg.link.text.slice(0, 2000)}`
     }
   }
   const th = locale !== "en";
-  const base = msg.text || msg.link?.title || (th ? "สินค้าของคุณ" : "your product");
+  const base = msg.text || msg.saved?.name || msg.link?.title || (th ? "สินค้าของคุณ" : "your product");
   const plan = await suggestPlan(base.length >= 2 ? base : `${base} product`);
   const regions = keywordRegions(msg.region, plan.keywords.length);
-  const name = (msg.link?.title ?? msg.text).split(/[|\-–—\n,]/)[0].trim().slice(0, 80) || (th ? "สินค้าของคุณ" : "Your product");
+  const name =
+    msg.saved?.name ??
+    ((msg.link?.title ?? msg.text).split(/[|\-–—\n,]/)[0].trim().slice(0, 80) || (th ? "สินค้าของคุณ" : "Your product"));
   return {
     productName: name,
-    whatItIs: msg.link?.description ?? msg.text.slice(0, 300),
-    audience: "",
+    whatItIs: msg.saved?.description ?? msg.link?.description ?? msg.text.slice(0, 300),
+    audience: msg.saved?.audience ?? "",
     reply: th
       ? "นี่คือคีย์เวิร์ดตัวอย่าง (ยังไม่ได้ใช้ AI) แก้ไขได้ก่อนกดค้นหา"
       : "These are sample keywords (AI is off). Edit them before you search.",
@@ -403,4 +416,112 @@ export async function pickTodayIdeas(product: ProductBrief | null, candidates: T
     hook: "",
     angle: th ? "เปิดดูคลิปแล้วกด “เขียนสคริปต์” เพื่อทำเวอร์ชันของคุณ" : "Open the video and press Make my version.",
   }));
+}
+
+/** Fetches an image for Gemini (JPEG/PNG/WebP only, 5 s, 2 MB max). Null when it cannot be read. */
+async function imageForAi(url: string | null): Promise<{ data: string; mediaType: string } | null> {
+  if (!url) return null;
+  try {
+    // Only vendor CDNs we store thumbnails from: never fetch an arbitrary address server-side.
+    const { protocol, hostname } = new URL(url);
+    const cdn = /(^|\.)(tiktokcdn\.com|tiktokcdn-us\.com|ytimg\.com|cdninstagram\.com|fbcdn\.net)$/.test(hostname);
+    if (protocol !== "https:" || !cdn) return null;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000), cache: "no-store" });
+    const type = res.headers.get("content-type")?.split(";")[0] ?? "";
+    if (!res.ok || !["image/jpeg", "image/png", "image/webp"].includes(type)) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    return buf.length > 2_000_000 ? null : { data: buf.toString("base64"), mediaType: type };
+  } catch {
+    return null;
+  }
+}
+
+type SeedVideo = { caption: string; handle: string; views: number | null; soundTitle: string | null; thumbnailUrl: string | null };
+
+/** Format explorer, step 1: names the seed video's format (from its caption, sound and cover image). */
+export async function describeFormat(seed: SeedVideo, locale: string): Promise<FormatDescription & { source: "ai" | "sample" }> {
+  const model = getModel();
+  if (model) {
+    try {
+      const image = await imageForAi(seed.thumbnailUrl);
+      const prompt = [
+        `You explain short-video formats (repeatable templates creators copy). Answer in ${languageName(locale)},`,
+        "except searchPhrases: write those in the language creators of this format post in.",
+        `Video by @${seed.handle}, ${seed.views ?? "?"} views.`,
+        `Caption: ${seed.caption.slice(0, 400) || "(none)"}`,
+        seed.soundTitle ? `Sound: ${seed.soundTitle}` : "",
+        image ? "Its cover image is attached as a hint only." : "",
+        "Describe the FORMAT: what happens in the video (structure, hook, how it is filmed, on-screen text style)",
+        "that other creators could copy for any topic. Not this video's topic, and not the thumbnail design.",
+        "searchPhrases: 2 short phrases that would find OTHER videos made in this format (e.g. a meme name, a",
+        "template name, or 'POV ...'), not the topic of this one video.",
+      ].join("\n");
+      const { output } = await generateText({
+        ...aiCallOptions(),
+        model,
+        output: Output.object({ schema: formatSchema }),
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              ...(image ? [{ type: "file" as const, mediaType: image.mediaType, data: image.data }] : []),
+            ],
+          },
+        ],
+      });
+      return { ...output, source: "ai" };
+    } catch (e) {
+      console.warn("[ai] describeFormat failed, using sample", (e as Error).message);
+    }
+  }
+  const th = locale !== "en";
+  const firstLine = (seed.caption.split(/\n|#/)[0] || seed.caption).trim().slice(0, 60);
+  return {
+    name: firstLine || (th ? "สูตรคลิปนี้" : "This format"),
+    howTo: th ? "ตัวอย่าง: ใส่ Gemini API key เพื่อให้ AI อธิบายสูตรคลิปนี้" : "Sample: add a Gemini API key to have AI explain this format.",
+    keepSame: "—",
+    makeYours: "—",
+    whoFor: [{ segment: "consumer", idea: "—" }],
+    searchPhrases: [firstLine || seed.handle],
+    source: "sample",
+  };
+}
+
+/**
+ * Format explorer, step 2: scores which candidates use the format (0-2) and groups them by the topic people
+ * applied it to. Returns null when AI is unavailable, so callers keep sound matches only.
+ */
+export async function matchFormat(
+  format: Pick<FormatDescription, "name" | "howTo" | "keepSame">,
+  videos: { caption: string; creatorHandle: string; soundTitle: string | null; sameSound: boolean }[],
+  locale: string,
+): Promise<{ scores: number[]; topics: { topic: string; examples: number[] }[] } | null> {
+  const model = getModel();
+  if (!model || !videos.length) return null;
+  try {
+    const { output } = await generateText({
+      ...aiCallOptions(40_000),
+      model,
+      output: Output.object({ schema: formatMatchSchema }),
+      prompt: [
+        `Format: ${format.name}. ${format.howTo} Must keep: ${format.keepSame}`,
+        "Score every video: 2 = clearly uses this format, 1 = plausibly (similar structure or style, even on a",
+        "different topic), 0 = clearly a different kind of video. Captions are short, so give 1 when in doubt.",
+        "Videos marked [same sound] use the format's sound, which is strong evidence.",
+        `Then group the videos that use it by the topic or subject people applied it to (topics in ${languageName(locale)}).`,
+        "",
+        ...videos.map(
+          (v, i) =>
+            `${i} | @${v.creatorHandle}${v.sameSound ? " [same sound]" : ""}${v.soundTitle ? ` | sound: ${v.soundTitle.slice(0, 50)}` : ""} | ${v.caption.slice(0, 140).replace(/\s+/g, " ") || "(no caption)"}`,
+        ),
+      ].join("\n"),
+    });
+    const scores: number[] = Array(videos.length).fill(0);
+    for (const s of output.scores) if (s.i < videos.length) scores[s.i] = s.score;
+    return { scores, topics: output.topics.map((t) => ({ ...t, examples: t.examples.filter((i) => i < videos.length) })) };
+  } catch (e) {
+    console.warn("[ai] matchFormat failed", (e as Error).message);
+    return null;
+  }
 }

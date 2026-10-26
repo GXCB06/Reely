@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
+/** Products Reely remembers ("agent memory"); kept small so the chat chips stay readable. */
+const MAX_PRODUCTS = 5;
+
 const productSchema = z.object({
   name: z.string().trim().min(1).max(80),
   url: z.union([z.literal(""), z.string().trim().url().max(300)]),
@@ -14,19 +17,35 @@ const productSchema = z.object({
 
 export type ProductForm = z.infer<typeof productSchema>;
 
-/** One product per user for the MVP: updates the existing row or creates it. */
-export async function saveProductAction(form: ProductForm) {
+/** Updates a product (with `id`) or adds a new one (up to 5). */
+export async function saveProductAction(form: ProductForm, id?: string | null) {
   const parsed = productSchema.safeParse(form);
   if (!parsed.success) return { ok: false as const, field: String(parsed.error.issues[0]?.path[0] ?? "") };
+  const productId = z.string().uuid().nullish().safeParse(id);
+  if (!productId.success) return { ok: false as const, field: "" };
   const { url, description, audience, ...rest } = parsed.data;
   const values = { ...rest, url: url || null, description: description || null, audience: audience || null };
 
   const supabase = await createClient();
-  const { data: existing } = await supabase.from("products").select("id").order("created_at").limit(1).maybeSingle();
-  const { error } = existing
-    ? await supabase.from("products").update(values).eq("id", existing.id)
-    : await supabase.from("products").insert(values);
-  if (error) return { ok: false as const, field: "" };
+  if (productId.data) {
+    const { error } = await supabase.from("products").update(values).eq("id", productId.data);
+    if (error) return { ok: false as const, field: "" };
+  } else {
+    const { count } = await supabase.from("products").select("id", { count: "exact", head: true });
+    if ((count ?? 0) >= MAX_PRODUCTS) return { ok: false as const, field: "limit" };
+    const { error } = await supabase.from("products").insert(values);
+    if (error) return { ok: false as const, field: "" };
+  }
   revalidatePath("/[locale]/app", "layout");
   return { ok: true as const };
+}
+
+/** Removes a saved product. Its research chats stay (their product link is cleared). */
+export async function deleteProductAction(id: string) {
+  const parsed = z.string().uuid().safeParse(id);
+  if (!parsed.success) return { ok: false as const };
+  const supabase = await createClient();
+  const { error } = await supabase.from("products").delete().eq("id", parsed.data);
+  revalidatePath("/[locale]/app", "layout");
+  return { ok: !error };
 }

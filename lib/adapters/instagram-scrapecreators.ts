@@ -3,7 +3,10 @@ import { fixturesEnabled } from "@/lib/env";
 import { logApiCall } from "@/lib/usage";
 import { readFixture } from "./fixtures";
 import { dropPinned } from "./pinned";
-import type { NormalizedCreator, NormalizedVideo, PlatformAdapter } from "./types";
+import { DEFAULT_WINDOW, type NormalizedCreator, type NormalizedVideo, type PlatformAdapter, type SearchWindow } from "./types";
+
+// Instagram only offers week / month / year; search.ts trims anything older than the window afterwards.
+const IG_WINDOW: Record<SearchWindow, string> = { 7: "last-week", 30: "last-month", 90: "last-year" };
 
 // ScrapeCreators Instagram, checked 2026-10-25: 1 credit per call. Reels search is Google-indexed
 // (best-effort, 10 per page) and returns no follower counts, so Reels are scored on usual views only.
@@ -67,6 +70,9 @@ function fromSearch(r: SearchReel): NormalizedVideo {
     saves: null,
     durationSeconds: r.video_duration ? Math.round(r.video_duration) : null,
     publishedAt: r.taken_at ?? null,
+    country: null,
+    hasShop: false,
+    sound: null,
   };
 }
 
@@ -87,6 +93,9 @@ function fromProfile(r: ProfileReel): NormalizedVideo {
     saves: null,
     durationSeconds: null,
     publishedAt: r.created_at ?? null,
+    country: null,
+    hasShop: false,
+    sound: null,
   };
 }
 
@@ -98,7 +107,7 @@ export const instagramAdapter: PlatformAdapter = {
     type Res = { reels?: SearchReel[] };
     const data = fixturesEnabled()
       ? await readFixture<Res>("instagram-search")
-      : await call<Res>("/v2/instagram/reels/search", { query: keyword, date_posted: opts?.recent ? "last-week" : "last-year" });
+      : await call<Res>("/v2/instagram/reels/search", { query: keyword, date_posted: IG_WINDOW[opts?.days ?? DEFAULT_WINDOW] });
     return (data?.reels ?? []).filter((r) => r.shortcode).map(fromSearch);
   },
 

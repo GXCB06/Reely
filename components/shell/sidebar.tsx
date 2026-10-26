@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, ChevronUp, Languages, LogOut, Package, Radar, SquarePen, Sun, UserRound } from "lucide-react";
+import { Bookmark, ChevronUp, Languages, Layers, LogOut, Package, Radar, SquarePen, Sun, UserRound } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { Logo } from "./logo";
@@ -10,8 +10,10 @@ export type { RecentRun };
 
 const NAV = [
   { href: "/app/today", key: "today", icon: Sun },
+  { href: "/app/formats", key: "formats", icon: Layers },
   { href: "/app/tracking", key: "tracking", icon: Radar },
   { href: "/app/saved", key: "saved", icon: Bookmark },
+  { href: "/app/product", key: "products", icon: Package },
 ] as const;
 
 const rowClass = (active: boolean) =>
@@ -53,7 +55,7 @@ export function Sidebar({
 
       <nav className="space-y-1">
         {NAV.map(({ href, key, icon: Icon }) => (
-          <Link key={href} href={href} className={rowClass(pathname.startsWith(href))}>
+          <Link key={href} href={href} className={rowClass(pathname === href || pathname.startsWith(`${href}/`))}>
             <Icon className="size-4" />
             {t(key)}
           </Link>
@@ -84,9 +86,6 @@ export function Sidebar({
             <ChevronUp className="ml-auto size-4 shrink-0 transition group-open:rotate-180" />
           </summary>
           <div className="absolute inset-x-0 bottom-full mb-2 space-y-0.5 rounded-2xl border border-sidebar-border bg-sidebar p-1.5 shadow-xl">
-            <Link href="/app/product" className={rowClass(pathname === "/app/product")}>
-              <Package className="size-4" /> {t("product")}
-            </Link>
             <Link href="/app/account" className={rowClass(pathname === "/app/account")}>
               <UserRound className="size-4" /> {t("account")}
             </Link>

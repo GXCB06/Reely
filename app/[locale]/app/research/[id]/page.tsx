@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Globe, PenLine, Radar, RotateCcw, Sparkles } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronUp, Eye, Globe, Layers, PenLine, Radar, RotateCcw, Sparkles } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { ReelyBubble, UserBubble } from "@/components/chat/research-chat";
@@ -9,6 +9,7 @@ import { FilterBar } from "@/components/results/filter-bar";
 import { FollowTopicButton } from "@/components/results/follow-topic-button";
 import { InsightCard } from "@/components/results/insight-card";
 import { Patterns } from "@/components/results/patterns";
+import { RefreshRunButton } from "@/components/results/refresh-run-button";
 import { ScoreExplainer } from "@/components/results/score-explainer";
 import { Link } from "@/i18n/navigation";
 import type { RunSummary } from "@/lib/ai/schemas";
@@ -18,6 +19,10 @@ import { bestScore } from "@/lib/scoring";
 import type { RegionChoice } from "@/lib/region";
 import type { ScoredVideo } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
+
+/** Matches the server action: a research can pull in new videos about once a day. */
+const REFRESH_COOLDOWN_MS = 20 * 3600e3;
+const olderThan = (iso: string, ms: number) => Date.now() - new Date(iso).getTime() > ms;
 
 export default async function ResearchResultsPage({ params, searchParams }: PageProps<"/[locale]/app/research/[id]">) {
   const { locale, id } = await params;
@@ -30,7 +35,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
 
   const { data: run } = await supabase
     .from("research_runs")
-    .select("id, brief, keywords, keyword_regions, exclusions, platforms, region, input, status, error, summary, stats, followed_at, created_at")
+    .select("id, brief, keywords, keyword_regions, exclusions, platforms, region, input, status, error, summary, stats, followed_at, settings, last_refreshed_at, product_id, created_at")
     .eq("id", id)
     .maybeSingle();
   if (!run) notFound();
@@ -38,13 +43,24 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   const [{ data: rows }, { data: savedRows }] = await Promise.all([
     supabase
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, added_at, videos(*)")
       .eq("run_id", id)
       .order("rank"),
     supabase.from("saved_videos").select("video_id"),
   ]);
   const saved = new Set((savedRows ?? []).map((r) => r.video_id as number));
   const all = ((rows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null);
+
+  // Videos added by "update with new videos" (well after the research was created) are marked new.
+  const createdAt = new Date(run.created_at as string).getTime();
+  const newIds = new Set(
+    ((rows ?? []) as unknown as { added_at: string | null; videos: { id: number } | null }[])
+      .filter((r) => r.videos && r.added_at && new Date(r.added_at).getTime() - createdAt > 10 * 60_000)
+      .map((r) => r.videos!.id),
+  );
+  const fresh = all.filter((v) => v.dbId && newIds.has(v.dbId)).sort((a, b) => bestScore(b) - bestScore(a));
+  const settings = run.settings as { days?: number; minViews?: number } | null;
+  const canRefresh = run.status !== "running" && olderThan((run.last_refreshed_at as string | null) ?? (run.created_at as string), REFRESH_COOLDOWN_MS);
 
   const filters = parseFilters(sp);
   // Default view: the 10 best. "Show all" (?all=1) opens every result with filters and sorting.
@@ -72,7 +88,12 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   return (
     <div>
       <div className="mx-auto max-w-3xl space-y-6 px-6 pt-8 pb-6">
-        <UserBubble text={input?.text ?? run.brief} link={input?.url ?? null} thumb={input?.imageThumb ?? null} />
+        <UserBubble
+          text={input?.text ?? run.brief}
+          link={input?.url ?? null}
+          thumb={input?.imageThumb ?? null}
+          productName={run.product_id ? (input?.productName ?? null) : null}
+        />
         <ReelyBubble>
           {input?.reply && <p className="mb-3 leading-relaxed">{input.reply}</p>}
           <div className="flex flex-wrap items-center gap-2">
@@ -89,8 +110,26 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
               </span>
             ))}{" "}
             <RegionIcon region={region} /> {tc(`region.${region}`)} ·{" "}
+            {settings?.days && (
+              <span className="inline-flex items-center gap-1">
+                <CalendarDays className="size-3.5" /> {tc("windowDays", { n: settings.days })} ·
+              </span>
+            )}
+            {settings?.minViews ? (
+              <span className="inline-flex items-center gap-1">
+                <Eye className="size-3.5" /> {tc("minViewsN", { n: settings.minViews / 1000 })} ·
+              </span>
+            ) : null}
             {format.dateTime(new Date(run.created_at), { dateStyle: "medium", timeStyle: "short" })}
           </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+            <RefreshRunButton runId={run.id as string} canRefresh={canRefresh} />
+            <span className="text-xs text-muted-foreground">
+              {run.last_refreshed_at
+                ? t("refreshedAt", { when: format.relativeTime(new Date(run.last_refreshed_at as string)) })
+                : t("refreshExplain")}
+            </span>
+          </div>
         </ReelyBubble>
       </div>
 
@@ -112,6 +151,17 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
           </p>
         )}
 
+        {fresh.length > 0 && !showAll && (
+          <section className="space-y-4 rounded-3xl border-2 border-primary/30 bg-primary/5 p-5">
+            <h3 className="font-heading text-lg font-bold">{t("freshTitle", { n: fresh.length })}</h3>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {fresh.slice(0, 10).map((v) => (
+                <OutlierCard key={`${v.platform}:${v.platformVideoId}`} video={v} saved={v.dbId ? saved.has(v.dbId) : false} isNew />
+              ))}
+            </div>
+          </section>
+        )}
+
         {summary?.patterns && summary.patterns.length > 0 && (
           <Patterns patterns={summary.patterns} videos={all} productName={input?.productName ?? null} />
         )}
@@ -131,7 +181,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
             ) : (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {shown.map((v) => (
-                  <OutlierCard key={`${v.platform}:${v.platformVideoId}`} video={v} saved={v.dbId ? saved.has(v.dbId) : false} />
+                  <OutlierCard key={`${v.platform}:${v.platformVideoId}`} video={v} saved={v.dbId ? saved.has(v.dbId) : false} isNew={!!v.dbId && newIds.has(v.dbId)} />
                 ))}
               </div>
             )}
@@ -146,7 +196,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
               <ScoreExplainer />
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {top.map((v) => (
-                  <OutlierCard key={`${v.platform}:${v.platformVideoId}`} video={v} saved={v.dbId ? saved.has(v.dbId) : false} />
+                  <OutlierCard key={`${v.platform}:${v.platformVideoId}`} video={v} saved={v.dbId ? saved.has(v.dbId) : false} isNew={!!v.dbId && newIds.has(v.dbId)} />
                 ))}
               </div>
               {all.length > top.length && (
@@ -169,6 +219,11 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
                 {lead?.dbId && (
                   <Link href={`/app/video/${lead.dbId}`} className="chip">
                     <PenLine className="size-3.5" /> {t("nextScript", { handle: lead.creatorHandle })}
+                  </Link>
+                )}
+                {lead?.dbId && (
+                  <Link href={`/app/format/${lead.dbId}`} className="chip">
+                    <Layers className="size-3.5" /> {t("nextFormat")}
                   </Link>
                 )}
                 {lead && lead.platform !== "instagram" && lead.dbId && (

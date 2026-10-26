@@ -2,10 +2,12 @@ import "server-only";
 import { fixturesEnabled } from "@/lib/env";
 import { logApiCall } from "@/lib/usage";
 import { readFixture } from "./fixtures";
-import type { NormalizedCreator, NormalizedVideo, PlatformAdapter } from "./types";
+import { DEFAULT_WINDOW, type NormalizedCreator, type NormalizedVideo, type PlatformAdapter, type SearchWindow } from "./types";
 
 // ScrapeCreators facts verified on Day 0 (docs/DAY0.md): 1 credit per call, 30 results per search,
-// 10 videos per profile page. Always trim responses and exclude pinned posts.
+// 10 videos per profile page. Profile feeds are trimmed and exclude pinned posts. Keyword search is NOT
+// trimmed: the trimmed response drops the sound, which the format explorer needs (same credit cost).
+const DATE_POSTED: Record<SearchWindow, string> = { 7: "this-week", 30: "this-month", 90: "last-3-months" };
 const BASE = "https://api.scrapecreators.com";
 
 type Media = { url_list?: string[] };
@@ -23,6 +25,9 @@ type Aweme = {
   };
   video?: { cover?: Media; origin_cover?: Media; dynamic_cover?: Media; duration?: number };
   author?: { unique_id?: string; nickname?: string; follower_count?: number };
+  region?: string;
+  shop_product_url?: string | null;
+  music?: { id_str?: string; id?: number | string; title?: string; author?: string; is_original_sound?: boolean } | null;
 };
 
 async function call<T>(endpoint: string, params: Record<string, string>): Promise<T> {
@@ -41,6 +46,12 @@ async function call<T>(endpoint: string, params: Record<string, string>): Promis
 function pickThumbnail(video: Aweme["video"]): string | null {
   const urls = [video?.cover, video?.origin_cover, video?.dynamic_cover].flatMap((m) => m?.url_list ?? []);
   return urls.find((u) => !/\.heic(\?|~|$)/i.test(u)) ?? urls[0] ?? null;
+}
+
+function soundOf(m: Aweme["music"]): NormalizedVideo["sound"] {
+  const id = m?.id_str ?? (m?.id !== undefined ? String(m.id) : null);
+  if (!m || !id || id === "0") return null;
+  return { id, title: m.title ?? "", author: m.author ?? null, original: Boolean(m.is_original_sound) };
 }
 
 function toVideo(a: Aweme): NormalizedVideo {
@@ -64,6 +75,9 @@ function toVideo(a: Aweme): NormalizedVideo {
     saves: s.collect_count ?? null,
     durationSeconds: rawDuration === null ? null : rawDuration > 1000 ? Math.round(rawDuration / 1000) : rawDuration,
     publishedAt: a.create_time ? new Date(a.create_time * 1000).toISOString() : null,
+    country: a.region && /^[A-Z]{2}$/.test(a.region) ? a.region : null,
+    hasShop: Boolean(a.shop_product_url),
+    sound: soundOf(a.music),
   };
 }
 
@@ -76,8 +90,7 @@ export const tiktokAdapter: PlatformAdapter = {
       ? await readFixture<Res>("tiktok-search")
       : await call<Res>("/v1/tiktok/search/keyword", {
           query: keyword,
-          date_posted: opts?.recent ? "this-week" : "last-6-months",
-          trim: "true",
+          date_posted: DATE_POSTED[opts?.days ?? DEFAULT_WINDOW],
           // Sets where the search runs from (not a hard filter): Thai results from TH, worldwide from US.
           region: opts?.region === "global" ? "US" : "TH",
         });
@@ -132,3 +145,12 @@ export const tiktokAdapter: PlatformAdapter = {
     return data?.transcript ?? null;
   },
 };
+
+/** Videos that use one sound (1 credit per page of ~12). Powers "who else made this kind of clip". */
+export async function tiktokSoundVideos(soundId: string): Promise<NormalizedVideo[]> {
+  type Res = { aweme_list?: Aweme[] };
+  const data = fixturesEnabled()
+    ? await readFixture<Res>("tiktok-song-videos")
+    : await call<Res>("/v1/tiktok/song/videos", { clipId: soundId });
+  return (data?.aweme_list ?? []).map(toVideo);
+}

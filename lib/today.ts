@@ -95,7 +95,7 @@ export async function buildTodayDigest(locale: string): Promise<{ ok: true } | {
       const regions = (t.keyword_regions as SearchRegion[] | null) ?? [];
       const keywords = (t.keywords as string[]).slice(0, TOPIC_KEYWORDS).map((text, i) => ({ text, region: regions[i] ?? "th" }));
       const product = input.productName ? { name: input.productName, whatItIs: input.whatItIs ?? "", audience: input.audience ?? "" } : undefined;
-      const result = await searchKeywords(keywords, ["tiktok"], (t.exclusions as string[]) ?? [], { product, recent: true });
+      const result = await searchKeywords(keywords, ["tiktok"], (t.exclusions as string[]) ?? [], { product, days: 7, minViews: 5_000 });
       const label = (t.title as string | null) || (t.brief as string).slice(0, 40);
       return result.videos.filter(isNewWinner).map((v) => ({ ...v, source: "topic", sourceLabel: label }));
     }),

@@ -21,17 +21,19 @@ function scriptToText(s: SavedScript["content"]) {
 
 export function ScriptPanel({
   videoId,
-  productName,
+  products,
   initialScripts,
 }: {
   videoId: number;
-  productName: string | null;
+  products: { id: string; name: string }[];
   initialScripts: SavedScript[];
 }) {
   const t = useTranslations("script");
   const locale = useLocale();
   const [scripts, setScripts] = useState(initialScripts);
   const [pending, startTransition] = useTransition();
+  const [productId, setProductId] = useState(products[0]?.id ?? null);
+  const productName = products.find((p) => p.id === productId)?.name ?? null;
 
   if (!productName) {
     return (
@@ -46,7 +48,7 @@ export function ScriptPanel({
 
   function generate() {
     startTransition(async () => {
-      const res = await makeMyVersionAction(videoId, locale);
+      const res = await makeMyVersionAction(videoId, locale, productId);
       if (!res.ok) return void toast.error(t("error"));
       setScripts((s) => [res.script, ...s]);
       if (res.script.content.source === "sample") toast.info(t("sampleNotice"));
@@ -58,7 +60,24 @@ export function ScriptPanel({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{t("forProduct", { product: productName })}</p>
+        {products.length > 1 ? (
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            {t("forWhich")}
+            <select
+              value={productId ?? ""}
+              onChange={(e) => setProductId(e.target.value)}
+              className="rounded-full border bg-card px-3 py-1.5 text-sm text-foreground"
+            >
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <p className="text-sm text-muted-foreground">{t("forProduct", { product: productName })}</p>
+        )}
         <Button onClick={generate} disabled={pending} className="rounded-full">
           {pending ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
           {scripts.length ? t("again") : t("make")}

@@ -36,6 +36,15 @@ tracked accounts and up to 2 followed topics ("Follow this topic daily" on a res
 skipping videos suggested in the last 14 days → 3-5 "post this today" ideas with a hook and an angle for
 the user's product. Saved in `daily_digests`, so reopening costs nothing.
 
+**Phases 1-3 (2026-10-26, after studying Virlo's Orbit and Trends):**
+- Search settings before running: posted within 7 / 30 / 90 days (default 90) and minimum views (10K / 50K / 100K).
+- Cards: real country flag (TikTok post region, YouTube channel country), TikTok Shop tag, the sound used.
+- Agent memory: up to 5 saved products; the chat starts from a product chip; scripts pick the product.
+- A research is a living board: "Update with new videos" adds only what was posted since last time.
+- Format explorer (`/app/format/[videoId]`, board at `/app/formats`): from any video, who else made this kind of
+  clip: how to do it (keep the same / make it yours), who it works for (B2B, consumer, local), what topics people
+  applied it to, sounds used, videos posted per day and its stage (fresh / rising / steady / fading).
+
 ## 3. Not in the MVP
 
 Open-ended Copilot chat (the Home chat only runs the research flow) · bring-your-own AI keys · automatic alerts (LINE/Telegram) · content trends, hashtags, sounds · Meta ads in-app

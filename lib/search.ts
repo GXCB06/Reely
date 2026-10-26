@@ -1,6 +1,7 @@
 import "server-only";
 import { adapters } from "@/lib/adapters";
-import type { NormalizedVideo, Platform, SearchRegion } from "@/lib/adapters/types";
+import { DEFAULT_WINDOW, type NormalizedVideo, type Platform, type SearchRegion } from "@/lib/adapters/types";
+import type { SearchSettings } from "@/lib/search-settings";
 import { type ProductBrief, rateRelevance } from "@/lib/ai/tasks";
 import { getFreshCreator, saveCreator, saveVideos } from "@/lib/cache";
 import { isExcluded } from "@/lib/results";
@@ -65,13 +66,15 @@ export async function searchKeywords(
   keywords: KeywordQuery[],
   platforms: Platform[] = ["tiktok", "youtube"],
   exclusions: string[] = [],
-  opts: { product?: ProductBrief; recent?: boolean } = {},
+  opts: SearchSettings & { product?: ProductBrief } = {},
 ): Promise<SearchResult> {
+  const days = opts.days ?? DEFAULT_WINDOW;
+  const since = Date.now() - days * 864e5;
   const errors: string[] = [];
   const jobs = keywords.flatMap(({ text: keyword, region }) =>
     platforms.map(async (p) => {
       try {
-        const found = await adapters[p].searchVideos(keyword, { region, recent: opts.recent });
+        const found = await adapters[p].searchVideos(keyword, { region, days });
         return found.map((v) => ({ ...v, keyword }));
       } catch (e) {
         errors.push(`${p} "${keyword}": ${(e as Error).message}`);
@@ -87,7 +90,14 @@ export async function searchKeywords(
     return !seen.has(key) && seen.add(key);
   });
 
-  const clean = all.filter((v) => passesNoiseFilter(v.views, v.creatorFollowers) && !isExcluded(v.caption, exclusions));
+  // Platforms filter dates loosely (Instagram only knows "last year"), so enforce the window here too.
+  const clean = all.filter(
+    (v) =>
+      passesNoiseFilter(v.views, v.creatorFollowers) &&
+      (v.views ?? 0) >= (opts.minViews ?? 0) &&
+      (!v.publishedAt || new Date(v.publishedAt).getTime() >= since) &&
+      !isExcluded(v.caption, exclusions),
+  );
   // AI relevance check before any paid baseline lookups, so off-topic creators cost nothing.
   const relevance = opts.product ? await rateRelevance(opts.product, clean) : null;
   const kept = relevance ? clean.filter((_, i) => relevance[i] > 0) : clean;

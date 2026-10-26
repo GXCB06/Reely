@@ -23,7 +23,9 @@
     "deleted": "Chat deleted",
     "actionFailed": "That didn’t work. Try again.",
     "pinned": "Pinned",
-    "today": "Today"
+    "today": "Today",
+    "formats": "Formats",
+    "products": "My products"
   },
   "login": {
     "title": "Sign in to Reely",
@@ -128,7 +130,16 @@
     "errorRun": "The research couldn’t finish. Try again in a moment.",
     "retry": "Try again",
     "you": "You",
-    "reely": "Reely"
+    "reely": "Reely",
+    "useProduct": "Product:",
+    "newProduct": "New product",
+    "placeholderProduct": "What should Reely look for for {product}? (optional, e.g. tax season videos)",
+    "windowLabel": "Posted within",
+    "windowHint": "Trends move fast. Older videos teach old trends.",
+    "windowDays": "Last {n} days",
+    "minViewsLabel": "Minimum views",
+    "minViewsHint": "Only videos with at least this many views.",
+    "minViewsN": "{n}K+ views"
   },
   "search": {
     "title": "Test search",
@@ -148,7 +159,12 @@
     "fireUsualTip": "{views} views ÷ this account usually gets {usual} = {x}× ({label})",
     "fireReachTip": "{views} views ÷ {followers} followers = {x}× ({label}). We don't have this account's usual views yet.",
     "keep": "{p}% saved/shared",
-    "keepTip": "Saves + shares per 100 views. High = people keep it to copy later or send it on."
+    "keepTip": "Saves + shares per 100 views. High = people keep it to copy later or send it on.",
+    "shop": "Shop",
+    "shopTip": "Linked to a TikTok Shop product",
+    "new": "NEW",
+    "format": "Same format",
+    "formatTip": "See who else made this kind of clip, what topics they used it for and which sounds"
   },
   "labels": {
     "breakout": "Breakout",
@@ -211,7 +227,18 @@
     "following": "Following daily",
     "followLimit": "You can follow 2 topics. Unfollow one first.",
     "followFailed": "That didn’t work. Try again.",
-    "followedToast": "Added to Today: Reely checks this topic for new breakouts every day."
+    "followedToast": "Added to Today: Reely checks this topic for new breakouts every day.",
+    "refresh": "Update with new videos",
+    "refreshing": "Updating…",
+    "refreshHint": "Adds videos posted since last time (about 5-15 credits). No need to start a new research.",
+    "refreshTooSoon": "Updated less than a day ago. Try again tomorrow.",
+    "refreshFailed": "Couldn’t update. Try again later.",
+    "refreshAdded": "{n} new videos added",
+    "refreshNone": "No new videos since last time",
+    "refreshedAt": "Updated {when}",
+    "refreshExplain": "Come back later and update this research instead of starting a new one.",
+    "freshTitle": "New since last update ({n})",
+    "nextFormat": "See who else made this kind of clip"
   },
   "card": {
     "save": "Save",
@@ -241,8 +268,8 @@
     "empty": "Nothing saved yet. Tap Save on any video."
   },
   "product": {
-    "title": "My product",
-    "subtitle": "Tell Reely about your product once. It uses this to turn outlier videos into scripts made for you.",
+    "title": "My products",
+    "subtitle": "Reely remembers each product, so you can start a research with one tap and scripts are written for the right one.",
     "name": "Product name",
     "nameHint": "e.g. AccOs Pro",
     "url": "Website or app link",
@@ -256,7 +283,16 @@
     "save": "Save product",
     "saved": "Product saved",
     "badUrl": "That link doesn't look right. Include https://",
-    "error": "Couldn't save. Try again."
+    "error": "Couldn't save. Try again.",
+    "add": "Add product",
+    "addFirst": "Add your first product",
+    "addAnother": "Add another product",
+    "limit": "You can save up to 5 products.",
+    "delete": "Delete",
+    "deleteConfirm": "Delete “{name}”? Its research chats stay.",
+    "noDescription": "No description yet",
+    "researchCount": "{n, plural, =0 {No research yet} one {# research} other {# researches}}",
+    "research": "Research"
   },
   "script": {
     "needProduct": "Add your product first, so Reely can adapt this video for you.",
@@ -278,7 +314,8 @@
       "demo": "Demo",
       "payoff": "Payoff",
       "cta": "CTA"
-    }
+    },
+    "forWhich": "Script for"
   },
   "account": {
     "title": "Account",
@@ -356,5 +393,63 @@
     "yourVersion": "Your version:",
     "writeScript": "Write my script",
     "footer": "Picked from {n} new breakouts. Updates once a day, the first time you open this page."
+  },
+  "format": {
+    "back": "Back to the video",
+    "eyebrow": "Format",
+    "loadingTitle": "Finding who else made this kind of clip…",
+    "seedFrom": "Started from a video by @{handle}",
+    "thisWeek": "{n, plural, one {# creator} other {# creators}} posted it this week",
+    "vsLastWeek": "{p}% vs last week",
+    "building": "Looking for this format across TikTok…",
+    "step1": "Working out the format from the video",
+    "step2": "Finding videos with the same sound",
+    "step3": "Searching for the format itself",
+    "step4": "Checking which ones really use it and grouping by topic",
+    "buildingHint": "About 3 credits. Saved for 3 days and shared, so the next visit is instant.",
+    "failed": "Couldn’t build this format. Try again later.",
+    "howTo": "How to do it",
+    "keepSame": "Keep the same",
+    "makeYours": "Make it yours",
+    "writeScript": "Write my version",
+    "perDay": "Videos posted per day",
+    "last30": "last 30 days",
+    "perDayLabel": "Peak {peak} videos on {day}",
+    "peak": "Peak {n} · {day}",
+    "tileVideos": "videos",
+    "tileCreators": "creators",
+    "tileViews": "total views",
+    "whoFor": "Who it works for",
+    "segment": {
+      "b2b": "B2B and SaaS",
+      "consumer": "Consumer brands",
+      "local": "Local businesses"
+    },
+    "topics": "What people made with it",
+    "topicsHint": "Topics creators applied this format to",
+    "topicStats": "{n} videos · best {best} views",
+    "sounds": "Sounds used",
+    "unnamedSound": "Unnamed sound",
+    "soundStats": "{n} videos · avg {avg} views",
+    "examples": "Examples ({n})",
+    "updated": "Updated {when}",
+    "sample": "Sample text: add a Gemini API key for a real explanation.",
+    "stage": {
+      "fresh": "Fresh",
+      "rising": "Rising",
+      "steady": "Steady",
+      "fading": "Fading"
+    },
+    "stageTip": {
+      "fresh": "First seen in the last 2 weeks: early, a good time to jump in",
+      "rising": "More creators this week than last week",
+      "steady": "About as many creators as last week",
+      "fading": "Fewer creators than last week: past its peak"
+    },
+    "boardTitle": "Formats",
+    "boardSubtitle": "Formats explored in Reely, most creators posting this week first. Open any video and press “Same format” to add one.",
+    "boardEmpty": "No formats yet",
+    "boardEmptyHint": "Open any video and press “Same format” to see who else made that kind of clip.",
+    "boardStats": "{week} creators this week · {videos} videos · {views} views"
   }
 }

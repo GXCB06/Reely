@@ -2,7 +2,7 @@ import "server-only";
 import { fixturesEnabled } from "@/lib/env";
 import { logApiCall } from "@/lib/usage";
 import { readFixture } from "./fixtures";
-import type { NormalizedCreator, NormalizedVideo, PlatformAdapter } from "./types";
+import { DEFAULT_WINDOW, type NormalizedCreator, type NormalizedVideo, type PlatformAdapter } from "./types";
 
 // YouTube Data API v3 (official, free): search = 100 quota units, videos/channels/playlistItems = 1 unit.
 const BASE = "https://www.googleapis.com/youtube/v3";
@@ -17,7 +17,7 @@ type VideoItem = {
 };
 type ChannelItem = {
   id: string;
-  snippet?: { title?: string; customUrl?: string; thumbnails?: Thumbs };
+  snippet?: { title?: string; customUrl?: string; thumbnails?: Thumbs; country?: string };
   statistics?: { subscriberCount?: string; hiddenSubscriberCount?: boolean };
   contentDetails?: { relatedPlaylists?: { uploads?: string } };
 };
@@ -61,6 +61,9 @@ function toVideo(v: VideoItem, channel?: ChannelItem): NormalizedVideo {
     saves: null,
     durationSeconds: parseIsoDuration(v.contentDetails?.duration),
     publishedAt: v.snippet.publishedAt,
+    country: channel?.snippet?.country ?? null,
+    hasShop: false,
+    sound: null,
   };
 }
 
@@ -84,7 +87,7 @@ export const youtubeAdapter: PlatformAdapter = {
 
   async searchVideos(keyword, opts) {
     type Res = { items?: { id: { videoId: string } }[] };
-    const since = new Date(Date.now() - (opts?.recent ? 7 : 182) * 864e5).toISOString();
+    const since = new Date(Date.now() - (opts?.days ?? DEFAULT_WINDOW) * 864e5).toISOString();
     const data = fixturesEnabled()
       ? await readFixture<Res>("youtube-search")
       : await call<Res>("search", {

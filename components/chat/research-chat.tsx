@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Check, ImagePlus, Link2, Loader2, Plus, RotateCcw, Search, X } from "lucide-react";
+import { ArrowUp, CalendarDays, Check, Eye, ImagePlus, Link2, Loader2, Package, Plus, RotateCcw, Search, X } from "lucide-react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -10,7 +10,9 @@ import { PlatformIcon } from "@/components/platform-icon";
 import { Logo } from "@/components/shell/logo";
 import { useRouter } from "@/i18n/navigation";
 import type { Understanding } from "@/lib/ai/schemas";
+import type { SearchWindow } from "@/lib/adapters/types";
 import { REGION_CHOICES, type RegionChoice } from "@/lib/region";
+import { creditEstimate, DEFAULT_MIN_VIEWS, MIN_VIEWS_CHOICES, WINDOW_CHOICES } from "@/lib/search-settings";
 import { findLink, hostOf, resizeImage } from "./image-utils";
 import { RegionIcon } from "./region-flag";
 
@@ -18,25 +20,24 @@ const MAX_KEYWORDS = 5;
 const PLATFORMS = ["tiktok", "youtube", "instagram"] as const;
 type PlatformId = (typeof PLATFORMS)[number];
 type Keyword = Understanding["keywords"][number];
+export type SavedProduct = { id: string; name: string };
 
-
-type Sent = { text: string; link: string | null; image: string | null; thumb: string | null };
+type Sent = { text: string; link: string | null; image: string | null; thumb: string | null; product: SavedProduct | null };
 type Phase = "compose" | "thinking" | "plan" | "running" | "error";
 
-// TikTok: 1 credit per keyword + 5 creators × 2 profile pages. Instagram: 1 per keyword + 5 creators × 1 page.
-function creditEstimate(platforms: PlatformId[], keywords: number) {
-  return (platforms.includes("tiktok") ? keywords + 10 : 0) + (platforms.includes("instagram") ? keywords + 5 : 0);
-}
-
-/** Chat-style home: one message (text, link and/or image) → Reely's understanding + keywords → run. */
+/** Chat-style home: one message (text, link, image and/or a saved product) → Reely's understanding + keywords → run. */
 export function ResearchChat({
   initialText = "",
   initialRegion = "th",
   autoSend = false,
+  products = [],
+  initialProductId = null,
 }: {
   initialText?: string;
   initialRegion?: RegionChoice;
   autoSend?: boolean;
+  products?: SavedProduct[];
+  initialProductId?: string | null;
 }) {
   const t = useTranslations("chat");
   const locale = useLocale() as "th" | "en";
@@ -46,6 +47,10 @@ export function ResearchChat({
   const [region, setRegion] = useState<RegionChoice>(initialRegion);
   // TikTok only by default: it is the one platform with saves and shares, and the most on-topic results.
   const [platforms, setPlatforms] = useState<PlatformId[]>(["tiktok"]);
+  const [product, setProduct] = useState<SavedProduct | null>(products.find((p) => p.id === initialProductId) ?? null);
+  // Trends move fast: 90 days by default, and only videos with real views.
+  const [days, setDays] = useState<SearchWindow>(90);
+  const [minViews, setMinViews] = useState<number>(DEFAULT_MIN_VIEWS);
   const [phase, setPhase] = useState<Phase>("compose");
   const [sent, setSent] = useState<Sent | null>(null);
   const [plan, setPlan] = useState<(Understanding & { source: "ai" | "sample" }) | null>(null);
@@ -94,6 +99,7 @@ export function ResearchChat({
         image: message.image,
         region: regionChoice,
         locale,
+        productId: message.product?.id ?? null,
       }).catch(() => null);
       if (!res?.ok) {
         setPhase("error");
@@ -110,8 +116,8 @@ export function ResearchChat({
 
   function send(overrideText?: string) {
     const body = (overrideText ?? text).trim();
-    const message: Sent = { text: body, link: findLink(body), image: image?.full ?? null, thumb: image?.thumb ?? null };
-    if (body.length < 3 && !message.link && !message.image) return void toast.error(t("errorEmpty"));
+    const message: Sent = { text: body, link: findLink(body), image: image?.full ?? null, thumb: image?.thumb ?? null, product };
+    if (body.length < 3 && !message.link && !message.image && !product) return void toast.error(t("errorEmpty"));
     setSent(message);
     setText("");
     setImage(null);
@@ -166,6 +172,8 @@ export function ResearchChat({
         exclusions,
         platforms,
         region,
+        settings: { days, minViews },
+        productId: sent.product?.id ?? null,
         locale,
       }).catch(() => null);
       if (res?.ok) return router.push(`/app/research/${res.runId}`);
@@ -179,6 +187,34 @@ export function ResearchChat({
 
   const composer = (
     <div className="rounded-3xl border bg-card p-3 shadow-[0_8px_30px_-12px_rgba(86,54,186,0.25)] focus-within:ring-2 focus-within:ring-primary/30">
+      {products.length > 0 && (
+        // Agent memory: pick a saved product instead of describing it again.
+        <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1 text-xs">
+          <span className="text-muted-foreground">{t("useProduct")}</span>
+          {products.map((p) => {
+            const on = product?.id === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setProduct(on ? null : p)}
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 transition ${on ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+              >
+                <Package className="size-3" /> {p.name}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            aria-pressed={!product}
+            onClick={() => setProduct(null)}
+            className={`inline-flex items-center gap-1 rounded-full border border-dashed px-2.5 py-1 transition ${!product ? "border-primary text-primary" : "text-muted-foreground hover:bg-muted"}`}
+          >
+            <Plus className="size-3" /> {t("newProduct")}
+          </button>
+        </div>
+      )}
       {image && (
         <div className="mb-2 flex">
           <span className="relative">
@@ -210,7 +246,7 @@ export function ResearchChat({
             void onPickImage(file);
           }
         }}
-        placeholder={t("placeholder")}
+        placeholder={product ? t("placeholderProduct", { product: product.name }) : t("placeholder")}
         rows={3}
         maxLength={1000}
         className="w-full resize-none bg-transparent px-2 py-1 text-base outline-none placeholder:text-muted-foreground/70"
@@ -272,7 +308,7 @@ export function ResearchChat({
   return (
     <div className="mx-auto flex min-h-[calc(100dvh-1rem)] max-w-3xl flex-col px-6 py-8">
       <div className="flex-1 space-y-6">
-        <UserBubble text={sent.text} link={sent.link} thumb={sent.thumb} />
+        <UserBubble text={sent.text} link={sent.link} thumb={sent.thumb} productName={sent.product?.name ?? null} />
 
         <ReelyBubble>
           {phase === "thinking" && (
@@ -375,6 +411,7 @@ export function ResearchChat({
                 <div className="flex flex-wrap items-center gap-2 border-t pt-4">
                   <RegionPicker value={region} onChange={switchRegion} />
                   <PlatformPicker value={platforms} onChange={setPlatforms} />
+                  <SettingsPicker days={days} minViews={minViews} onDays={setDays} onMinViews={setMinViews} />
                   <span className="text-xs text-muted-foreground">
                     {credits ? t("credits", { credits }) : t("free")}
                   </span>
@@ -418,10 +455,25 @@ export function ResearchChat({
   );
 }
 
-export function UserBubble({ text, link, thumb }: { text: string; link: string | null; thumb: string | null }) {
+export function UserBubble({
+  text,
+  link,
+  thumb,
+  productName = null,
+}: {
+  text: string;
+  link: string | null;
+  thumb: string | null;
+  productName?: string | null;
+}) {
   return (
     <div className="flex justify-end">
       <div className="max-w-[85%] space-y-2 rounded-3xl rounded-br-md bg-primary/10 px-4 py-3">
+        {productName && (
+          <p className="inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground">
+            <Package className="size-3" /> {productName}
+          </p>
+        )}
         {thumb && <Image src={thumb} alt="" width={96} height={96} unoptimized className="size-24 rounded-xl object-cover" />}
         {text && <p className="whitespace-pre-wrap">{text}</p>}
         {link && !text.includes(link) && (
@@ -463,6 +515,51 @@ function RegionPicker({ value, onChange }: { value: RegionChoice; onChange: (r: 
           {t(`region.${r}`)}
         </button>
       ))}
+    </div>
+  );
+}
+
+/** Before searching: how far back (7 / 30 / 90 days) and the fewest views a result may have. */
+function SettingsPicker({
+  days,
+  minViews,
+  onDays,
+  onMinViews,
+}: {
+  days: SearchWindow;
+  minViews: number;
+  onDays: (d: SearchWindow) => void;
+  onMinViews: (n: number) => void;
+}) {
+  const t = useTranslations("chat");
+  const select = "rounded-full border bg-card py-1.5 pr-2 pl-7 text-sm outline-none hover:bg-muted";
+  return (
+    <div className="inline-flex flex-wrap gap-1">
+      <label className="relative" title={t("windowHint")}>
+        <CalendarDays className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <select
+          value={days}
+          onChange={(e) => onDays(Number(e.target.value) as SearchWindow)}
+          className={select}
+          aria-label={t("windowLabel")}
+        >
+          {WINDOW_CHOICES.map((d) => (
+            <option key={d} value={d}>
+              {t("windowDays", { n: d })}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="relative" title={t("minViewsHint")}>
+        <Eye className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <select value={minViews} onChange={(e) => onMinViews(Number(e.target.value))} className={select} aria-label={t("minViewsLabel")}>
+          {MIN_VIEWS_CHOICES.map((n) => (
+            <option key={n} value={n}>
+              {t("minViewsN", { n: n / 1000 })}
+            </option>
+          ))}
+        </select>
+      </label>
     </div>
   );
 }

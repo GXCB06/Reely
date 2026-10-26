@@ -1,11 +1,10 @@
-import { Bookmark, Eye, Flame, Heart, MessageCircle, Share2, Users } from "lucide-react";
+import { Bookmark, Eye, Flame, Heart, Layers, MessageCircle, Music2, Share2, ShoppingBag, Users } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { PlatformIcon } from "@/components/platform-icon";
 import { SaveButton } from "@/components/save-button";
 import { Thumb } from "@/components/thumb";
 import { Link } from "@/i18n/navigation";
-import { RegionIcon } from "@/components/chat/region-flag";
-import { looksThai } from "@/lib/region";
+import { CountryFlag } from "@/components/country-flag";
 import { formatMultiplier, keepRate } from "@/lib/scoring";
 import type { ScoredVideo } from "@/lib/search";
 
@@ -22,10 +21,13 @@ export async function OutlierCard({
   video,
   saved = false,
   variant = "grid",
+  isNew = false,
 }: {
   video: ScoredVideo;
   saved?: boolean;
   variant?: "grid" | "carousel";
+  /** Added by "update with new videos". */
+  isNew?: boolean;
 }) {
   const t = await getTranslations("search");
   const tl = await getTranslations("labels");
@@ -35,8 +37,6 @@ export async function OutlierCard({
   const keep = keepRate(video);
   const href = video.dbId ? `/app/video/${video.dbId}` : null;
   const hook = (video.caption.split(/\n|#/)[0] || video.caption).trim();
-  // Caption language as a quick hint of where the video is from.
-  const flag = video.caption ? <RegionIcon region={looksThai(video.caption) ? "th" : "global"} /> : null;
 
   const rail = [
     { icon: Heart, value: video.likes },
@@ -48,6 +48,22 @@ export async function OutlierCard({
   const thumb = (
     <div className="relative aspect-[9/14] overflow-hidden bg-muted">
       <Thumb src={video.thumbnailUrl} className="transition group-hover:scale-[1.02]" />
+      {/* Where it is from (top left), plus a TikTok Shop tag for affiliates. */}
+      <div className="absolute top-2 left-2 flex items-center gap-1">
+        <span className="inline-flex h-5 items-center rounded-full bg-black/70 px-1.5">
+          <CountryFlag country={video.country} caption={video.caption} />
+        </span>
+        {isNew && (
+          <span className="inline-flex h-5 items-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+            {t("new")}
+          </span>
+        )}
+        {video.hasShop && (
+          <span title={t("shopTip")} className="inline-flex h-5 items-center gap-0.5 rounded-full bg-[#FE2C55] px-1.5 text-[10px] font-semibold text-white">
+            <ShoppingBag className="size-3" /> {t("shop")}
+          </span>
+        )}
+      </div>
       {/* Views and 🔥 sit together (Virlo-style); the tooltip shows how the 🔥 number was worked out. */}
       <div className="absolute top-2 right-2 flex items-center gap-1">
         <span className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-xs font-semibold text-white">
@@ -88,7 +104,7 @@ export async function OutlierCard({
       )}
       {variant === "grid" && (
         <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/70 py-0.5 pr-2 pl-0.5 text-[11px] font-medium text-white">
-          <PlatformIcon platform={video.platform} className="size-4" /> {PLATFORM_NAME[video.platform]} {flag}
+          <PlatformIcon platform={video.platform} className="size-4" /> {PLATFORM_NAME[video.platform]}
         </span>
       )}
     </div>
@@ -104,10 +120,15 @@ export async function OutlierCard({
           {video.creatorFollowers !== null && <> · {compact(video.creatorFollowers)} {t("followers")}</>}
           {variant === "carousel" && (
             <>
-              {" "}· <PlatformIcon platform={video.platform} className="size-3.5" /> {flag}
+              {" "}· <PlatformIcon platform={video.platform} className="size-3.5" />
             </>
           )}
         </p>
+        {variant === "grid" && video.sound && !video.sound.original && (
+          <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground" title={video.sound.title}>
+            <Music2 className="size-3 shrink-0" /> {video.sound.title}
+          </p>
+        )}
         <div className="flex flex-wrap gap-1.5 pt-1 text-[11px]">
           {video.usual !== null && video.usualViews !== null && (
             <span className="rounded-full bg-accent px-2 py-0.5 text-accent-foreground">
@@ -126,7 +147,14 @@ export async function OutlierCard({
           )}
         </div>
         {video.dbId && (
-          <div className="flex justify-end pt-1">
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <Link
+              href={`/app/format/${video.dbId}`}
+              title={t("formatTip")}
+              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Layers className="size-3.5" /> {t("format")}
+            </Link>
             <SaveButton videoId={video.dbId} initialSaved={saved} />
           </div>
         )}

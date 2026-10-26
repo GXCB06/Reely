@@ -104,3 +104,35 @@ export const todaySchema = z.object({
     .min(1)
     .max(5),
 });
+
+/** Format explorer, step 1: what the format of one video is, and how to search for more of it. */
+export const formatSchema = z.object({
+  name: z.string().describe("Max 6 words, a memorable name for the format, e.g. 'Wizard cat typing at a computer'"),
+  howTo: z.string().describe("1-2 sentences: how creators make this format"),
+  keepSame: z.string().describe("What must stay the same for the format to be recognised (sound, visual, structure)"),
+  makeYours: z.string().describe("What creators change to make it their own (topic, text, setting)"),
+  whoFor: z
+    .array(
+      z.object({
+        segment: z.enum(["b2b", "consumer", "local"]),
+        idea: z.string().describe("One sentence: how this kind of business could use the format"),
+      }),
+    )
+    .min(1)
+    .max(3),
+  searchPhrases: z.array(z.string().min(2).max(60)).min(1).max(2).describe("Short phrases people search to find this format"),
+});
+export type FormatDescription = z.infer<typeof formatSchema>;
+
+/** Format explorer, step 2: which candidates really use the format, and the topics people applied it to. */
+export const formatMatchSchema = z.object({
+  scores: z.array(z.object({ i: z.number().int().min(0), score: z.number().int().min(0).max(2) })),
+  topics: z
+    .array(
+      z.object({
+        topic: z.string().describe("Max 5 words: the subject people applied the format to"),
+        examples: z.array(z.number().int().min(0)).min(1).max(4),
+      }),
+    )
+    .max(6),
+});
