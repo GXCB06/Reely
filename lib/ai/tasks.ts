@@ -553,6 +553,7 @@ export async function ideasForClips(
         `Their product: ${product.name} — ${product.whatItIs}${product.audience ? `. Audience: ${product.audience}` : ""}`,
         `For EVERY video below write one sentence (max 25 words): how they could reuse its hook or format for their product to ${GOAL_ACTION[goal]}.`,
         "Be concrete: name the hook or format to borrow and what to show on screen. Never suggest copying its words or footage.",
+        "Only mention what the product description says it does; never give it a brand, product or feature name taken from the video.",
         "Videos (line | platform | handle | views | multiplier | shop link | caption):",
         ...clips.map(
           (v, i) =>
