@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { GOALS } from "@/lib/goals";
 import { createClient } from "@/lib/supabase/server";
 
 /** Products Reely remembers ("agent memory"); kept small so the chat chips stay readable. */
@@ -15,6 +16,8 @@ const productSchema = z.object({
   /** Comma-separated brand names; stored as a list (max 6). */
   competitors: z.string().trim().max(300),
   language: z.enum(["th", "en"]),
+  /** What the clips are for; "" = not set yet (Reely guesses on the next research). */
+  goal: z.union([z.enum(GOALS), z.literal("")]),
 });
 
 export type ProductForm = z.infer<typeof productSchema>;
@@ -25,7 +28,7 @@ export async function saveProductAction(form: ProductForm, id?: string | null) {
   if (!parsed.success) return { ok: false as const, field: String(parsed.error.issues[0]?.path[0] ?? "") };
   const productId = z.string().uuid().nullish().safeParse(id);
   if (!productId.success) return { ok: false as const, field: "" };
-  const { url, description, audience, competitors, ...rest } = parsed.data;
+  const { url, description, audience, competitors, goal, ...rest } = parsed.data;
   const list = competitors
     .split(/[,\n]/)
     .map((c) => c.trim().slice(0, 40))
@@ -37,6 +40,7 @@ export async function saveProductAction(form: ProductForm, id?: string | null) {
     description: description || null,
     audience: audience || null,
     competitors: list.length ? list : null,
+    goal: goal || null,
   };
 
   const supabase = await createClient();

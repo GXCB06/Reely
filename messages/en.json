@@ -161,7 +161,13 @@
       "enhance": "Enhance",
       "enhanceHint": "Let AI turn your rough line into a sharper brief",
       "failed": "Couldn’t enhance right now. You can still send it as is."
-    }
+    },
+    "goalQuestion": "What do you want the clips for?",
+    "goalAuto": "Optional: Reely will guess from what you write",
+    "goalLabel": "Clips for",
+    "goalGuessed": "Reely guessed this from your message. Change it if it's wrong (keywords follow).",
+    "goalRemembered": "Remembered from last time. You can change it.",
+    "goalReplanning": "Re-planning the keywords for this goal…"
   },
   "search": {
     "title": "Test search",
@@ -186,7 +192,8 @@
     "shopTip": "Linked to a TikTok Shop product",
     "new": "NEW",
     "format": "Same format",
-    "formatTip": "See who else made this kind of clip, what topics they used it for and which sounds"
+    "formatTip": "See who else made this kind of clip, what topics they used it for and which sounds",
+    "ideaFor": "Your idea"
   },
   "labels": {
     "breakout": "Breakout",
@@ -330,7 +337,9 @@
     "researchCount": "{n, plural, =0 {No research yet} one {# research} other {# researches}}",
     "research": "Research",
     "competitors": "Competitors or similar brands",
-    "competitorsHint": "Comma-separated, e.g. FlowAccount, PEAK, Xero. Reely searches “<brand> review”, “how to use <brand>”, comparisons."
+    "competitorsHint": "Comma-separated, e.g. FlowAccount, PEAK, Xero. Reely searches “<brand> review”, “how to use <brand>”, comparisons.",
+    "goal": "Clips for",
+    "goalHint": "Reely uses this to pick keywords, filter clips and write ideas that fit what you'll make."
   },
   "script": {
     "needProduct": "Add your product first, so Reely can adapt this video for you.",
@@ -519,6 +528,28 @@
       "got": "gets",
       "breakout": "Breakout",
       "note": "A clip that blows past its own account’s normal is one worth learning from, no matter how big the creator is."
+    }
+  },
+  "goals": {
+    "sell": {
+      "label": "Sell products / Affiliate",
+      "short": "Selling",
+      "desc": "Reviews, unboxings and demos that get people to buy"
+    },
+    "shop": {
+      "label": "Shop / local business",
+      "short": "Shop/SME",
+      "desc": "Bring customers in: behind the scenes, owner stories, offers"
+    },
+    "startup": {
+      "label": "Startup / app",
+      "short": "Startup",
+      "desc": "Make a feature go viral: pain skits, quick demos, founder-led"
+    },
+    "brand": {
+      "label": "Personal brand",
+      "short": "Personal brand",
+      "desc": "Grow followers: talking-head hooks, stories, tips"
     }
   }
 }

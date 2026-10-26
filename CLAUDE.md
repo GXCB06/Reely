@@ -38,6 +38,7 @@ lib/adapters/__fixtures__/    # real vendor responses saved on Day 0 (used when 
 lib/scoring.ts                # reach score, usual-views score, labels, noise filter (+ scoring.test.ts)
 lib/search.ts                 # keywords (with region) → adapters → noise filter → baselines → ranked results
 lib/region.ts                 # Thailand / Worldwide / Both → keyword regions; Thai-caption check
+lib/goals.ts                  # what the clips are for (sell / shop / startup / brand) → goal-aware ranking; prompts in lib/ai/tasks.ts
 lib/link-preview.ts           # reads a pasted product link (blocks private addresses — keep that check)
 lib/today.ts                  # Today page: new breakouts (7 days) from tracked accounts + followed topics → 3-5 ideas
 lib/formats.ts                # format explorer: same sound + format search → topics, sounds, stage (lib/format-stats.ts)
@@ -95,6 +96,9 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 15. Format explorer (`lib/formats.ts`): 1 call to `/v1/tiktok/song/videos` for the seed's sound + max 2
     keyword searches (~3 credits); shared `formats` cache for 3 days. Never page through a sound.
     A build starts only when the user presses "Explore this format"; opening the page never spends credits.
+17. Goals add no paid calls: the goal changes the keyword recipe, the relevance rubric and the order; the
+    "your idea" line under each top-10 clip is one Gemini call per research (`ideasForClips`), run in parallel
+    with the summary.
 
 ## Security rules
 

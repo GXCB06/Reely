@@ -5,10 +5,10 @@ import { DEFAULT_WINDOW, type NormalizedVideo, type Platform, type SearchRegion 
 import type { SearchSettings } from "@/lib/search-settings";
 import { type ProductBrief, rateRelevance } from "@/lib/ai/tasks";
 import { getFreshCreator, saveCreator, saveVideos } from "@/lib/cache";
+import { type Goal, goalScore } from "@/lib/goals";
 import { captionLanguage } from "@/lib/region";
 import { isExcluded } from "@/lib/results";
 import {
-  bestScore,
   labelFor,
   type OutlierLabel,
   passesNoiseFilter,
@@ -92,7 +92,7 @@ export async function searchKeywords(
   keywords: KeywordQuery[],
   platforms: Platform[] = ["tiktok", "youtube"],
   exclusions: string[] = [],
-  opts: SearchSettings & { product?: ProductBrief } = {},
+  opts: SearchSettings & { product?: ProductBrief; goal?: Goal | null } = {},
 ): Promise<SearchResult> {
   const days = opts.days ?? DEFAULT_WINDOW;
   const since = Date.now() - days * 864e5;
@@ -143,7 +143,7 @@ export async function searchKeywords(
   });
   // AI relevance check before any paid baseline lookups, so off-topic creators cost nothing.
   // Score 1 ("same audience, not the product") only fills in when there are few clearly on-topic videos.
-  const relevance = opts.product ? await rateRelevance(opts.product, clean) : null;
+  const relevance = opts.product ? await rateRelevance(opts.product, clean, opts.goal) : null;
   const onTopic = relevance ? relevance.filter((r) => r === 2).length : 0;
   const minScore = onTopic >= STRICT_RELEVANCE_AT ? 2 : 1;
   const kept = relevance ? clean.filter((_, i) => relevance[i] >= minScore) : clean;
@@ -199,7 +199,8 @@ export async function searchKeywords(
         dbId: dbIds.get(`${v.platform}:${v.platformVideoId}`),
       };
     })
-    .sort((a, b) => bestScore(b) - bestScore(a));
+    // "Best for your goal" (plain best when there is no goal).
+    .sort((a, b) => goalScore(b, opts.goal) - goalScore(a, opts.goal));
 
   return { videos, hidden: all.length - clean.length, offTopic: clean.length - kept.length, platforms: stats, errors };
 }

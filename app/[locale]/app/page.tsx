@@ -1,6 +1,7 @@
 import { setRequestLocale } from "next-intl/server";
-import { ResearchChat } from "@/components/chat/research-chat";
+import { ResearchChat, type SavedProduct } from "@/components/chat/research-chat";
 import { isSupabaseConfigured } from "@/lib/env";
+import { isGoal } from "@/lib/goals";
 import type { RegionChoice } from "@/lib/region";
 import { createClient } from "@/lib/supabase/server";
 
@@ -21,11 +22,11 @@ export default async function HomePage({ params, searchParams }: PageProps<"/[lo
   const region = typeof sp.region === "string" && REGIONS.has(sp.region as RegionChoice) ? (sp.region as RegionChoice) : "th";
   const productId = typeof sp.product === "string" ? sp.product : null;
 
-  let products: { id: string; name: string }[] = [];
+  let products: SavedProduct[] = [];
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
-    const { data } = await supabase.from("products").select("id, name").order("created_at");
-    products = (data ?? []).map((p) => ({ id: p.id as string, name: p.name as string }));
+    const { data } = await supabase.from("products").select("id, name, goal").order("created_at");
+    products = (data ?? []).map((p) => ({ id: p.id as string, name: p.name as string, goal: isGoal(p.goal) ? p.goal : null }));
   }
 
   // key: a fresh chat each time the link changes (e.g. "New research" while a chat is open).

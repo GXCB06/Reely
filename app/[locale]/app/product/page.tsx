@@ -1,6 +1,7 @@
 import { ChevronDown, Package, Search } from "lucide-react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
+import { isGoal } from "@/lib/goals";
 import { createClient } from "@/lib/supabase/server";
 import { ProductForm } from "./product-form";
 
@@ -13,7 +14,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/app/p
   const t = await getTranslations("product");
   const supabase = await createClient();
   const [{ data: products }, { data: runs }] = await Promise.all([
-    supabase.from("products").select("id, name, url, description, audience, competitors, language").order("created_at"),
+    supabase.from("products").select("id, name, url, description, audience, competitors, language, goal").order("created_at"),
     supabase.from("research_runs").select("product_id").not("product_id", "is", null),
   ]);
   const runCount = new Map<string, number>();
@@ -60,6 +61,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/app/p
                   audience: p.audience ?? "",
                   competitors: ((p.competitors as string[] | null) ?? []).join(", "),
                   language: p.language === "en" ? "en" : "th",
+                  goal: isGoal(p.goal) ? p.goal : "",
                 }}
               />
             </div>
@@ -70,7 +72,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/app/p
           <section className="space-y-3 pt-4">
             <h2 className="font-heading text-lg font-bold">{list.length ? t("addAnother") : t("addFirst")}</h2>
             <ProductForm
-              initial={{ name: "", url: "", description: "", audience: "", competitors: "", language: locale === "en" ? "en" : "th" }}
+              initial={{ name: "", url: "", description: "", audience: "", competitors: "", language: locale === "en" ? "en" : "th", goal: "" }}
             />
           </section>
         ) : (

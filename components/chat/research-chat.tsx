@@ -11,9 +11,13 @@ import {
   Loader2,
   Package,
   Plus,
+  Rocket,
   RotateCcw,
   Search,
+  ShoppingBag,
   Sparkles,
+  Store,
+  UserRound,
   X,
 } from "lucide-react";
 import Image from "next/image";
@@ -26,6 +30,7 @@ import { Mascot } from "@/components/mascot";
 import { useRouter } from "@/i18n/navigation";
 import type { Understanding } from "@/lib/ai/schemas";
 import type { SearchWindow } from "@/lib/adapters/types";
+import { GOALS, type Goal } from "@/lib/goals";
 import { REGION_CHOICES, type RegionChoice } from "@/lib/region";
 import {
   type ContentLanguage,
@@ -43,7 +48,9 @@ const MAX_KEYWORDS = 5;
 const PLATFORMS = ["tiktok", "youtube", "instagram"] as const;
 type PlatformId = (typeof PLATFORMS)[number];
 type Keyword = Understanding["keywords"][number];
-export type SavedProduct = { id: string; name: string };
+export type SavedProduct = { id: string; name: string; goal?: Goal | null };
+/** Where the goal came from: the user picked it, the saved product remembers it, or (null) the AI will guess. */
+type GoalFrom = "user" | "product" | null;
 
 type Sent = { text: string; link: string | null; image: string | null; thumb: string | null; product: SavedProduct | null };
 type Phase = "compose" | "thinking" | "plan" | "running" | "error";
@@ -63,6 +70,7 @@ export function ResearchChat({
   initialProductId?: string | null;
 }) {
   const t = useTranslations("chat");
+  const tg = useTranslations("goals");
   const locale = useLocale() as "th" | "en";
   const router = useRouter();
   const [text, setText] = useState(initialText);
@@ -72,6 +80,10 @@ export function ResearchChat({
   // Instagram's search only works in English.
   const [platforms, setPlatforms] = useState<PlatformId[]>(["tiktok", "youtube"]);
   const [product, setProduct] = useState<SavedProduct | null>(products.find((p) => p.id === initialProductId) ?? null);
+  // What the clips are for: steers keywords, filtering, ranking and the idea under each clip.
+  const [goal, setGoal] = useState<Goal | null>(product?.goal ?? null);
+  const [goalFrom, setGoalFrom] = useState<GoalFrom>(product?.goal ? "product" : null);
+  const [replanning, setReplanning] = useState(false);
   // Trends move fast: 90 days by default, and only videos with real views.
   const [days, setDays] = useState<SearchWindow>(90);
   const [minViews, setMinViews] = useState<number>(DEFAULT_MIN_VIEWS);
@@ -110,7 +122,7 @@ export function ResearchChat({
     }
   }
 
-  function understand(message: Sent, regionChoice: RegionChoice) {
+  function understand(message: Sent, regionChoice: RegionChoice, goalChoice: Goal | null = goal) {
     setPhase("thinking");
     startTransition(async () => {
       const res = await understandAction({
@@ -120,7 +132,9 @@ export function ResearchChat({
         region: regionChoice,
         locale,
         productId: message.product?.id ?? null,
+        goal: goalChoice,
       }).catch(() => null);
+      setReplanning(false);
       if (!res?.ok) {
         setPhase("error");
         return;
@@ -128,6 +142,7 @@ export function ResearchChat({
       if (res.linkRead === false) toast.info(t("linkFailed"));
       if (res.understanding.source === "sample") toast.info(t("sampleNotice"));
       setPlan(res.understanding);
+      setGoal(res.understanding.goal);
       setKeywords(res.understanding.keywords.map((k) => ({ ...k, on: true })));
       setExclusions(res.understanding.exclusions);
       setPhase("plan");
@@ -152,6 +167,30 @@ export function ResearchChat({
     // Runs once on mount for "search again" links.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function pickProduct(p: SavedProduct | null) {
+    setProduct(p);
+    if (p?.goal) {
+      setGoal(p.goal);
+      setGoalFrom("product");
+    } else if (goalFrom === "product") {
+      setGoal(null);
+      setGoalFrom(null);
+    }
+  }
+
+  function pickGoal(next: Goal | null) {
+    setGoal(next);
+    setGoalFrom(next ? "user" : null);
+  }
+
+  /** Changing the goal after the plan re-plans the keywords for it (one AI call, no credits). */
+  function switchGoal(next: Goal) {
+    if (!sent || next === plan?.goal) return;
+    pickGoal(next);
+    setReplanning(true);
+    understand(sent, region, next);
+  }
 
   function switchRegion(next: RegionChoice) {
     setRegion(next);
@@ -197,6 +236,7 @@ export function ResearchChat({
         exclusions,
         platforms,
         region,
+        goal: plan.goal,
         settings: { days, minViews, language },
         productId: sent.product?.id ?? null,
         locale,
@@ -222,7 +262,7 @@ export function ResearchChat({
                 key={p.id}
                 type="button"
                 aria-pressed={on}
-                onClick={() => setProduct(on ? null : p)}
+                onClick={() => pickProduct(on ? null : p)}
                 className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 transition ${on ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
               >
                 <Package className="size-3" /> {p.name}
@@ -232,13 +272,14 @@ export function ResearchChat({
           <button
             type="button"
             aria-pressed={!product}
-            onClick={() => setProduct(null)}
+            onClick={() => pickProduct(null)}
             className={`inline-flex items-center gap-1 rounded-full border border-dashed px-2.5 py-1 transition ${!product ? "border-primary text-primary" : "text-muted-foreground hover:bg-muted"}`}
           >
             <Plus className="size-3" /> {t("newProduct")}
           </button>
         </div>
       )}
+      {products.length > 0 && <GoalPicker value={goal} onChange={pickGoal} />}
       {image && (
         <div className="mb-2 flex">
           <span className="relative">
@@ -346,6 +387,7 @@ export function ResearchChat({
           <h1 className="font-heading text-3xl font-bold md:text-4xl">{t("greeting")}</h1>
           <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{t("subtitle")}</p>
         </div>
+        {products.length === 0 && <GoalCards value={goal} onChange={pickGoal} />}
         {composer}
         <p className="mt-2 px-3 text-xs text-muted-foreground">
           <RegionIcon region={region} /> {t(`regionHint.${region}`)}
@@ -371,7 +413,7 @@ export function ResearchChat({
           {phase === "thinking" && (
             <p className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              {t(sent.link ? "thinking.link" : sent.image ? "thinking.image" : "thinking.text")}
+              {replanning ? t("goalReplanning") : t(sent.link ? "thinking.link" : sent.image ? "thinking.image" : "thinking.text")}
             </p>
           )}
 
@@ -387,6 +429,27 @@ export function ResearchChat({
           {(phase === "plan" || phase === "running") && plan && (
             <div className="space-y-4">
               <p className="leading-relaxed">{plan.reply}</p>
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+                <p className="mb-2 text-sm font-semibold">{t("goalLabel")}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {GOALS.map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      disabled={phase === "running"}
+                      aria-pressed={plan.goal === g}
+                      onClick={() => switchGoal(g)}
+                      className={`chip ${plan.goal === g ? "chip-on" : "bg-card"}`}
+                    >
+                      <GoalIcon goal={g} /> {tg(`${g}.label`)}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {tg(`${plan.goal}.desc`)}
+                  {goalFrom !== "user" && <> · {t(goalFrom === "product" ? "goalRemembered" : "goalGuessed")}</>}
+                </p>
+              </div>
               <dl className="grid gap-1 rounded-2xl bg-muted/60 px-4 py-3 text-sm sm:grid-cols-[auto_1fr] sm:gap-x-4">
                 <dt className="text-muted-foreground">{t("product")}</dt>
                 <dd className="font-medium">
@@ -555,6 +618,73 @@ export function ReelyBubble({ children }: { children: React.ReactNode }) {
     <div className="flex gap-3">
       <Mascot size={32} className="mt-1" />
       <div className="min-w-0 flex-1 rounded-3xl rounded-tl-md border bg-card px-5 py-4 shadow-sm">{children}</div>
+    </div>
+  );
+}
+
+const GOAL_ICON = { sell: ShoppingBag, shop: Store, startup: Rocket, brand: UserRound } as const;
+
+function GoalIcon({ goal, className = "size-3.5" }: { goal: Goal; className?: string }) {
+  const Icon = GOAL_ICON[goal];
+  return <Icon className={className} />;
+}
+
+/** Composer row (returning users): what the clips are for; tap again to let Reely guess. */
+function GoalPicker({ value, onChange }: { value: Goal | null; onChange: (g: Goal | null) => void }) {
+  const t = useTranslations("chat");
+  const tg = useTranslations("goals");
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1 text-xs">
+      <span className="text-muted-foreground">{t("goalLabel")}</span>
+      {GOALS.map((g) => {
+        const on = value === g;
+        return (
+          <button
+            key={g}
+            type="button"
+            aria-pressed={on}
+            title={tg(`${g}.desc`)}
+            onClick={() => onChange(on ? null : g)}
+            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 transition ${on ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+          >
+            <GoalIcon goal={g} className="size-3" /> {tg(`${g}.short`)}
+          </button>
+        );
+      })}
+      {!value && <span className="text-muted-foreground/80">{t("goalAuto")}</span>}
+    </div>
+  );
+}
+
+/** First visit (no saved products yet): "What do you want the clips for?" as 4 cards above the composer. */
+function GoalCards({ value, onChange }: { value: Goal | null; onChange: (g: Goal | null) => void }) {
+  const t = useTranslations("chat");
+  const tg = useTranslations("goals");
+  return (
+    <div className="mb-4">
+      <p className="mb-2 text-center text-sm font-semibold">
+        {t("goalQuestion")} <span className="font-normal text-muted-foreground">· {t("goalAuto")}</span>
+      </p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {GOALS.map((g) => {
+          const on = value === g;
+          return (
+            <button
+              key={g}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onChange(on ? null : g)}
+              className={`rounded-2xl border p-3 text-left transition ${on ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "bg-card hover:border-primary/40"}`}
+            >
+              <span className={`grid size-8 place-items-center rounded-xl ${on ? "bg-primary text-primary-foreground" : "bg-accent text-primary"}`}>
+                <GoalIcon goal={g} className="size-4" />
+              </span>
+              <span className="mt-2 block text-sm font-semibold">{tg(`${g}.label`)}</span>
+              <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{tg(`${g}.desc`)}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

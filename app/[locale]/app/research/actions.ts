@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
 import { MAX_KEYWORDS } from "@/lib/ai/schemas";
-import { enhanceBrief, summarizeRun, understandProduct } from "@/lib/ai/tasks";
+import { enhanceBrief, ideasForClips, summarizeRun, understandProduct } from "@/lib/ai/tasks";
+import { GOALS, type Goal, isGoal, scoreFor } from "@/lib/goals";
 import { readLink } from "@/lib/link-preview";
+import { diverseTop } from "@/lib/results";
 import { keepRate } from "@/lib/scoring";
 import { type ScoredVideo, searchKeywords } from "@/lib/search";
 import { DEFAULT_MIN_VIEWS } from "@/lib/search-settings";
@@ -19,6 +21,7 @@ const REFRESH_COOLDOWN_MS = 20 * 3600e3;
 const regionChoice = z.enum(["th", "global", "both"]);
 const locale = z.enum(["th", "en"]);
 const productId = z.string().uuid().nullable();
+const goalChoice = z.enum(GOALS);
 const settingsSchema = z.object({
   days: z.union([z.literal(7), z.literal(30), z.literal(90)]),
   minViews: z.number().int().min(0).max(10_000_000),
@@ -39,6 +42,8 @@ const messageSchema = z
     region: regionChoice,
     locale,
     productId,
+    /** Picked by the user (or remembered with the product); null = let AI work it out. */
+    goal: goalChoice.nullable().default(null),
   })
   .refine((m) => m.text.length >= 3 || m.url || m.image || m.productId, { message: "empty" });
 
@@ -50,12 +55,13 @@ export async function understandAction(input: ChatMessageInput) {
   if (!parsed.success) return { ok: false as const, error: "empty" };
   const { text, url, image, region, locale, productId } = parsed.data;
   const supabase = await createClient();
-  // A saved product ("agent memory"): reuse what we already know instead of asking again.
+  // A saved product ("agent memory"): reuse what we already know instead of asking again, including its goal.
   const { data: saved } = productId
-    ? await supabase.from("products").select("name, url, description, audience, competitors").eq("id", productId).maybeSingle()
+    ? await supabase.from("products").select("name, url, description, audience, competitors, goal").eq("id", productId).maybeSingle()
     : { data: null };
+  const goal = parsed.data.goal ?? (isGoal(saved?.goal) ? saved.goal : null);
   const link = url ? await readLink(url) : null;
-  const understanding = await understandProduct({ text, link, image, region, saved }, locale);
+  const understanding = await understandProduct({ text, link, image, region, saved, goal }, locale);
   return { ok: true as const, understanding, linkRead: url ? link !== null : null, linkTitle: link?.title ?? null };
 }
 
@@ -91,6 +97,7 @@ const runSchema = z.object({
   exclusions: z.array(z.string().trim().min(1).max(40)).max(10),
   platforms: z.array(z.enum(["tiktok", "youtube", "instagram"])).min(1),
   region: regionChoice,
+  goal: goalChoice,
   settings: settingsSchema,
   productId,
   locale,
@@ -108,11 +115,16 @@ async function resolveProduct(supabase: Supabase, input: RunInput): Promise<stri
     if (competitors.length) {
       await supabase.from("products").update({ competitors }).eq("id", input.productId).is("competitors", null);
     }
+    // The goal the user just confirmed is what this product is for from now on (asked once).
+    await supabase.from("products").update({ goal: input.goal }).eq("id", input.productId);
     return input.productId;
   }
   const { data: products } = await supabase.from("products").select("id, name");
   const same = products?.find((p) => (p.name as string).trim().toLowerCase() === productName.trim().toLowerCase());
-  if (same) return same.id as string;
+  if (same) {
+    await supabase.from("products").update({ goal: input.goal }).eq("id", same.id);
+    return same.id as string;
+  }
   if ((products?.length ?? 0) >= MAX_PRODUCTS) return null;
   const { data } = await supabase
     .from("products")
@@ -123,6 +135,7 @@ async function resolveProduct(supabase: Supabase, input: RunInput): Promise<stri
       audience: audience || null,
       competitors: competitors.length ? competitors : null,
       language: input.locale,
+      goal: input.goal,
     })
     .select("id")
     .single();
@@ -144,7 +157,7 @@ const resultRow = (runId: string, v: ScoredVideo, rank: number) => ({
 export async function runResearchAction(input: RunInput) {
   const parsed = runSchema.safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
-  const { text, url, imageThumb, understanding, keywords, exclusions, platforms, region, settings, locale } = parsed.data;
+  const { text, url, imageThumb, understanding, keywords, exclusions, platforms, region, goal, settings, locale } = parsed.data;
   const brief = (text || `${understanding.productName}: ${understanding.whatItIs}`).slice(0, 1000);
 
   const supabase = await createClient();
@@ -161,6 +174,7 @@ export async function runResearchAction(input: RunInput) {
       exclusions,
       platforms,
       region,
+      goal,
       settings,
       input: { text, url: url || null, imageThumb, ...understanding },
       status: "running",
@@ -171,7 +185,7 @@ export async function runResearchAction(input: RunInput) {
 
   try {
     const product = { name: understanding.productName, whatItIs: understanding.whatItIs, audience: understanding.audience };
-    const result = await searchKeywords(keywords, platforms, exclusions, { product, ...settings });
+    const result = await searchKeywords(keywords, platforms, exclusions, { product, goal, ...settings });
     const rows = result.videos.filter((v) => v.dbId !== undefined).map((v, i) => resultRow(run.id, v, i + 1));
     after(() => persistThumbnails(result.videos));
     if (rows.length) {
@@ -190,27 +204,48 @@ export async function runResearchAction(input: RunInput) {
       })
       .eq("id", run.id);
 
-    const top = result.videos.slice(0, 15);
-    const summary = await summarizeRun(
-      {
-        keywords: keywords.map((k) => k.text),
-        totalVideos: result.videos.length,
-        topViews: result.videos.reduce<number | null>((m, v) => Math.max(m ?? 0, v.views ?? 0), null),
-        smallAccountsInTop10: top.slice(0, 10).filter((v) => (v.creatorFollowers ?? Infinity) < 10_000).length,
-        breakouts: result.videos.filter((v) => v.label === "breakout").length,
+    // The page shows these 10 first; the AI sees them first too (patterns use up to 15).
+    const top10 = diverseTop(result.videos, 10, 2, scoreFor(goal));
+    const top = [...top10, ...result.videos.filter((v) => !top10.includes(v))].slice(0, 15);
+    const [summary, ideas] = await Promise.all([
+      summarizeRun(
+        {
+          keywords: keywords.map((k) => k.text),
+          totalVideos: result.videos.length,
+          topViews: result.videos.reduce<number | null>((m, v) => Math.max(m ?? 0, v.views ?? 0), null),
+          smallAccountsInTop10: top.slice(0, 10).filter((v) => (v.creatorFollowers ?? Infinity) < 10_000).length,
+          breakouts: result.videos.filter((v) => v.label === "breakout").length,
+          product,
+          goal,
+          top: top.map((v) => ({
+            dbId: v.dbId,
+            keepRate: keepRate(v),
+            handle: v.creatorHandle,
+            caption: v.caption,
+            views: v.views,
+            multiplier: v.usual ?? v.reach,
+            platform: v.platform,
+          })),
+        },
+        locale,
+      ),
+      ideasForClips(
         product,
-        top: top.map((v) => ({
-          dbId: v.dbId,
-          keepRate: keepRate(v),
+        goal,
+        top10.map((v) => ({
           handle: v.creatorHandle,
           caption: v.caption,
           views: v.views,
           multiplier: v.usual ?? v.reach,
+          hasShop: Boolean(v.hasShop),
           platform: v.platform,
         })),
-      },
-      locale,
-    );
+        locale,
+      ),
+    ]);
+    summary.ideas = (ideas ?? [])
+      .map((idea, i) => ({ videoId: top10[i]?.dbId, idea }))
+      .filter((x): x is { videoId: number; idea: string } => x.videoId !== undefined && !!x.idea);
     await supabase.from("research_runs").update({ summary }).eq("id", run.id);
     revalidatePath("/[locale]/app", "layout");
     return { ok: true as const, runId: run.id as string };
@@ -236,7 +271,7 @@ export async function refreshRunAction(id: string) {
   const supabase = await createClient();
   const { data: run } = await supabase
     .from("research_runs")
-    .select("id, keywords, keyword_regions, keyword_english, exclusions, platforms, settings, input, created_at, last_refreshed_at, status")
+    .select("id, keywords, keyword_regions, keyword_english, exclusions, platforms, settings, input, goal, created_at, last_refreshed_at, status")
     .eq("id", parsed.data)
     .maybeSingle();
   if (!run || run.status === "running") return { ok: false as const, error: "invalid" as const };
@@ -262,7 +297,13 @@ export async function refreshRunAction(id: string) {
     keywords,
     run.platforms as ("tiktok" | "youtube" | "instagram")[],
     (run.exclusions as string[]) ?? [],
-    { product, days, minViews: settings.minViews ?? DEFAULT_MIN_VIEWS, language: settings.language },
+    {
+      product,
+      goal: isGoal(run.goal) ? (run.goal as Goal) : null,
+      days,
+      minViews: settings.minViews ?? DEFAULT_MIN_VIEWS,
+      language: settings.language,
+    },
   );
   const { data: existing } = await supabase.from("run_results").select("video_id, rank").eq("run_id", run.id);
   const have = new Set((existing ?? []).map((r) => r.video_id as number));

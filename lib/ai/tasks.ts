@@ -1,5 +1,6 @@
 import "server-only";
 import { generateText, Output } from "ai";
+import type { Goal } from "@/lib/goals";
 import type { LinkPreview } from "@/lib/link-preview";
 import { keywordRegions, type RegionChoice } from "@/lib/region";
 import { formatMultiplier } from "@/lib/scoring";
@@ -17,6 +18,7 @@ import {
   type Enhanced,
   enhanceSchema,
   type Script,
+  clipIdeasSchema,
   todaySchema,
   scriptSchema,
   type Understanding,
@@ -64,6 +66,8 @@ export type ProductMessage = {
   /** Data URL of a resized product screenshot or photo. */
   image: string | null;
   region: RegionChoice;
+  /** What the clips are for, when the user picked it (or the saved product remembers it); otherwise AI decides. */
+  goal?: Goal | null;
   /** A product the user saved earlier ("agent memory"); the text then refines what to look for. */
   saved?: {
     name: string;
@@ -73,6 +77,68 @@ export type ProductMessage = {
     competitors?: string[] | null;
   } | null;
 };
+
+/** "The user …": what each goal wants from the clips (used in every prompt). */
+const GOAL_BRIEF: Record<Goal, string> = {
+  sell: "sells products (as an affiliate or on TikTok Shop) and wants videos that make people BUY a product like this",
+  shop: "runs a shop or local business and wants videos that bring customers IN (to the shop, cafe, clinic or service)",
+  startup: "builds a startup (app, SaaS or AI tool) and wants videos that make a product FEATURE go viral",
+  brand: "is building a personal brand and wants videos that grow FOLLOWERS in their niche",
+};
+
+/** Keyword recipe per goal (5 phrases). Each finds the kind of viral video that goal can reuse. */
+const GOAL_KEYWORDS: Record<Goal, string[]> = {
+  sell: [
+    "- 2 phrases for the product type the way buyers search before buying: reviews, unboxings, 'ป้ายยา', 'ของมันต้องมี',",
+    "  'รีวิว<type>', '<type> review', 'tiktok made me buy it'.",
+    "- 1 phrase naming or comparing real competing products or brands (full real names only; list them in competitors).",
+    "- 2 phrases for the problem the product fixes or the result it promises, as buyers say it (for a serum: 'หน้าใส', 'acne scar').",
+  ],
+  shop: [
+    "- 2 phrases for this kind of business promoting itself: 'ร้าน<type>', 'เปิดร้าน<type>', 'เจ้าของร้าน<type>', 'small business <type>'.",
+    "- 1 phrase for behind-the-scenes or owner stories ('เบื้องหลังร้าน<type>', 'day in the life <type> owner').",
+    "- 2 phrases customers search: reviews of places like it, menu or service reveals, 'POV ลูกค้า', promotions, the area if given.",
+  ],
+  startup: [
+    "- 2 phrases for the everyday work pain or situation the product solves, as the audience says it (for accounting",
+    "  software: 'ปิดงบสิ้นเดือน', 'ทำบัญชีเอง', 'month end close'). People watch the pain, not the software.",
+    "- 1 phrase naming a real competitor or well-known similar tool the way people search it ('<brand> รีวิว', 'สอนใช้ <brand>',",
+    "  '<brand> review'). Full real names only (never guess); list them in competitors.",
+    "- 1 phrase for tools or AI that do this job ('AI ทำบัญชี', 'AI tool for <job>').",
+    "- 1 how-to topic this audience searches all the time inside the product's field (for accounting: 'ยื่นภาษีออนไลน์').",
+  ],
+  brand: [
+    "- 3 phrases for the hottest topics in the niche, as viewers search them.",
+    "- 1 tips or how-to phrase in the niche.",
+    "- 1 story, opinion or 'day in the life' phrase in the niche.",
+  ],
+};
+
+/** What a video must be about to count as clearly relevant (score 2) for each goal. */
+const GOAL_RELEVANCE: Record<Goal, string> = {
+  sell: "The user sells this kind of product: 2 also covers videos that review, demo, unbox, compare or sell a similar product (any brand).",
+  shop: "The user runs this kind of business: 2 also covers videos where a similar business promotes itself, shows behind the scenes, or customers show their visit.",
+  startup: "The user wants to promote a product feature: 2 also covers videos about the exact work pain or situation the product solves (skits, rants, how-tos), even when no product is shown.",
+  brand: "The user is a creator in this niche: 2 covers videos on the niche's topics; 1 covers adjacent topics the same viewers watch.",
+};
+
+/** What the per-clip idea should achieve for each goal. */
+const GOAL_ACTION: Record<Goal, string> = {
+  sell: "get viewers to buy it (end on the TikTok Shop basket or link)",
+  shop: "bring customers to their shop or business",
+  startup: "show off one feature that solves the pain in the video",
+  brand: "grow followers with their own take",
+};
+
+function goalPlan(goal: Goal | null | undefined): string[] {
+  if (goal) return [`The user ${GOAL_BRIEF[goal]}. Set goal to "${goal}". Keywords (${MAX_KEYWORDS}):`, ...GOAL_KEYWORDS[goal]];
+  return [
+    "First decide goal: what the user most likely wants the clips for, from their words, the product and the link:",
+    ...(Object.keys(GOAL_BRIEF) as Goal[]).map((g) => `- ${g}: the user ${GOAL_BRIEF[g]}`),
+    `Then write ${MAX_KEYWORDS} keywords with the recipe for that goal:`,
+    ...(Object.keys(GOAL_KEYWORDS) as Goal[]).flatMap((g) => [`If ${g}:`, ...GOAL_KEYWORDS[g]]),
+  ];
+}
 
 const REGION_RULE: Record<RegionChoice, string> = {
   th: `All ${MAX_KEYWORDS} phrases in Thai (region "th"), as Thai creators would type them; English product terms are fine inside.`,
@@ -93,20 +159,14 @@ export async function understandProduct(
     try {
       const prompt = [
         "You are Reely, a research assistant that finds viral short-form videos (TikTok, YouTube Shorts,",
-        "Instagram Reels) a founder can learn from. Work out what the product is from everything below,",
+        "Instagram Reels) a user can turn into their own content. Work out what the product is from everything below,",
         `then plan the search. Write productName, whatItIs, audience and reply in ${languageName(locale)}.`,
-        `Keywords: up to ${MAX_KEYWORDS} search phrases, 2-4 words each, that people actually type or use as hashtags:`,
-        "mix the product category, the problem it solves and the audience's everyday topics, so results include",
-        "similar products AND content the same audience watches. " + REGION_RULE[msg.region],
+        "In reply, say in a few words what you think they want the clips for and what kind of videos you will look for.",
+        `Keywords: search phrases, 2-4 words each, that people actually type or use as hashtags. ${REGION_RULE[msg.region]}`,
         "Avoid broad or ambiguous phrases that also name unrelated things (e.g. a university faculty, a",
         "celebrity, a TV show): every phrase should still clearly point at the product's topic.",
-        "Use this mix (it finds both on-topic and truly viral videos):",
-        "- 2 phrases naming real competitors or well-known similar products, the way people search them",
-        "  ('<brand> รีวิว', 'สอนใช้ <brand>', '<brand A> vs <brand B>', '<brand> review'). Use full, real brand names",
-        "  only (never guess a name); list them in competitors.",
-        "- 1 phrase for the product category or the problem it solves.",
-        "- 2 phrases for topics this audience searches all the time and that often go viral, inside the product's",
-        "  field (e.g. for accounting software: 'ยื่นภาษีออนไลน์', 'ลดหย่อนภาษี'; for a fitness app: 'home workout').",
+        ...goalPlan(msg.goal),
+        "competitors: real brand names only (never guess); the saved list if given.",
         "Exclusions: single words that would bring off-topic videos. Never exclude a word that is part of the",
         "product's own topic or its audience's everyday work (e.g. for accounting software never exclude tax,",
         "finance, ภาษี or การเงิน); exclude only clearly different subjects (e.g. stocks, crypto, gaming).",
@@ -146,7 +206,12 @@ Text: ${msg.link.text.slice(0, 2000)}`
         ],
       });
       const regions = keywordRegions(msg.region, output.keywords.length);
-      return { ...output, keywords: output.keywords.map((k, i) => ({ ...k, region: regions[i] })), source: "ai" };
+      return {
+        ...output,
+        goal: msg.goal ?? output.goal,
+        keywords: output.keywords.map((k, i) => ({ ...k, region: regions[i] })),
+        source: "ai",
+      };
     } catch (e) {
       console.warn("[ai] understandProduct failed, using sample", (e as Error).message);
     }
@@ -159,6 +224,7 @@ Text: ${msg.link.text.slice(0, 2000)}`
     msg.saved?.name ??
     ((msg.link?.title ?? msg.text).split(/[|\-–—\n,]/)[0].trim().slice(0, 80) || (th ? "สินค้าของคุณ" : "Your product"));
   return {
+    goal: msg.goal ?? "startup",
     productName: name,
     whatItIs: msg.saved?.description ?? msg.link?.description ?? msg.text.slice(0, 300),
     audience: msg.saved?.audience ?? "",
@@ -183,6 +249,7 @@ const RELEVANCE_BATCH = 80;
 export async function rateRelevance(
   product: ProductBrief,
   videos: { caption: string; creatorHandle: string }[],
+  goal?: Goal | null,
 ): Promise<number[] | null> {
   const model = getModel();
   if (!model || !videos.length) return null;
@@ -210,6 +277,7 @@ export async function rateRelevance(
             "'บัญชี' meaning a bank or TikTok account) or the caption is empty or too vague to tell.",
             "For a business (B2B) product, personal/consumer topics are outside the field (personal debt, home loans,",
             "personal budgeting or investing, motivation and mindset clips).",
+            goal ? GOAL_RELEVANCE[goal] : "",
             "Return one score per line number.",
             "",
             ...batch.map((v, i) => `${i} | @${v.creatorHandle} | ${v.caption.slice(0, 160).replace(/\s+/g, " ") || "(no caption)"}`),
@@ -335,6 +403,7 @@ type RunInput = {
   smallAccountsInTop10: number;
   breakouts: number;
   product?: ProductBrief;
+  goal?: Goal | null;
   /** Best first; up to 15. `dbId` lets patterns point at real videos. */
   top: {
     dbId?: number;
@@ -361,6 +430,7 @@ export async function summarizeRun(input: RunInput, locale: string): Promise<Run
           `Videos found: ${input.totalVideos}. Clear breakouts (5x+ usual views): ${input.breakouts}.`,
           `Top results from accounts under 10K followers: ${input.smallAccountsInTop10} of ${Math.min(10, input.top.length)}.`,
           input.product ? `The founder's product: ${input.product.name} — ${input.product.whatItIs}` : "",
+          input.goal ? `The user ${GOAL_BRIEF[input.goal]}; every formula and idea must serve that.` : "",
           "Top videos (line | handle | views | multiplier | saves+shares per view | caption):",
           ...input.top.map(
             (v, i) =>
@@ -399,6 +469,47 @@ export async function summarizeRun(input: RunInput, locale: string): Promise<Run
       : "",
     source: "sample",
   };
+}
+
+export type ClipForIdea = { handle: string; caption: string; views: number | null; multiplier: number | null; hasShop: boolean; platform: string };
+
+/**
+ * Results page: one "how you'd use this clip" line per top video, for the user's product and goal (one Gemini
+ * call, no credits). Returns lines in the same order, or null when AI is unavailable or fails.
+ */
+export async function ideasForClips(
+  product: ProductBrief,
+  goal: Goal,
+  clips: ClipForIdea[],
+  locale: string,
+): Promise<(string | null)[] | null> {
+  const model = getModel();
+  if (!model || !clips.length) return null;
+  try {
+    const { output } = await generateText({
+      ...aiCallOptions(40_000),
+      model,
+      output: Output.object({ schema: clipIdeasSchema }),
+      prompt: [
+        `You help a user turn viral short videos into their own content. Answer in ${languageName(locale)}.`,
+        `The user ${GOAL_BRIEF[goal]}.`,
+        `Their product: ${product.name} — ${product.whatItIs}${product.audience ? `. Audience: ${product.audience}` : ""}`,
+        `For EVERY video below write one sentence (max 25 words): how they could reuse its hook or format for their product to ${GOAL_ACTION[goal]}.`,
+        "Be concrete: name the hook or format to borrow and what to show on screen. Never suggest copying its words or footage.",
+        "Videos (line | platform | handle | views | multiplier | shop link | caption):",
+        ...clips.map(
+          (v, i) =>
+            `${i} | ${v.platform} | @${v.handle} | ${v.views ?? "?"} | ${v.multiplier !== null ? formatMultiplier(v.multiplier) + "x" : "?"} | ${v.hasShop ? "yes" : "no"} | ${v.caption.slice(0, 200).replace(/\s+/g, " ")}`,
+        ),
+      ].join("\n"),
+    });
+    const out: (string | null)[] = Array(clips.length).fill(null);
+    for (const x of output.ideas) if (x.i < clips.length && x.idea.trim()) out[x.i] = x.idea.trim();
+    return out;
+  } catch (e) {
+    console.warn("[ai] ideasForClips failed", (e as Error).message);
+    return null;
+  }
 }
 
 export type TodayCandidate = { handle: string; caption: string; views: number | null; multiplier: number | null; keepRate: number | null; source: string };

@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronDown, ChevronUp, Eye, Globe, Layers, PenLine, Radar, RotateCcw, Sparkles } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronUp, Eye, Globe, Layers, PenLine, Radar, RotateCcw, Sparkles, Target } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { ReelyBubble, UserBubble } from "@/components/chat/research-chat";
@@ -15,7 +15,7 @@ import { Link } from "@/i18n/navigation";
 import type { RunSummary } from "@/lib/ai/schemas";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
 import { applyFilters, diverseTop, parseFilters, type PlatformTab } from "@/lib/results";
-import { bestScore } from "@/lib/scoring";
+import { isGoal, scoreFor } from "@/lib/goals";
 import type { RegionChoice } from "@/lib/region";
 import { runTotals } from "@/lib/run-stats";
 import type { DropReason, PlatformStats, ScoredVideo } from "@/lib/search";
@@ -34,6 +34,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   const sp = await searchParams;
   const t = await getTranslations("results");
   const tc = await getTranslations("chat");
+  const tg = await getTranslations("goals");
   const format = await getFormatter();
   const supabase = await createClient();
 
@@ -41,7 +42,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   const [{ data: run }, { data: rows }, { data: savedRows }] = await Promise.all([
     supabase
       .from("research_runs")
-      .select("id, brief, keywords, keyword_regions, exclusions, platforms, region, input, status, error, summary, stats, followed_at, settings, last_refreshed_at, product_id, created_at")
+      .select("id, brief, keywords, keyword_regions, exclusions, platforms, region, input, status, error, summary, stats, followed_at, settings, last_refreshed_at, product_id, goal, created_at")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -56,22 +57,26 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   const all = ((rows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null);
 
   // Videos added by "update with new videos" (well after the research was created) are marked new.
+  // "Best" = best for what the user wants the clips for (plain best on researches made before goals).
+  const goal = isGoal(run.goal) ? run.goal : null;
+  const score = scoreFor(goal);
   const createdAt = new Date(run.created_at as string).getTime();
   const newIds = new Set(
     ((rows ?? []) as unknown as { added_at: string | null; videos: { id: number } | null }[])
       .filter((r) => r.videos && r.added_at && new Date(r.added_at).getTime() - createdAt > 10 * 60_000)
       .map((r) => r.videos!.id),
   );
-  const fresh = all.filter((v) => v.dbId && newIds.has(v.dbId)).sort((a, b) => bestScore(b) - bestScore(a));
+  const fresh = all.filter((v) => v.dbId && newIds.has(v.dbId)).sort((a, b) => score(b) - score(a));
   const settings = run.settings as { days?: number; minViews?: number } | null;
   const canRefresh = run.status !== "running" && olderThan((run.last_refreshed_at as string | null) ?? (run.created_at as string), REFRESH_COOLDOWN_MS);
 
   const filters = parseFilters(sp);
   // Default view: the 10 best. "Show all" (?all=1) opens every result with filters and sorting.
   const showAll = sp.all === "1";
-  const shown = applyFilters(all, filters);
-  const top = diverseTop(all, 10, 2);
+  const shown = applyFilters(all, filters, undefined, score);
+  const top = diverseTop(all, 10, 2, score);
   const summary = run.summary as RunSummary | null;
+  const ideaOf = new Map((summary?.ideas ?? []).map((x) => [x.videoId, x.idea]));
   const stats = run.stats as { hidden?: number; offTopic?: number; platforms?: Partial<Record<"tiktok" | "youtube" | "instagram", PlatformStats>> } | null;
   // The main reason each platform's videos were dropped, so a thin platform is explained, not hidden.
   const mainDrop = (s: PlatformStats) =>
@@ -116,6 +121,11 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
                 <PlatformIcon platform={p} className="size-3.5" /> {tc(`platform.${p}`)} ·
               </span>
             ))}{" "}
+            {goal && (
+              <span className="inline-flex items-center gap-1">
+                <Target className="size-3.5" /> {tg(`${goal}.short`)} ·
+              </span>
+            )}{" "}
             <RegionIcon region={region} /> {tc(`region.${region}`)} ·{" "}
             {settings?.days && (
               <span className="inline-flex items-center gap-1">
@@ -206,7 +216,13 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
             ) : (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {shown.map((v) => (
-                  <OutlierCard key={`${v.platform}:${v.platformVideoId}`} video={v} saved={v.dbId ? saved.has(v.dbId) : false} isNew={!!v.dbId && newIds.has(v.dbId)} />
+                  <OutlierCard
+                    key={`${v.platform}:${v.platformVideoId}`}
+                    video={v}
+                    saved={v.dbId ? saved.has(v.dbId) : false}
+                    isNew={!!v.dbId && newIds.has(v.dbId)}
+                    idea={v.dbId ? ideaOf.get(v.dbId) : null}
+                  />
                 ))}
               </div>
             )}
@@ -221,7 +237,13 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
               <ScoreExplainer />
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {top.map((v) => (
-                  <OutlierCard key={`${v.platform}:${v.platformVideoId}`} video={v} saved={v.dbId ? saved.has(v.dbId) : false} isNew={!!v.dbId && newIds.has(v.dbId)} />
+                  <OutlierCard
+                    key={`${v.platform}:${v.platformVideoId}`}
+                    video={v}
+                    saved={v.dbId ? saved.has(v.dbId) : false}
+                    isNew={!!v.dbId && newIds.has(v.dbId)}
+                    idea={v.dbId ? ideaOf.get(v.dbId) : null}
+                  />
                 ))}
               </div>
               {all.length > top.length && (

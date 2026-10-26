@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "@/i18n/navigation";
+import { GOALS } from "@/lib/goals";
 import { deleteProductAction, type ProductForm as Values, saveProductAction } from "./actions";
 
 /** Edits one saved product (with `id`), or adds a new one. */
 export function ProductForm({ initial, id = null }: { initial: Values; id?: string | null }) {
   const t = useTranslations("product");
+  const tg = useTranslations("goals");
   const router = useRouter();
   const [values, setValues] = useState(initial);
   const [pending, startTransition] = useTransition();
@@ -55,6 +57,24 @@ export function ProductForm({ initial, id = null }: { initial: Values; id?: stri
         t("competitorsHint"),
         <Input maxLength={300} value={values.competitors} onChange={set("competitors")} placeholder="FlowAccount, PEAK, Xero" className="bg-white" />,
       )}
+      <div className="space-y-1.5">
+        <span className="text-sm font-medium">{t("goal")}</span>
+        <div className="flex flex-wrap gap-2">
+          {GOALS.map((g) => (
+            <button
+              key={g}
+              type="button"
+              title={tg(`${g}.desc`)}
+              onClick={() => setValues((v) => ({ ...v, goal: v.goal === g ? "" : g }))}
+              className={`chip ${values.goal === g ? "chip-on" : ""}`}
+            >
+              {values.goal === g && <Check className="size-3.5" />}
+              {tg(`${g}.label`)}
+            </button>
+          ))}
+        </div>
+        <span className="block text-xs text-muted-foreground">{t("goalHint")}</span>
+      </div>
       <div className="space-y-1.5">
         <span className="text-sm font-medium">{t("language")}</span>
         <div className="flex gap-2">

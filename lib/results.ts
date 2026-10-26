@@ -65,7 +65,13 @@ export type FilterableResult = {
 
 export const outlierOf = (r: Pick<FilterableResult, "usual" | "reach">) => r.usual ?? r.reach ?? 0;
 
-export function applyFilters<T extends FilterableResult>(rows: T[], f: ResultFilters, now = Date.now()): T[] {
+/** `score`: what "best" means (the goal-aware score on a research with a goal). */
+export function applyFilters<T extends FilterableResult>(
+  rows: T[],
+  f: ResultFilters,
+  now = Date.now(),
+  score: (r: T) => number = bestScore,
+): T[] {
   const filtered = rows.filter((r) => {
     if (f.platform !== "all" && r.platform !== f.platform) return false;
     if (f.minViews !== null && (r.views ?? 0) < f.minViews) return false;
@@ -79,7 +85,7 @@ export function applyFilters<T extends FilterableResult>(rows: T[], f: ResultFil
     return true;
   });
   const key: Record<Sort, (r: T) => number> = {
-    best: bestScore,
+    best: score,
     outlier: outlierOf,
     views: (r) => r.views ?? 0,
     saves: (r) => r.saves ?? 0,
@@ -92,8 +98,13 @@ export function applyFilters<T extends FilterableResult>(rows: T[], f: ResultFil
  * The n best results, but with up to `minPer` from each platform that has any: a list sorted only by score is
  * all TikTok (it has the most data), which hides good Shorts and Reels.
  */
-export function diverseTop<T extends FilterableResult>(rows: T[], n = 10, minPer = 2): T[] {
-  const sorted = [...rows].sort((a, b) => bestScore(b) - bestScore(a));
+export function diverseTop<T extends FilterableResult>(
+  rows: T[],
+  n = 10,
+  minPer = 2,
+  score: (r: T) => number = bestScore,
+): T[] {
+  const sorted = [...rows].sort((a, b) => score(b) - score(a));
   const reserved = [...new Set(sorted.map((r) => r.platform))].flatMap((p) => sorted.filter((r) => r.platform === p).slice(0, minPer));
   const picked = new Set(reserved.slice(0, n));
   for (const r of sorted) {

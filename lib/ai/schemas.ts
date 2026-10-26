@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GOALS } from "@/lib/goals";
 
 export const MAX_KEYWORDS = 5;
 
@@ -10,6 +11,9 @@ export type ResearchPlan = z.infer<typeof planSchema>;
 
 /** Chat home: what Reely understood from the user's text, link and/or image, plus the search plan. */
 export const understandingSchema = z.object({
+  goal: z
+    .enum(GOALS)
+    .describe("What the user wants the clips for: sell (affiliate / TikTok Shop), shop (local business), startup (app or SaaS), brand (personal brand)"),
   productName: z.string().min(1).max(80).describe("The product or brand name; a short descriptive name if none is given"),
   whatItIs: z.string().max(300).describe("One sentence: what the product does"),
   audience: z.string().max(200).describe("Who it is for, a few words"),
@@ -35,6 +39,16 @@ export type Understanding = z.infer<typeof understandingSchema>;
 /** Relevance of each search result to the user's product: 0 unrelated, 1 same audience, 2 on topic. */
 export const relevanceSchema = z.object({
   scores: z.array(z.object({ i: z.number().int().min(0), score: z.number().int().min(0).max(2) })),
+});
+
+/** Results page: one "how you'd use this clip" line per top video. */
+export const clipIdeasSchema = z.object({
+  ideas: z.array(
+    z.object({
+      i: z.number().int().min(0),
+      idea: z.string().describe("One sentence, max 25 words: what to borrow from this video and what to show for the user's product"),
+    }),
+  ),
 });
 
 export const videoAnalysisSchema = z.object({
@@ -91,6 +105,8 @@ export const runSummarySchema = z.object({
 export type Pattern = Omit<z.infer<typeof patternSchema>, "examples"> & { videoIds: number[] };
 export type RunSummary = Omit<z.infer<typeof runSummarySchema>, "patterns"> & {
   patterns?: Pattern[];
+  /** "How you'd use it" lines for the top videos, by video id. */
+  ideas?: { videoId: number; idea: string }[];
   source: "ai" | "sample";
 };
 

@@ -1,4 +1,4 @@
-import { Bookmark, Eye, Flame, Heart, Layers, MessageCircle, Music2, Share2, ShoppingBag, Users } from "lucide-react";
+import { Bookmark, Eye, Flame, Heart, Layers, Lightbulb, MessageCircle, Music2, Share2, ShoppingBag, Users } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { PlatformIcon } from "@/components/platform-icon";
 import { SaveButton } from "@/components/save-button";
@@ -22,12 +22,15 @@ export async function OutlierCard({
   saved = false,
   variant = "grid",
   isNew = false,
+  idea = null,
 }: {
   video: ScoredVideo;
   saved?: boolean;
   variant?: "grid" | "carousel";
   /** Added by "update with new videos". */
   isNew?: boolean;
+  /** How the user could use this clip for their product and goal (top 10 of a research). */
+  idea?: string | null;
 }) {
   const t = await getTranslations("search");
   const tl = await getTranslations("labels");
@@ -115,6 +118,14 @@ export async function OutlierCard({
       {href ? <Link href={href}>{thumb}</Link> : <a href={video.url} target="_blank" rel="noreferrer">{thumb}</a>}
       <div className="space-y-1.5 p-3">
         {variant === "grid" && <p className="line-clamp-2 text-sm leading-snug font-medium">{video.caption || "—"}</p>}
+        {idea && (
+          <p className="rounded-lg bg-primary/8 px-2 py-1.5 text-xs leading-snug text-foreground ring-1 ring-primary/15">
+            <span className="mr-1 inline-flex items-center gap-0.5 font-semibold text-primary">
+              <Lightbulb className="size-3" /> {t("ideaFor")}
+            </span>
+            {idea}
+          </p>
+        )}
         <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
           <Users className="size-3 shrink-0" />@{video.creatorHandle}
           {video.creatorFollowers !== null && <> · {compact(video.creatorFollowers)} {t("followers")}</>}
