@@ -7,6 +7,7 @@ import { Thumb } from "@/components/thumb";
 import { TrackButton } from "@/components/tracking/track-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/navigation";
+import { modelName } from "@/lib/ai/model";
 import { analyzeVideo } from "@/lib/ai/tasks";
 import type { VideoRow } from "@/lib/db-mappers";
 import { formatMultiplier, labelFor, reachScore, usualScore } from "@/lib/scoring";
@@ -43,7 +44,7 @@ async function Breakdown({ video, scores, locale }: { video: VideoRow; scores: S
     if (!sample) {
       await createAdminClient()
         ?.from("video_analyses")
-        .upsert({ video_id: video.id, locale, model: process.env.GEMINI_MODEL || "gemini-flash-lite-latest", ...a });
+        .upsert({ video_id: video.id, locale, model: modelName(), ...a });
     }
   }
 
