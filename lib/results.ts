@@ -32,6 +32,15 @@ export function isExcluded(caption: string, exclusions: string[]) {
   return exclusions.some((w) => w.trim() && text.includes(w.trim().toLowerCase()));
 }
 
+/** With at least this many clearly on-topic results, drop the "same field" ones (score 1). */
+export const STRICT_RELEVANCE_AT = 15;
+
+/** Which results survive the AI relevance check: score 2 always; score 1 only while clear matches are few. */
+export function relevanceKeep(scores: number[], strictAt = STRICT_RELEVANCE_AT): boolean[] {
+  const minScore = scores.filter((s) => s === 2).length >= strictAt ? 2 : 1;
+  return scores.map((s) => s >= minScore);
+}
+
 const squash = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 
 /**

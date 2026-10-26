@@ -4,15 +4,15 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
 import { MAX_KEYWORDS, type RunSummary } from "@/lib/ai/schemas";
-import { englishKeywords, enhanceBrief, ideasForClips, summarizeRun } from "@/lib/ai/tasks";
+import { englishKeywords, enhanceBrief, ideasForClips, type ProductBrief, rateRelevance, summarizeRun } from "@/lib/ai/tasks";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
-import { withFeedback } from "@/lib/feedback";
+import { type Feedback, withFeedback } from "@/lib/feedback";
 import { loadFeedback } from "@/lib/feedback-store";
 import { GOALS, type Goal, isGoal, scoreFor } from "@/lib/goals";
-import { diverseTop } from "@/lib/results";
+import { diverseTop, relevanceKeep } from "@/lib/results";
 import { looksThai } from "@/lib/region";
 import { keepRate } from "@/lib/scoring";
-import { type ScoredVideo, searchKeywords } from "@/lib/search";
+import { type PlatformStats, type ScoredVideo, searchKeywords } from "@/lib/search";
 import { DEFAULT_MIN_VIEWS } from "@/lib/search-settings";
 import { createClient } from "@/lib/supabase/server";
 import { persistThumbnails } from "@/lib/thumbs";
@@ -186,36 +186,14 @@ export async function runResearchAction(input: RunInput) {
           offTopic: result.offTopic,
           platforms: result.platforms,
           feedback: feedback ? { liked: feedback.liked.size, disliked: feedback.disliked.size } : undefined,
+          relevanceFailed: result.relevanceFailed || undefined,
         },
         finished_at: new Date().toISOString(),
       })
       .eq("id", run.id);
 
-    // The page shows these 10 first; the AI sees them first too (patterns use up to 15).
-    const top10 = diverseTop(result.videos, 10, 2, withFeedback<ScoredVideo>(scoreFor(goal), feedback));
-    const top = [...top10, ...result.videos.filter((v) => !top10.includes(v))].slice(0, 15);
     // The "your idea" lines are written after the results are on screen (writeIdeasAction), so they never slow a run.
-    const summary = await summarizeRun(
-      {
-        keywords: keywords.map((k) => k.text),
-        totalVideos: result.videos.length,
-        topViews: result.videos.reduce<number | null>((m, v) => Math.max(m ?? 0, v.views ?? 0), null),
-        smallAccountsInTop10: top.slice(0, 10).filter((v) => (v.creatorFollowers ?? Infinity) < 10_000).length,
-        breakouts: result.videos.filter((v) => v.label === "breakout").length,
-        product,
-        goal,
-        top: top.map((v) => ({
-          dbId: v.dbId,
-          keepRate: keepRate(v),
-          handle: v.creatorHandle,
-          caption: v.caption,
-          views: v.views,
-          multiplier: v.usual ?? v.reach,
-          platform: v.platform,
-        })),
-      },
-      locale,
-    );
+    const summary = await summaryFor(result.videos, keywords.map((k) => k.text), product, goal, feedback, locale);
     await supabase.from("research_runs").update({ summary }).eq("id", run.id);
     revalidatePath("/[locale]/app", "layout");
     return { ok: true as const, runId: run.id as string };
@@ -230,6 +208,108 @@ export async function runResearchAction(input: RunInput) {
 }
 
 const runId = z.string().uuid();
+
+/** The AI summary and formulas for a research's results; the 10 the page shows first lead the list (up to 15). */
+async function summaryFor(
+  videos: ScoredVideo[],
+  keywords: string[],
+  product: ProductBrief,
+  goal: Goal | null,
+  feedback: Feedback | null,
+  locale: "th" | "en",
+) {
+  const top10 = diverseTop(videos, 10, 2, withFeedback<ScoredVideo>(scoreFor(goal), feedback));
+  const top = [...top10, ...videos.filter((v) => !top10.includes(v))].slice(0, 15);
+  return summarizeRun(
+    {
+      keywords,
+      totalVideos: videos.length,
+      topViews: videos.reduce<number | null>((m, v) => Math.max(m ?? 0, v.views ?? 0), null),
+      smallAccountsInTop10: top.slice(0, 10).filter((v) => (v.creatorFollowers ?? Infinity) < 10_000).length,
+      breakouts: videos.filter((v) => v.label === "breakout").length,
+      product,
+      goal,
+      top: top.map((v) => ({
+        dbId: v.dbId,
+        keepRate: keepRate(v),
+        handle: v.creatorHandle,
+        caption: v.caption,
+        views: v.views,
+        multiplier: v.usual ?? v.reach,
+        platform: v.platform,
+      })),
+    },
+    locale,
+  );
+}
+
+type RunStats = {
+  hidden?: number;
+  offTopic?: number;
+  platforms?: Partial<Record<ScoredVideo["platform"], PlatformStats>>;
+  feedback?: { liked: number; disliked: number };
+  relevanceFailed?: boolean;
+};
+
+/**
+ * When Gemini was too busy to check relevance, a research keeps everything it found. This re-checks the saved
+ * results (AI only, no credits), drops the off-topic ones, rewrites the summary, and the page then writes new
+ * idea lines.
+ */
+export async function recheckRelevanceAction(id: string, lang: string) {
+  const parsed = z.object({ id: runId, lang: locale }).safeParse({ id, lang });
+  if (!parsed.success) return { ok: false as const, error: "invalid" as const };
+  const supabase = await createClient();
+  const [{ data: run }, { data: rows }] = await Promise.all([
+    supabase.from("research_runs").select("id, keywords, goal, input, stats, product_id").eq("id", parsed.data.id).maybeSingle(),
+    supabase
+      .from("run_results")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, videos(*)")
+      .eq("run_id", parsed.data.id)
+      .order("rank"),
+  ]);
+  const input = (run?.input ?? {}) as { productName?: string; whatItIs?: string; audience?: string };
+  if (!run || !input.productName) return { ok: false as const, error: "invalid" as const };
+  const all = ((rows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null && v.dbId !== undefined);
+  const goal = isGoal(run.goal) ? run.goal : null;
+  const product = { name: input.productName, whatItIs: input.whatItIs ?? "", audience: input.audience ?? "" };
+  const { feedback } = await loadFeedback(supabase, run.product_id as string | null);
+
+  const rated = await rateRelevance(product, all, goal, feedback?.examples);
+  if (!rated) return { ok: false as const, error: "busy" as const };
+  const keep = relevanceKeep(rated.scores);
+  const kept = all.filter((_, i) => keep[i]);
+  const dropped = all.filter((_, i) => !keep[i]);
+
+  if (dropped.length) {
+    await supabase.from("run_results").delete().eq("run_id", run.id).in("video_id", dropped.map((v) => v.dbId!));
+  }
+  // Store the copy ratings the check also gave (one update per rating).
+  for (const copy of [0, 1, 2]) {
+    const ids = all.filter((v, i) => keep[i] && rated.copy[i] === copy).map((v) => v.dbId!);
+    if (ids.length) await supabase.from("run_results").update({ copyable: copy }).eq("run_id", run.id).in("video_id", ids);
+  }
+  const keptWithCopy = kept.map((v) => ({ ...v, copyable: rated.copy[all.indexOf(v)] ?? null }));
+
+  const stats = (run.stats ?? {}) as RunStats;
+  const platforms = structuredClone(stats.platforms ?? {});
+  for (const v of dropped) {
+    const p = (platforms[v.platform] ??= { found: 0, kept: 0, dropped: {} });
+    p.kept = Math.max(0, p.kept - 1);
+    p.dropped.offTopic = (p.dropped.offTopic ?? 0) + 1;
+  }
+  // A new summary from the clean list; without idea lines, so the page writes fresh ones for the new top 10.
+  const summary = await summaryFor(keptWithCopy, run.keywords as string[], product, goal, feedback, parsed.data.lang);
+  await supabase
+    .from("research_runs")
+    .update({
+      stats: { ...stats, platforms, offTopic: (stats.offTopic ?? 0) + dropped.length, relevanceFailed: false },
+      summary,
+    })
+    .eq("id", run.id);
+  revalidatePath("/[locale]/app/research/[id]", "page");
+  return { ok: true as const, dropped: dropped.length };
+}
 
 /**
  * Results page, right after it shows: writes the "your idea" line for the 10 clips it shows first (one AI call,
@@ -288,7 +368,7 @@ export async function refreshRunAction(id: string) {
   const supabase = await createClient();
   const { data: run } = await supabase
     .from("research_runs")
-    .select("id, keywords, keyword_regions, keyword_english, exclusions, platforms, settings, input, goal, product_id, created_at, last_refreshed_at, status")
+    .select("id, keywords, keyword_regions, keyword_english, exclusions, platforms, settings, input, goal, product_id, stats, created_at, last_refreshed_at, status")
     .eq("id", parsed.data)
     .maybeSingle();
   if (!run || run.status === "running") return { ok: false as const, error: "invalid" as const };
@@ -332,7 +412,14 @@ export async function refreshRunAction(id: string) {
     const { error } = await supabase.from("run_results").insert(fresh.map((v, i) => resultRow(run.id, v, maxRank + i + 1)));
     if (error) return { ok: false as const, error: "failed" as const };
   }
-  await supabase.from("research_runs").update({ last_refreshed_at: new Date().toISOString() }).eq("id", run.id);
+  await supabase
+    .from("research_runs")
+    .update({
+      last_refreshed_at: new Date().toISOString(),
+      // New videos that skipped the relevance check (Gemini busy) bring back the re-check banner.
+      ...(result.relevanceFailed && fresh.length ? { stats: { ...((run.stats ?? {}) as RunStats), relevanceFailed: true } } : {}),
+    })
+    .eq("id", run.id);
   revalidatePath("/[locale]/app", "layout");
   return { ok: true as const, added: fresh.length };
 }

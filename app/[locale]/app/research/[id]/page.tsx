@@ -10,6 +10,7 @@ import { FollowTopicButton } from "@/components/results/follow-topic-button";
 import { IdeasLoader } from "@/components/results/ideas-loader";
 import { InsightCard } from "@/components/results/insight-card";
 import { Patterns } from "@/components/results/patterns";
+import { RecheckBanner } from "@/components/results/recheck-banner";
 import { RefreshRunButton } from "@/components/results/refresh-run-button";
 import { ScoreExplainer } from "@/components/results/score-explainer";
 import { Link } from "@/i18n/navigation";
@@ -89,6 +90,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
     offTopic?: number;
     platforms?: Partial<Record<"tiktok" | "youtube" | "instagram", PlatformStats>>;
     feedback?: { liked: number; disliked: number };
+    relevanceFailed?: boolean;
   } | null;
   // The main reason each platform's videos were dropped, so a thin platform is explained, not hidden.
   const mainDrop = (s: PlatformStats) =>
@@ -164,6 +166,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
 
       <div className="space-y-8 px-10 pb-16">
         {run.status === "failed" && <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{t("failed")}</p>}
+        {run.status === "done" && stats?.relevanceFailed && <RecheckBanner runId={run.id as string} />}
 
         <InsightCard
           summary={summary}

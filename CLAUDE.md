@@ -14,8 +14,9 @@ competitors and turn videos into scripts for their own product. Full product spe
   Request interception lives in `proxy.ts` (the old `middleware.ts` name is deprecated).
 - Supabase: Postgres, Auth (Google OAuth, email + password), Row Level Security — via `@supabase/ssr`
 - next-intl v4: locales `th` (default) and `en`; all pages under `app/[locale]/`
-- Gemini 3.1 Flash-Lite (moves to Flash-Lite latest on an API error or after 15 s without an answer, see lib/ai/model.ts;
-  3 Flash's free tier is only 20 requests a day) via the Vercel AI SDK (reads text, product pages and images); zod for every structured AI output
+- Gemini 3.1 Flash-Lite, then 3 Flash, then Flash-Lite latest: each moves on after an API error or 15 s without an
+  answer (lib/ai/model.ts; 3 Flash's free tier is only 20 requests a day). If the relevance check still fails, the
+  research is flagged (`stats.relevanceFailed`) and the page offers a free re-check (`recheckRelevanceAction`). Vercel AI SDK (reads text, product pages and images); zod for every structured AI output
 - Hosting: Vercel Hobby. Package manager: **npm**
 
 ## Commands

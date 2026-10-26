@@ -289,7 +289,13 @@
     "ideasFailed": "Couldn't write the ideas yet.",
     "ideasRetry": "Try again",
     "teachHint": "Tap 👍/👎 under a clip to teach Reely what works for {product}",
-    "learnedFrom": "This research learned from your 👍 {liked} · 👎 {disliked} earlier votes"
+    "learnedFrom": "This research learned from your 👍 {liked} · 👎 {disliked} earlier votes",
+    "recheckNote": "Gemini was busy during this research, so the AI couldn't filter out clips unrelated to your product yet. Some off-topic clips may be mixed in below.",
+    "recheck": "Check again (free)",
+    "rechecking": "Checking…",
+    "recheckDone": "Done: removed {n, plural, one {# off-topic clip} other {# off-topic clips}}",
+    "recheckBusy": "Gemini is still busy. Try again in a little while.",
+    "recheckFailed": "Couldn't check the clips. Try again."
   },
   "card": {
     "save": "Save",

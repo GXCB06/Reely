@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyFilters, diverseTop, isExcluded, isOwnAccount, parseFilters } from "./results";
+import { applyFilters, diverseTop, isExcluded, isOwnAccount, parseFilters, relevanceKeep } from "./results";
 
 describe("isExcluded", () => {
   it("matches Thai and English words inside captions", () => {
@@ -7,6 +7,13 @@ describe("isExcluded", () => {
     expect(isExcluded("Best CRYPTO apps", ["crypto"])).toBe(true);
     expect(isExcluded("โปรแกรมบัญชีออนไลน์", ["หุ้น", "crypto"])).toBe(false);
     expect(isExcluded("anything", ["  "])).toBe(false);
+  });
+});
+
+describe("relevanceKeep", () => {
+  it("keeps score 1 while clear matches are few, and only score 2 once there are enough", () => {
+    expect(relevanceKeep([2, 1, 0])).toEqual([true, true, false]);
+    expect(relevanceKeep([2, 2, 1, 0], 2)).toEqual([true, true, false, false]);
   });
 });
 

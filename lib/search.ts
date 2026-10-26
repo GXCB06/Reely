@@ -8,7 +8,7 @@ import { getFreshCreator, saveCreator, saveVideos } from "@/lib/cache";
 import { clipKey, type Feedback, withFeedback } from "@/lib/feedback";
 import { type Goal, goalScore } from "@/lib/goals";
 import { captionLanguage } from "@/lib/region";
-import { isExcluded, isOwnAccount } from "@/lib/results";
+import { isExcluded, isOwnAccount, relevanceKeep } from "@/lib/results";
 import {
   labelFor,
   type OutlierLabel,
@@ -18,8 +18,6 @@ import {
   usualViewsExcluding,
 } from "@/lib/scoring";
 
-/** With at least this many clearly on-topic results, drop the "same audience" ones (score 1). */
-const STRICT_RELEVANCE_AT = 15;
 
 /** Max creators per platform that get a usual-views lookup (CLAUDE.md cost rule 3). */
 const BASELINE_CREATORS = 5;
@@ -45,6 +43,8 @@ export type SearchResult = {
   /** Per platform: how many were found, kept, and why the rest were dropped (shown under the results). */
   platforms: Partial<Record<Platform, PlatformStats>>;
   errors: string[];
+  /** The AI relevance check could not run (Gemini busy), so nothing was filtered out: the page offers a re-check. */
+  relevanceFailed: boolean;
 };
 
 export type DropReason = "views" | "old" | "language" | "excluded" | "offTopic";
@@ -158,11 +158,10 @@ export async function searchKeywords(
   const rated = opts.product ? await rateRelevance(opts.product, clean, opts.goal, opts.feedback?.examples) : null;
   const relevance = rated?.scores ?? null;
   const copyOf = new Map(clean.map((v, i) => [v, rated?.copy[i] ?? null]));
-  const onTopic = relevance ? relevance.filter((r) => r === 2).length : 0;
-  const minScore = onTopic >= STRICT_RELEVANCE_AT ? 2 : 1;
-  const kept = relevance ? clean.filter((_, i) => relevance[i] >= minScore) : clean;
+  const keep = relevance ? relevanceKeep(relevance) : null;
+  const kept = keep ? clean.filter((_, i) => keep[i]) : clean;
   clean.forEach((v, i) => {
-    if (relevance && relevance[i] < minScore) statOf(v.platform).dropped.offTopic = (statOf(v.platform).dropped.offTopic ?? 0) + 1;
+    if (keep && !keep[i]) statOf(v.platform).dropped.offTopic = (statOf(v.platform).dropped.offTopic ?? 0) + 1;
   });
   kept.forEach((v) => statOf(v.platform).kept++);
   const dbIds = await saveVideos(kept);
@@ -218,7 +217,14 @@ export async function searchKeywords(
     // "Best for your goal" (plain best when there is no goal), nudged by the user's 👍/👎.
     .sort((a, b) => rank(b) - rank(a));
 
-  return { videos, hidden: all.length - clean.length, offTopic: clean.length - kept.length, platforms: stats, errors };
+  return {
+    videos,
+    hidden: all.length - clean.length,
+    offTopic: clean.length - kept.length,
+    platforms: stats,
+    errors,
+    relevanceFailed: !!opts.product && clean.length > 0 && rated === null,
+  };
 }
 
 /** Single-keyword search used by the test page. */
