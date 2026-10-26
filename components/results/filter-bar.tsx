@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { PlatformIcon } from "@/components/platform-icon";
 import { Link } from "@/i18n/navigation";
@@ -117,6 +117,11 @@ export async function FilterBar({
             activeLabel={filters.postedDays ? t("lastDays", { n: filters.postedDays }) : null}
             options={menu("posted", FILTER_PRESETS.postedDays, filters.postedDays, (n) => t("lastDays", { n }))}
           />
+          {filters.tag && (
+            <Link href={hrefWith(basePath, params, { tag: undefined })} scroll={false} className="chip chip-on" aria-label={t("clearTag")}>
+              #{filters.tag} <X className="size-3.5 opacity-70" />
+            </Link>
+          )}
         </div>
         <ChipMenu
             stateKey={stateKey}

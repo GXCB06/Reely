@@ -198,10 +198,7 @@
     "failed": "This research didn't finish. Some results may be missing.",
     "noSummary": "Results are ready",
     "sampleSummary": "Sample summary — add a Gemini API key for an AI-written insight.",
-    "tileVideos": "videos found",
-    "tileTopViews": "views on the top video",
-    "tileSmall": "top results from accounts under 10K followers",
-    "tileSmallValue": "{n} of {of}",
+    "tileVideos": "Videos",
     "allVideos": "All videos",
     "tab": {
       "all": "All",
@@ -269,7 +266,15 @@
       "language": "other language",
       "excluded": "words you filtered out",
       "offTopic": "not about your product"
-    }
+    },
+    "tileViews": "Total views",
+    "tileAvgViews": "Avg views",
+    "tileCreators": "Creators",
+    "tileHashtags": "Hashtags",
+    "topHashtags": "Most used hashtags",
+    "topHashtagsHint": "Tap one to see the videos that use it",
+    "smallNote": "{n} of the top {of} come from accounts under 10K followers: small accounts can go viral too.",
+    "clearTag": "Remove the hashtag filter"
   },
   "card": {
     "save": "Save",
@@ -483,7 +488,10 @@
     "boardSubtitle": "Formats explored in Reely, most creators posting this week first. Open any video and press “Same format” to add one.",
     "boardEmpty": "No formats yet",
     "boardEmptyHint": "Open any video and press “Same format” to see who else made that kind of clip.",
-    "boardStats": "{week} creators this week · {videos} videos · {views} views"
+    "boardStats": "{week} creators this week · {videos} videos · {views} views",
+    "startTitle": "See who else made this kind of clip",
+    "startBody": "Reely finds TikTok videos that use the same format and groups them by topic, sound and posts per day. Takes about 20-40 seconds.",
+    "startButton": "Explore this format (~3 credits)"
   },
   "story": {
     "step": "How it works · {n} of {of}",

@@ -50,7 +50,7 @@ export function Sidebar({
         onClick={() => router.push(`/app?n=${Date.now()}`)}
         className="mb-3 flex items-center gap-3 rounded-xl bg-sidebar-primary px-3 py-2.5 text-sm font-medium text-white hover:bg-sidebar-primary/90"
       >
-        <Mascot size={22} tone="light" />
+        <Mascot size={24} tone="light" />
         {t("newResearch")}
       </button>
 

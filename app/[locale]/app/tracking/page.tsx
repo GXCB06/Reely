@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 import { AccountRow, AccountRowSkeleton } from "@/components/tracking/account-row";
@@ -13,12 +14,17 @@ export default async function TrackingPage({ params }: PageProps<"/[locale]/app/
   const { data } = await supabase.from("tracked_accounts").select("id, platform, handle").order("created_at");
   const accounts = (data ?? []) as { id: string; platform: Platform; handle: string }[];
 
-  // Opening the page is what triggers refreshes (cost rule 5); remember when it happened.
+  // Opening the page is what triggers refreshes (cost rule 5); remember when it happened. The write starts
+  // now (it needs the request's cookies) but the page doesn't wait for it.
   if (accounts.length) {
-    await supabase
-      .from("tracked_accounts")
-      .update({ last_opened_at: new Date().toISOString() })
-      .in("id", accounts.map((a) => a.id));
+    after(
+      Promise.resolve(
+        supabase
+          .from("tracked_accounts")
+          .update({ last_opened_at: new Date().toISOString() })
+          .in("id", accounts.map((a) => a.id)),
+      ),
+    );
   }
 
   return (

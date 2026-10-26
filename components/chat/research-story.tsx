@@ -78,7 +78,7 @@ export function ResearchStory({
                 <div className="absolute inset-6 rounded-full border border-primary/20" />
                 <div className="radar-sweep absolute inset-0 rounded-full" />
                 <div className="absolute inset-0 grid place-items-center">
-                  <Mascot size={52} />
+                  <Mascot size={52} scanning />
                 </div>
                 {platforms.map((p) => (
                   <span key={p} className={`absolute grid size-9 place-items-center rounded-full bg-card shadow ring-1 ring-border ${ring[p]}`}>

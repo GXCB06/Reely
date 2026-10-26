@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
@@ -7,6 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 export async function toggleSaveAction(videoId: number, save: boolean) {
   const id = z.number().int().positive().parse(videoId);
   const supabase = await createClient();
+  // The Saved page is kept in the browser for 30 s (staleTimes): drop that copy so it shows the change.
+  revalidatePath("/[locale]/app/saved", "page");
   if (save) {
     const { error } = await supabase.from("saved_videos").upsert({ video_id: id }, { onConflict: "user_id,video_id" });
     return { saved: !error };

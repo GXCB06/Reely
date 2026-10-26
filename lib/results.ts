@@ -1,4 +1,5 @@
 // Pure helpers for research results: exclusions, URL filters and sorting. No server imports (tested directly).
+import { hashtagsOf } from "./run-stats";
 import { bestScore, type OutlierLabel } from "./scoring";
 
 export type Sort = "best" | "outlier" | "views" | "saves" | "recent";
@@ -10,6 +11,8 @@ export type ResultFilters = {
   minOutlier: number | null;
   minSaves: number | null;
   postedDays: number | null;
+  /** A hashtag (without #) the caption must contain; set by the "most used hashtags" chips. */
+  tag: string | null;
   sort: Sort;
 };
 
@@ -43,6 +46,7 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
     minOutlier: presetOrNull(sp.minOutlier, FILTER_PRESETS.minOutlier),
     minSaves: presetOrNull(sp.minSaves, FILTER_PRESETS.minSaves),
     postedDays: presetOrNull(sp.posted, FILTER_PRESETS.postedDays),
+    tag: one("tag")?.replace(/^#/, "").trim().toLowerCase().slice(0, 60) || null,
     sort: SORTS.includes(one("sort") as Sort) ? (one("sort") as Sort) : "best",
   };
 }
@@ -56,6 +60,7 @@ export type FilterableResult = {
   publishedAt: string | null;
   usual: number | null;
   reach: number | null;
+  caption?: string;
 };
 
 export const outlierOf = (r: Pick<FilterableResult, "usual" | "reach">) => r.usual ?? r.reach ?? 0;
@@ -66,6 +71,7 @@ export function applyFilters<T extends FilterableResult>(rows: T[], f: ResultFil
     if (f.minViews !== null && (r.views ?? 0) < f.minViews) return false;
     if (f.minOutlier !== null && outlierOf(r) < f.minOutlier) return false;
     if (f.minSaves !== null && (r.saves ?? 0) < f.minSaves) return false;
+    if (f.tag !== null && !hashtagsOf(r.caption).includes(f.tag)) return false;
     if (f.postedDays !== null) {
       if (!r.publishedAt) return false;
       if (now - new Date(r.publishedAt).getTime() > f.postedDays * 864e5) return false;

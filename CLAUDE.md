@@ -94,6 +94,7 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     the last update, only new videos are added.
 15. Format explorer (`lib/formats.ts`): 1 call to `/v1/tiktok/song/videos` for the seed's sound + max 2
     keyword searches (~3 credits); shared `formats` cache for 3 days. Never page through a sound.
+    A build starts only when the user presses "Explore this format"; opening the page never spends credits.
 
 ## Security rules
 

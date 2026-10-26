@@ -342,7 +342,7 @@ export function ResearchChat({
     return (
       <div className="mx-auto flex min-h-[calc(100dvh-1rem)] max-w-3xl flex-col justify-center px-6 py-10">
         <div className="mb-6 text-center">
-          <Mascot size={76} className="mx-auto mb-3" />
+          <Mascot size={84} className="mx-auto mb-4" />
           <h1 className="font-heading text-3xl font-bold md:text-4xl">{t("greeting")}</h1>
           <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{t("subtitle")}</p>
         </div>
@@ -553,9 +553,7 @@ export function UserBubble({
 export function ReelyBubble({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex gap-3">
-      <span className="mt-1 grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-accent">
-        <Mascot size={26} />
-      </span>
+      <Mascot size={32} className="mt-1" />
       <div className="min-w-0 flex-1 rounded-3xl rounded-tl-md border bg-card px-5 py-4 shadow-sm">{children}</div>
     </div>
   );

@@ -17,6 +17,7 @@ import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
 import { applyFilters, diverseTop, parseFilters, type PlatformTab } from "@/lib/results";
 import { bestScore } from "@/lib/scoring";
 import type { RegionChoice } from "@/lib/region";
+import { runTotals } from "@/lib/run-stats";
 import type { DropReason, PlatformStats, ScoredVideo } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,14 +37,13 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   const format = await getFormatter();
   const supabase = await createClient();
 
-  const { data: run } = await supabase
-    .from("research_runs")
-    .select("id, brief, keywords, keyword_regions, exclusions, platforms, region, input, status, error, summary, stats, followed_at, settings, last_refreshed_at, product_id, created_at")
-    .eq("id", id)
-    .maybeSingle();
-  if (!run) notFound();
-
-  const [{ data: rows }, { data: savedRows }] = await Promise.all([
+  // One round trip: the run, its results and the saved list are fetched together.
+  const [{ data: run }, { data: rows }, { data: savedRows }] = await Promise.all([
+    supabase
+      .from("research_runs")
+      .select("id, brief, keywords, keyword_regions, exclusions, platforms, region, input, status, error, summary, stats, followed_at, settings, last_refreshed_at, product_id, created_at")
+      .eq("id", id)
+      .maybeSingle(),
     supabase
       .from("run_results")
       .select("keyword, reach_score, usual_score, usual_views, label, added_at, videos(*)")
@@ -51,6 +51,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
       .order("rank"),
     supabase.from("saved_videos").select("video_id"),
   ]);
+  if (!run) notFound();
   const saved = new Set((savedRows ?? []).map((r) => r.video_id as number));
   const all = ((rows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null);
 
@@ -144,10 +145,10 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
 
         <InsightCard
           summary={summary}
-          totalVideos={all.length}
-          topViews={all.reduce<number | null>((m, v) => Math.max(m ?? 0, v.views ?? 0), null)}
+          totals={runTotals(all)}
           smallInTop10={top.filter((v) => (v.creatorFollowers ?? Infinity) < 10_000).length}
           topCount={top.length}
+          tagHref={(tag) => `/app/research/${id}?${new URLSearchParams({ all: "1", tag })}`}
         />
 
         {stats && (stats.offTopic ?? 0) + (stats.hidden ?? 0) > 0 && (

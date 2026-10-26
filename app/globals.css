@@ -168,12 +168,24 @@
   }
 }
 /* Mascot blink (every ~4.5 s) */
-@keyframes mascot-blink {
-  0%, 92%, 100% { transform: scaleY(1); }
-  95% { transform: scaleY(0.1); }
+/* Mascot: floats and breathes; its shadow shrinks as it rises */
+@keyframes mascot-float {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  50% { transform: translateY(-4px) scale(0.985, 1.015); }
 }
-.mascot-blink {
-  animation: mascot-blink 4.5s infinite;
+.mascot-float {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: mascot-float 3.2s ease-in-out infinite;
+}
+@keyframes mascot-shadow {
+  0%, 100% { transform: scaleX(1); opacity: 0.12; }
+  50% { transform: scaleX(0.82); opacity: 0.07; }
+}
+.mascot-shadow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mascot-shadow 3.2s ease-in-out infinite;
 }
 
 /* Research story: radar sweep, chip glow, strike-through */
@@ -203,7 +215,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mascot-blink,
+  .mascot-float,
+  .mascot-shadow,
   .radar-sweep,
   .story-in,
   .strike {

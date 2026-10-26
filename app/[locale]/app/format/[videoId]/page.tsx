@@ -52,7 +52,7 @@ export default async function FormatPage({ params }: PageProps<"/[locale]/app/fo
           </div>
           <div className="min-w-0">
             <p className="text-xs font-semibold tracking-widest text-primary uppercase">{t("eyebrow")}</p>
-            <h1 className="mt-1 font-heading text-3xl font-bold">{f?.name ?? t("loadingTitle")}</h1>
+            <h1 className="mt-1 font-heading text-3xl font-bold">{f?.name ?? t("startTitle")}</h1>
             {f && (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <StageBadge stage={f.stage} />

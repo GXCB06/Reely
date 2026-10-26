@@ -13,11 +13,11 @@ describe("isExcluded", () => {
 describe("parseFilters", () => {
   it("accepts known presets only", () => {
     const f = parseFilters({ platform: "tiktok", minViews: "100000", minOutlier: "5", sort: "views", posted: "30" });
-    expect(f).toEqual({ platform: "tiktok", minViews: 100000, minOutlier: 5, minSaves: null, postedDays: 30, sort: "views" });
+    expect(f).toEqual({ platform: "tiktok", minViews: 100000, minOutlier: 5, minSaves: null, postedDays: 30, tag: null, sort: "views" });
   });
   it("ignores junk", () => {
     const f = parseFilters({ platform: "myspace", minViews: "123", sort: "drop table" });
-    expect(f).toEqual({ platform: "all", minViews: null, minOutlier: null, minSaves: null, postedDays: null, sort: "best" });
+    expect(f).toEqual({ platform: "all", minViews: null, minOutlier: null, minSaves: null, postedDays: null, tag: null, sort: "best" });
   });
 });
 
@@ -41,6 +41,11 @@ describe("applyFilters", () => {
     expect(applyFilters(rows, { ...base, minOutlier: 10 }, now).map((r) => r.id)).toEqual(["a", "b"]);
     expect(applyFilters(rows, { ...base, minViews: 10000 }, now).map((r) => r.id)).toEqual(["a", "c"]);
     expect(applyFilters(rows, { ...base, postedDays: 30 }, now).map((r) => r.id)).toEqual(["a", "b"]);
+  });
+  it("filters by hashtag, with or without the #", () => {
+    const tagged = rows.map((r, i) => ({ ...r, caption: i === 1 ? "โปรแกรมบัญชี #บัญชี #SME" : "#fyp" }));
+    expect(applyFilters(tagged, parseFilters({ tag: "#sme" }), now).map((r) => r.id)).toEqual(["b"]);
+    expect(applyFilters(tagged, parseFilters({ tag: "บัญชี" }), now).map((r) => r.id)).toEqual(["b"]);
   });
   it("sorts by views and recency", () => {
     expect(applyFilters(rows, { ...base, sort: "views" }, now).map((r) => r.id)).toEqual(["c", "a", "b"]);
