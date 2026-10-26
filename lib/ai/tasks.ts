@@ -343,14 +343,15 @@ export type ProductBrief = { name: string; whatItIs: string; audience: string };
 const RELEVANCE_BATCH = 80;
 
 /**
- * Rates each search result 0-2 for relevance to the product, from its caption (one Gemini call per
- * 80 videos, run in parallel). Returns null when AI is unavailable or fails, so callers keep everything.
+ * Rates each search result 0-2 for relevance to the product, and 0-2 for how easily a small business could film a
+ * similar clip with a phone, from its caption (one Gemini call per 80 videos, run in parallel). Returns null when
+ * AI is unavailable or fails, so callers keep everything.
  */
 export async function rateRelevance(
   product: ProductBrief,
   videos: { caption: string; creatorHandle: string }[],
   goal?: Goal | null,
-): Promise<number[] | null> {
+): Promise<{ scores: number[]; copy: (number | null)[] } | null> {
   const model = getModel();
   if (!model || !videos.length) return null;
   const batches = Array.from({ length: Math.ceil(videos.length / RELEVANCE_BATCH) }, (_, b) =>
@@ -378,17 +379,27 @@ export async function rateRelevance(
             "For a business (B2B) product, personal/consumer topics are outside the field (personal debt, home loans,",
             "personal budgeting or investing, motivation and mindset clips).",
             goal ? GOAL_RELEVANCE[goal] : "",
-            "Return one score per line number.",
+            "Also rate copy: how easily a small business could film a similar clip with a phone.",
+            "2: easy (talking head, screen recording or demo, simple skit, product in hand, voiceover on photos or text).",
+            "1: needs some production (studio set, actors, many locations, heavy editing).",
+            "0: can't be copied (celebrity, TV/movie/news footage, re-uploads or compilations of others' clips, big-budget ads).",
+            "Return score and copy for every line number.",
             "",
             ...batch.map((v, i) => `${i} | @${v.creatorHandle} | ${v.caption.slice(0, 160).replace(/\s+/g, " ") || "(no caption)"}`),
           ].join("\n"),
         });
         const scores: number[] = Array(batch.length).fill(0);
-        for (const s of output.scores) if (s.i < batch.length) scores[s.i] = s.score;
-        return { b, scores };
+        const copy: (number | null)[] = Array(batch.length).fill(null);
+        for (const s of output.scores) {
+          if (s.i >= batch.length) continue;
+          scores[s.i] = s.score;
+          copy[s.i] = s.copy;
+        }
+        return { b, scores, copy };
       }),
     );
-    return results.sort((x, y) => x.b - y.b).flatMap((r) => r.scores);
+    const ordered = results.sort((x, y) => x.b - y.b);
+    return { scores: ordered.flatMap((r) => r.scores), copy: ordered.flatMap((r) => r.copy) };
   } catch (e) {
     console.warn("[ai] rateRelevance failed, keeping all results", (e as Error).message);
     return null;

@@ -65,6 +65,20 @@ describe("applyFilters", () => {
   });
 });
 
+describe("diverseTop creators", () => {
+  const row = (id: string, creatorHandle: string, views: number) => ({
+    id, platform: "tiktok", creatorHandle, views, saves: null, shares: null, label: "breakout" as const, publishedAt: null, usual: 10, reach: null,
+  });
+  it("keeps at most 2 clips per creator while others are available", () => {
+    const rows = [row("a1", "a", 900), row("a2", "a", 800), row("a3", "a", 700), row("b1", "b", 100)];
+    expect(diverseTop(rows, 3).map((r) => r.id)).toEqual(["a1", "a2", "b1"]);
+  });
+  it("fills with the same creator when nobody else is left", () => {
+    const rows = [row("a1", "a", 900), row("a2", "a", 800), row("a3", "a", 700)];
+    expect(diverseTop(rows, 3).map((r) => r.id)).toEqual(["a1", "a2", "a3"]);
+  });
+});
+
 describe("diverseTop", () => {
   const row = (id: string, platform: string, views: number) => ({
     id,

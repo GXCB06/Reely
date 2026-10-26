@@ -55,7 +55,7 @@ export default async function FormatsPage({ params }: PageProps<"/[locale]/app/f
               <div className="mt-3 flex gap-1.5">
                 {f.videoIds.slice(0, 4).map((id) => (
                   <span key={id} className="relative block aspect-[9/14] w-14 overflow-hidden rounded-lg bg-muted">
-                    <Thumb src={thumbOf.get(id) ?? null} />
+                    <Thumb src={thumbOf.get(id) ?? null} videoId={id} />
                   </span>
                 ))}
               </div>

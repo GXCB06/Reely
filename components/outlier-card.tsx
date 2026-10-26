@@ -1,4 +1,4 @@
-import { Bookmark, Eye, Flame, Heart, Layers, Lightbulb, MessageCircle, Music2, Share2, ShoppingBag, Users } from "lucide-react";
+import { Bookmark, Eye, Flame, Heart, Layers, Lightbulb, MessageCircle, Music2, Share2, ShoppingBag, Smartphone, Users } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { PlatformIcon } from "@/components/platform-icon";
 import { SaveButton } from "@/components/save-button";
@@ -50,7 +50,7 @@ export async function OutlierCard({
 
   const thumb = (
     <div className="relative aspect-[9/14] overflow-hidden bg-muted">
-      <Thumb src={video.thumbnailUrl} className="transition group-hover:scale-[1.02]" />
+      <Thumb src={video.thumbnailUrl} videoId={video.dbId} className="transition group-hover:scale-[1.02]" />
       {/* Where it is from (top left), plus a TikTok Shop tag for affiliates. */}
       <div className="absolute top-2 left-2 flex items-center gap-1">
         <span className="inline-flex h-5 items-center rounded-full bg-black/70 px-1.5">
@@ -141,6 +141,11 @@ export async function OutlierCard({
           </p>
         )}
         <div className="flex flex-wrap gap-1.5 pt-1 text-[11px]">
+          {video.copyable === 2 && (
+            <span title={t("copyableTip")} className="inline-flex cursor-help items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-sky-800">
+              <Smartphone className="size-3" /> {t("copyable")}
+            </span>
+          )}
           {video.usual !== null && video.usualViews !== null && (
             <span className="rounded-full bg-accent px-2 py-0.5 text-accent-foreground">
               {t("usual", { x: formatMultiplier(video.usual) })} · {t("usually", { views: compact(video.usualViews) })}

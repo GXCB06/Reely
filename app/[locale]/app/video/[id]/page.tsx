@@ -120,7 +120,7 @@ export default async function VideoPage({ params }: PageProps<"/[locale]/app/vid
         <aside className="space-y-4">
           <div className="overflow-hidden rounded-2xl border bg-muted">
             <div className="aspect-[9/14] w-full">
-              <Thumb src={video.thumbnail_url} />
+              <Thumb src={video.thumbnail_url} videoId={video.id} />
             </div>
           </div>
           <div className="flex items-center justify-between">

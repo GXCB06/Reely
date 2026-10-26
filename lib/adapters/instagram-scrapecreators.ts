@@ -185,3 +185,12 @@ export const instagramAdapter: PlatformAdapter = {
     return dropPinned((data?.items ?? []).filter((r) => r.code).map(fromProfile));
   },
 };
+
+/** A fresh cover link for one reel (1 credit). Only for repairing a cover that expired before it was copied. */
+export async function instagramPostCover(url: string): Promise<string | null> {
+  if (fixturesEnabled()) return null;
+  type Res = { data?: { xdt_shortcode_media?: { thumbnail_src?: string; display_url?: string } } };
+  const data = await call<Res>("/v1/instagram/post", { url });
+  const media = data?.data?.xdt_shortcode_media;
+  return media?.thumbnail_src ?? media?.display_url ?? null;
+}

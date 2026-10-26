@@ -72,6 +72,7 @@ export type FilterableResult = {
   usual: number | null;
   reach: number | null;
   caption?: string;
+  creatorHandle?: string;
 };
 
 export const outlierOf = (r: Pick<FilterableResult, "usual" | "reach">) => r.usual ?? r.reach ?? 0;
@@ -106,21 +107,29 @@ export function applyFilters<T extends FilterableResult>(
 }
 
 /**
- * The n best results, but with up to `minPer` from each platform that has any: a list sorted only by score is
- * all TikTok (it has the most data), which hides good Shorts and Reels.
+ * The n best results, but with up to `minPer` from each platform that has any (a list sorted only by score is all
+ * TikTok, which hides good Shorts and Reels) and at most `maxPerCreator` from one creator (so the 10 are 10 ideas,
+ * not one account's feed). Falls back to the plain order when there aren't enough creators.
  */
 export function diverseTop<T extends FilterableResult>(
   rows: T[],
   n = 10,
   minPer = 2,
   score: (r: T) => number = bestScore,
+  maxPerCreator = 2,
 ): T[] {
   const sorted = [...rows].sort((a, b) => score(b) - score(a));
-  const reserved = [...new Set(sorted.map((r) => r.platform))].flatMap((p) => sorted.filter((r) => r.platform === p).slice(0, minPer));
-  const picked = new Set(reserved.slice(0, n));
-  for (const r of sorted) {
-    if (picked.size >= n) break;
+  const perCreator = new Map<string, number>();
+  const creatorOk = (r: T) => !r.creatorHandle || (perCreator.get(`${r.platform}:${r.creatorHandle}`) ?? 0) < maxPerCreator;
+  const picked = new Set<T>();
+  const pick = (r: T) => {
     picked.add(r);
+    if (r.creatorHandle) perCreator.set(`${r.platform}:${r.creatorHandle}`, (perCreator.get(`${r.platform}:${r.creatorHandle}`) ?? 0) + 1);
+  };
+  for (const p of new Set(sorted.map((r) => r.platform))) {
+    sorted.filter((r) => r.platform === p && creatorOk(r)).slice(0, minPer).forEach((r) => picked.size < n && creatorOk(r) && pick(r));
   }
+  for (const r of sorted) if (picked.size < n && !picked.has(r) && creatorOk(r)) pick(r);
+  for (const r of sorted) if (picked.size < n && !picked.has(r)) pick(r);
   return sorted.filter((r) => picked.has(r));
 }

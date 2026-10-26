@@ -61,7 +61,7 @@ export async function Patterns({
                       className="relative block aspect-[9/14] w-[4.5rem] overflow-hidden rounded-xl bg-muted"
                       title={`@${v.creatorHandle}`}
                     >
-                      <Thumb src={v.thumbnailUrl} />
+                      <Thumb src={v.thumbnailUrl} videoId={v.dbId} />
                       <span className="absolute inset-x-1 bottom-1 flex flex-wrap gap-0.5 text-[10px] font-semibold text-white">
                         {v.views !== null && (
                           <span className="inline-flex items-center gap-0.5 rounded-full bg-black/70 px-1.5">

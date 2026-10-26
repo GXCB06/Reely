@@ -48,7 +48,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
       .maybeSingle(),
     supabase
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, added_at, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, added_at, videos(*)")
       .eq("run_id", id)
       .order("rank"),
     supabase.from("saved_videos").select("video_id"),

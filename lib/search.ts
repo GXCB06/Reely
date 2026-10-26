@@ -31,6 +31,8 @@ export type ScoredVideo = NormalizedVideo & {
   keyword: string;
   /** Row id in the shared videos table, when Supabase is configured. */
   dbId?: number;
+  /** How easily a small business could film a similar clip (AI): 2 easy, 1 needs production, 0 can't be copied. */
+  copyable?: number | null;
 };
 
 export type SearchResult = {
@@ -149,7 +151,9 @@ export async function searchKeywords(
   }
   // AI relevance check before any paid baseline lookups, so off-topic creators cost nothing.
   // Score 1 ("same audience, not the product") only fills in when there are few clearly on-topic videos.
-  const relevance = opts.product ? await rateRelevance(opts.product, clean, opts.goal) : null;
+  const rated = opts.product ? await rateRelevance(opts.product, clean, opts.goal) : null;
+  const relevance = rated?.scores ?? null;
+  const copyOf = new Map(clean.map((v, i) => [v, rated?.copy[i] ?? null]));
   const onTopic = relevance ? relevance.filter((r) => r === 2).length : 0;
   const minScore = onTopic >= STRICT_RELEVANCE_AT ? 2 : 1;
   const kept = relevance ? clean.filter((_, i) => relevance[i] >= minScore) : clean;
@@ -203,6 +207,7 @@ export async function searchKeywords(
         usualViews,
         label: labelFor(usual, reach, { views, followers: v.creatorFollowers }),
         dbId: dbIds.get(`${v.platform}:${v.platformVideoId}`),
+        copyable: copyOf.get(v) ?? null,
       };
     })
     // "Best for your goal" (plain best when there is no goal).

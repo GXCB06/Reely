@@ -36,7 +36,7 @@ export async function HomeDashboard() {
     supabase.from("research_runs").select("id, product_id, created_at").order("created_at", { ascending: false }).limit(200),
     supabase
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, added_at, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, added_at, videos(*)")
       .gte("added_at", recentSince())
       .order("added_at", { ascending: false })
       .limit(RECENT_RESULTS),
@@ -169,7 +169,7 @@ export async function HomeDashboard() {
                     <span className="flex gap-1">
                       {f.videoIds.slice(0, 3).map((id) => (
                         <span key={id} className="relative block aspect-[9/14] w-9 overflow-hidden rounded-md bg-muted">
-                          <Thumb src={thumbOf.get(id) ?? null} />
+                          <Thumb src={thumbOf.get(id) ?? null} videoId={id} />
                         </span>
                       ))}
                     </span>

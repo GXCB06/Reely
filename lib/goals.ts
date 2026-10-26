@@ -20,7 +20,11 @@ type Rankable = {
   language?: string | null;
   usual?: number | null;
   reach?: number | null;
+  copyable?: number | null;
 };
+
+/** Clips a small business can't film themselves are worth less to them (unknown = neutral). */
+const COPY_FACTOR = [0.5, 0.85, 1] as const;
 
 /** Accounts this small can be copied by anyone with a phone (no celebrity or big-budget effect). */
 const SMALL_ACCOUNT = 100_000;
@@ -45,12 +49,16 @@ export function goalFactor(v: Rankable, goal: Goal): number {
   }
 }
 
-/** "Best for your goal": the label still comes first, then views weighted by keep rate and the goal factor. */
+/**
+ * "Best for your goal": the label still comes first, then views weighted by keep rate, the goal factor and how easily
+ * the clip can be copied.
+ */
 export function goalScore(v: Rankable, goal: Goal | null | undefined): number {
   const base = bestScore(v);
-  if (!goal) return base;
+  const copy = v.copyable == null ? 1 : COPY_FACTOR[v.copyable] ?? 1;
+  if (!goal && copy === 1) return base;
   const tier = Math.floor(base / 1e12) * 1e12;
-  return tier + (base - tier) * goalFactor(v, goal);
+  return tier + (base - tier) * (goal ? goalFactor(v, goal) : 1) * copy;
 }
 
 /** Picks the score function for a goal (plain "best" when there is none). */

@@ -101,6 +101,9 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 17. Goals add no paid calls: the goal changes the keyword recipe, the relevance rubric and the order; the
     "your idea" line under each top-10 clip is one Gemini call per research (`writeIdeasAction`), made by the
     results page once the results show, so it never slows a run.
+18. Expired covers repair themselves only when someone is looking at them: a cover that fails to load asks
+    `/api/covers` (batched), which re-fetches that one video (`/v2/tiktok/video` or `/v1/instagram/post`, 1 credit),
+    copies the cover to storage and updates the row. Max 150 repairs a day for everyone (`REPAIRS_PER_DAY`).
 
 ## Security rules
 

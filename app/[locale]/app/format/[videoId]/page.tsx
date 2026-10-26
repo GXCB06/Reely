@@ -48,7 +48,7 @@ export default async function FormatPage({ params }: PageProps<"/[locale]/app/fo
         </Link>
         <div className="mt-4 flex gap-5">
           <div className="relative hidden aspect-[9/14] w-24 shrink-0 overflow-hidden rounded-2xl bg-muted sm:block">
-            <Thumb src={seed.thumbnailUrl} />
+            <Thumb src={seed.thumbnailUrl} videoId={id} />
           </div>
           <div className="min-w-0">
             <p className="text-xs font-semibold tracking-widest text-primary uppercase">{t("eyebrow")}</p>
@@ -151,7 +151,7 @@ export default async function FormatPage({ params }: PageProps<"/[locale]/app/fo
                         <div className="flex gap-1.5">
                           {ex.slice(0, 3).map((v) => (
                             <Link key={v!.dbId} href={`/app/video/${v!.dbId}`} className="relative block aspect-[9/14] w-12 overflow-hidden rounded-lg bg-muted">
-                              <Thumb src={v!.thumbnailUrl} />
+                              <Thumb src={v!.thumbnailUrl} videoId={v!.dbId} />
                             </Link>
                           ))}
                         </div>

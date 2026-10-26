@@ -121,6 +121,7 @@ const resultRow = (runId: string, v: ScoredVideo, rank: number) => ({
   usual_views: v.usualViews === null ? null : Math.round(v.usualViews),
   label: v.label,
   rank,
+  copyable: v.copyable ?? null,
 });
 
 /** Creates a research run, searches, saves ranked results and the AI insight card. Returns the run id. */
@@ -233,7 +234,7 @@ export async function writeIdeasAction(id: string, lang: string) {
     supabase.from("research_runs").select("id, goal, input, summary").eq("id", parsed.data.id).maybeSingle(),
     supabase
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, videos(*)")
       .eq("run_id", parsed.data.id)
       .order("rank"),
   ]);

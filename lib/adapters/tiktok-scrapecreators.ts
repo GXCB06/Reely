@@ -173,3 +173,10 @@ export async function tiktokSoundVideos(soundId: string): Promise<NormalizedVide
     : await call<Res>("/v1/tiktok/song/videos", { clipId: soundId });
   return (data?.aweme_list ?? []).map(toVideo);
 }
+
+/** A fresh cover link for one video (1 credit). Only for repairing a cover that expired before it was copied. */
+export async function tiktokVideoCover(url: string): Promise<string | null> {
+  if (fixturesEnabled()) return null;
+  const data = await call<{ aweme_detail?: Aweme }>("/v2/tiktok/video", { url });
+  return pickThumbnail(data?.aweme_detail?.video);
+}

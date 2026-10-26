@@ -38,6 +38,16 @@ describe("goalScore", () => {
   });
 });
 
+describe("copyable", () => {
+  it("ranks a clip a small business can film above a bigger one it can't", () => {
+    expect(goalScore(v({ copyable: 2 }), "startup")).toBeGreaterThan(goalScore(v({ copyable: 0, views: 150_000 }), "startup"));
+    expect(goalScore(v({ copyable: 2 }), null)).toBeGreaterThan(goalScore(v({ copyable: 0, views: 150_000 }), null));
+  });
+  it("leaves unknown ratings neutral", () => {
+    expect(goalScore(v({ copyable: null }), null)).toBe(goalScore(v(), null));
+  });
+});
+
 describe("isGoal", () => {
   it("accepts only the 4 goals", () => {
     expect(isGoal("sell")).toBe(true);

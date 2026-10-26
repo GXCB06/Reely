@@ -75,9 +75,18 @@ export type PlanEvent =
 /** Run time: English versions of Thai keywords, for Instagram (when Reels was turned on after planning). */
 export const englishKeywordsSchema = z.object({ english: z.array(z.string().max(80)) });
 
-/** Relevance of each search result to the user's product: 0 unrelated, 1 same audience, 2 on topic. */
+/**
+ * Per search result: relevance to the user's product (0 unrelated, 1 same field, 2 on topic) and how easily a small
+ * business could film a similar clip with a phone (0 can't be copied, 1 needs production, 2 easy).
+ */
 export const relevanceSchema = z.object({
-  scores: z.array(z.object({ i: z.number().int().min(0), score: z.number().int().min(0).max(2) })),
+  scores: z.array(
+    z.object({
+      i: z.number().int().min(0),
+      score: z.number().int().min(0).max(2),
+      copy: z.number().int().min(0).max(2),
+    }),
+  ),
 });
 
 /** Results page: one "how you'd use this clip" line per top video. */

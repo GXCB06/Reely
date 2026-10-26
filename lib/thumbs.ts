@@ -1,4 +1,6 @@
 import "server-only";
+import { instagramPostCover } from "@/lib/adapters/instagram-scrapecreators";
+import { tiktokVideoCover } from "@/lib/adapters/tiktok-scrapecreators";
 import type { NormalizedVideo } from "@/lib/adapters/types";
 import { fixturesEnabled } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -106,4 +108,56 @@ export async function persistThumbnails(videos: NormalizedVideo[]): Promise<void
       return admin.from("videos").update({ thumbnail_url: url }).eq("platform", platform).eq("platform_video_id", id.join(":"));
     }),
   );
+}
+
+/** Cover repairs cost 1 credit each; at most this many a day across all users. */
+const REPAIRS_PER_DAY = 150;
+const REPAIR_ENDPOINTS = ["/v2/tiktok/video", "/v1/instagram/post"];
+
+/**
+ * Covers that expired before they were copied (vendor links last ~5-23 h): fetches a fresh link for each video
+ * (1 credit), copies it to storage and updates the row. Called only for covers a user is looking at, capped per
+ * day. Returns video id → stored cover URL for the ones that worked.
+ */
+export async function repairCovers(ids: number[]): Promise<Map<number, string>> {
+  const out = new Map<number, string>();
+  const admin = createAdminClient();
+  if (!admin || fixturesEnabled() || !ids.length) return out;
+
+  const [{ data: rows }, { data: usage }] = await Promise.all([
+    admin.from("videos").select("id, platform, platform_video_id, url, thumbnail_url").in("id", ids),
+    admin
+      .from("api_usage")
+      .select("calls")
+      .eq("day", new Date().toISOString().slice(0, 10))
+      .eq("provider", "scrapecreators")
+      .in("endpoint", REPAIR_ENDPOINTS),
+  ]);
+  const used = (usage ?? []).reduce((sum, r) => sum + (r.calls as number), 0);
+  const todo = (rows ?? [])
+    .filter((r) => r.platform !== "youtube" && !isStoredThumb(r.thumbnail_url as string | null))
+    .slice(0, Math.max(0, REPAIRS_PER_DAY - used));
+
+  for (let i = 0; i < todo.length; i += 4) {
+    await Promise.all(
+      todo.slice(i, i + 4).map(async (r) => {
+        try {
+          const fresh = r.platform === "tiktok" ? await tiktokVideoCover(r.url as string) : await instagramPostCover(r.url as string);
+          if (!fresh) return;
+          const copied = await copyOne(admin, {
+            platform: r.platform,
+            platformVideoId: r.platform_video_id,
+            thumbnailUrl: fresh,
+          } as NormalizedVideo);
+          if (!("url" in copied)) return;
+          await admin.from("videos").update({ thumbnail_url: copied.url }).eq("id", r.id);
+          out.set(r.id as number, copied.url);
+        } catch (e) {
+          console.warn("[thumbs] repair failed", r.id, (e as Error).message);
+        }
+      }),
+    );
+  }
+  if (todo.length) console.log(`[thumbs] repaired ${out.size} of ${todo.length} expired covers (${used + todo.length} repair calls today)`);
+  return out;
 }

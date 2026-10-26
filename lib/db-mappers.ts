@@ -33,6 +33,7 @@ export type ResultRow = {
   usual_score: number | null;
   usual_views: number | null;
   label: OutlierLabel | null;
+  copyable?: number | null;
   videos: VideoRow | null;
 };
 
@@ -72,11 +73,12 @@ export function videoFromRow(
 
 export function videoFromResultRow(r: ResultRow): ScoredVideo | null {
   if (!r.videos) return null;
-  return videoFromRow(r.videos, {
+  const video = videoFromRow(r.videos, {
     reach: r.reach_score === null ? null : Number(r.reach_score),
     usual: r.usual_score === null ? null : Number(r.usual_score),
     usualViews: r.usual_views,
     label: r.label ?? "normal",
     keyword: r.keyword ?? "",
   });
+  return { ...video, copyable: r.copyable ?? null };
 }

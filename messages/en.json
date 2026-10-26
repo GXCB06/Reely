@@ -194,7 +194,9 @@
     "new": "NEW",
     "format": "Same format",
     "formatTip": "See who else made this kind of clip, what topics they used it for and which sounds",
-    "ideaFor": "Your idea"
+    "ideaFor": "Your idea",
+    "copyable": "Phone-friendly",
+    "copyableTip": "From the caption, AI thinks a small business could film a clip like this with a phone (talking head, screen demo, simple skit)."
   },
   "labels": {
     "breakout": "Breakout",
