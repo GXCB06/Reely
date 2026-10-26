@@ -370,7 +370,7 @@
       "takeaway": "ทิปส์"
     },
     "forWhich": "เขียนให้",
-    "structure": "โครงแบบ{goal}"
+    "structure": "โครงสคริปต์แบบ {goal}"
   },
   "account": {
     "title": "บัญชี",

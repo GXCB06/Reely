@@ -445,7 +445,8 @@ export async function makeMyVersion(
   if (model) {
     try {
       const { output } = await generateText({
-        ...aiCallOptions(),
+        // The user is waiting on this one, so allow a slow first model plus the fallback.
+        ...aiCallOptions(40_000),
         model,
         output: Output.object({ schema: scriptSchema }),
         prompt: [

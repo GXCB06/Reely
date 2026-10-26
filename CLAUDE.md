@@ -14,7 +14,7 @@ competitors and turn videos into scripts for their own product. Full product spe
   Request interception lives in `proxy.ts` (the old `middleware.ts` name is deprecated).
 - Supabase: Postgres, Auth (Google OAuth, email + password), Row Level Security — via `@supabase/ssr`
 - next-intl v4: locales `th` (default) and `en`; all pages under `app/[locale]/`
-- Gemini 3 Flash (preview; falls back to Flash-Lite on API errors, see lib/ai/model.ts) via the Vercel AI SDK (reads text, product pages and images); zod for every structured AI output
+- Gemini 3 Flash (preview; moves to 3.1 Flash-Lite on an API error or after 15 s without an answer, see lib/ai/model.ts) via the Vercel AI SDK (reads text, product pages and images); zod for every structured AI output
 - Hosting: Vercel Hobby. Package manager: **npm**
 
 ## Commands
