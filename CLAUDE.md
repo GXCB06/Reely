@@ -14,7 +14,8 @@ competitors and turn videos into scripts for their own product. Full product spe
   Request interception lives in `proxy.ts` (the old `middleware.ts` name is deprecated).
 - Supabase: Postgres, Auth (Google OAuth, email + password), Row Level Security — via `@supabase/ssr`
 - next-intl v4: locales `th` (default) and `en`; all pages under `app/[locale]/`
-- Gemini 3 Flash (preview; moves to 3.1 Flash-Lite on an API error or after 15 s without an answer, see lib/ai/model.ts) via the Vercel AI SDK (reads text, product pages and images); zod for every structured AI output
+- Gemini 3.1 Flash-Lite (moves to Flash-Lite latest on an API error or after 15 s without an answer, see lib/ai/model.ts;
+  3 Flash's free tier is only 20 requests a day) via the Vercel AI SDK (reads text, product pages and images); zod for every structured AI output
 - Hosting: Vercel Hobby. Package manager: **npm**
 
 ## Commands
@@ -98,8 +99,8 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     keyword searches (~3 credits); shared `formats` cache for 3 days. Never page through a sound.
     A build starts only when the user presses "Explore this format"; opening the page never spends credits.
 17. Goals add no paid calls: the goal changes the keyword recipe, the relevance rubric and the order; the
-    "your idea" line under each top-10 clip is one Gemini call per research (`ideasForClips`), run in parallel
-    with the summary.
+    "your idea" line under each top-10 clip is one Gemini call per research (`writeIdeasAction`), made by the
+    results page once the results show, so it never slows a run.
 
 ## Security rules
 

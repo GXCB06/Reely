@@ -282,7 +282,10 @@
     "topHashtags": "Most used hashtags",
     "topHashtagsHint": "Tap one to see the videos that use it",
     "smallNote": "{n} of the top {of} come from accounts under 10K followers: small accounts can go viral too.",
-    "clearTag": "Remove the hashtag filter"
+    "clearTag": "Remove the hashtag filter",
+    "ideasWriting": "Reely is writing an idea for each clip…",
+    "ideasFailed": "Couldn't write the ideas yet.",
+    "ideasRetry": "Try again"
   },
   "card": {
     "save": "Save",

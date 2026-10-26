@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
-import { MAX_KEYWORDS } from "@/lib/ai/schemas";
+import { MAX_KEYWORDS, type RunSummary } from "@/lib/ai/schemas";
 import { englishKeywords, enhanceBrief, ideasForClips, summarizeRun } from "@/lib/ai/tasks";
+import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
 import { GOALS, type Goal, isGoal, scoreFor } from "@/lib/goals";
 import { diverseTop } from "@/lib/results";
 import { looksThai } from "@/lib/region";
@@ -183,45 +184,28 @@ export async function runResearchAction(input: RunInput) {
     // The page shows these 10 first; the AI sees them first too (patterns use up to 15).
     const top10 = diverseTop(result.videos, 10, 2, scoreFor(goal));
     const top = [...top10, ...result.videos.filter((v) => !top10.includes(v))].slice(0, 15);
-    const [summary, ideas] = await Promise.all([
-      summarizeRun(
-        {
-          keywords: keywords.map((k) => k.text),
-          totalVideos: result.videos.length,
-          topViews: result.videos.reduce<number | null>((m, v) => Math.max(m ?? 0, v.views ?? 0), null),
-          smallAccountsInTop10: top.slice(0, 10).filter((v) => (v.creatorFollowers ?? Infinity) < 10_000).length,
-          breakouts: result.videos.filter((v) => v.label === "breakout").length,
-          product,
-          goal,
-          top: top.map((v) => ({
-            dbId: v.dbId,
-            keepRate: keepRate(v),
-            handle: v.creatorHandle,
-            caption: v.caption,
-            views: v.views,
-            multiplier: v.usual ?? v.reach,
-            platform: v.platform,
-          })),
-        },
-        locale,
-      ),
-      ideasForClips(
+    // The "your idea" lines are written after the results are on screen (writeIdeasAction), so they never slow a run.
+    const summary = await summarizeRun(
+      {
+        keywords: keywords.map((k) => k.text),
+        totalVideos: result.videos.length,
+        topViews: result.videos.reduce<number | null>((m, v) => Math.max(m ?? 0, v.views ?? 0), null),
+        smallAccountsInTop10: top.slice(0, 10).filter((v) => (v.creatorFollowers ?? Infinity) < 10_000).length,
+        breakouts: result.videos.filter((v) => v.label === "breakout").length,
         product,
         goal,
-        top10.map((v) => ({
+        top: top.map((v) => ({
+          dbId: v.dbId,
+          keepRate: keepRate(v),
           handle: v.creatorHandle,
           caption: v.caption,
           views: v.views,
           multiplier: v.usual ?? v.reach,
-          hasShop: Boolean(v.hasShop),
           platform: v.platform,
         })),
-        locale,
-      ),
-    ]);
-    summary.ideas = (ideas ?? [])
-      .map((idea, i) => ({ videoId: top10[i]?.dbId, idea }))
-      .filter((x): x is { videoId: number; idea: string } => x.videoId !== undefined && !!x.idea);
+      },
+      locale,
+    );
     await supabase.from("research_runs").update({ summary }).eq("id", run.id);
     revalidatePath("/[locale]/app", "layout");
     return { ok: true as const, runId: run.id as string };
@@ -236,6 +220,52 @@ export async function runResearchAction(input: RunInput) {
 }
 
 const runId = z.string().uuid();
+
+/**
+ * Results page, right after it shows: writes the "your idea" line for the 10 clips it shows first (one AI call,
+ * no credits) and stores them with the summary. Does nothing when they are already there.
+ */
+export async function writeIdeasAction(id: string, lang: string) {
+  const parsed = z.object({ id: runId, lang: locale }).safeParse({ id, lang });
+  if (!parsed.success) return { ok: false as const };
+  const supabase = await createClient();
+  const [{ data: run }, { data: rows }] = await Promise.all([
+    supabase.from("research_runs").select("id, goal, input, summary").eq("id", parsed.data.id).maybeSingle(),
+    supabase
+      .from("run_results")
+      .select("keyword, reach_score, usual_score, usual_views, label, videos(*)")
+      .eq("run_id", parsed.data.id)
+      .order("rank"),
+  ]);
+  const summary = run?.summary as RunSummary | null;
+  const input = (run?.input ?? {}) as { productName?: string; whatItIs?: string; audience?: string };
+  if (!run || !summary || !isGoal(run.goal) || !input.productName) return { ok: false as const };
+  if (summary.ideas?.length) return { ok: true as const };
+
+  // The same 10 the page shows first.
+  const all = ((rows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null);
+  const top10 = diverseTop(all, 10, 2, scoreFor(run.goal));
+  const ideas = await ideasForClips(
+    { name: input.productName, whatItIs: input.whatItIs ?? "", audience: input.audience ?? "" },
+    run.goal,
+    top10.map((v) => ({
+      handle: v.creatorHandle,
+      caption: v.caption,
+      views: v.views,
+      multiplier: v.usual ?? v.reach,
+      hasShop: Boolean(v.hasShop),
+      platform: v.platform,
+    })),
+    parsed.data.lang,
+  );
+  if (!ideas) return { ok: false as const };
+  const list = ideas
+    .map((idea, i) => ({ videoId: top10[i]?.dbId, idea }))
+    .filter((x): x is { videoId: number; idea: string } => x.videoId !== undefined && !!x.idea);
+  await supabase.from("research_runs").update({ summary: { ...summary, ideas: list } }).eq("id", run.id);
+  revalidatePath("/[locale]/app/research/[id]", "page");
+  return { ok: true as const };
+}
 
 /**
  * "Update with new videos": re-runs the same search for the time since the last update (7, 30 or 90 days),

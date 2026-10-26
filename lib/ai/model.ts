@@ -2,11 +2,11 @@ import "server-only";
 import { google } from "@ai-sdk/google";
 import { type LanguageModelMiddleware, wrapLanguageModel } from "ai";
 
-// Measured 2026-10-26/27 on the free tier: gemini-3-flash-preview answers a plan in ~2 s and a script in ~4 s, but
-// now and then hangs for 60 s+; gemini-3.1-flash-lite answers a script in ~4 s; gemini-flash-lite-latest (3.5
-// Flash-Lite) waited 15-26 s before its first token.
-const FAST_MODEL = "gemini-3-flash-preview";
-const FALLBACK_MODEL = "gemini-3.1-flash-lite";
+// Measured 2026-10-26/27 on the free tier: gemini-3.1-flash-lite answers a plan in ~3-10 s and a script in ~4 s;
+// gemini-flash-lite-latest (3.5 Flash-Lite) waited 15-26 s before its first token. gemini-3-flash-preview was
+// fastest (~2 s) but its free tier allows only 20 requests a day, about 4 researches.
+const FAST_MODEL = "gemini-3.1-flash-lite";
+const FALLBACK_MODEL = "gemini-flash-lite-latest";
 /** How long the main model gets to answer (to start answering, for streams) before the call moves to the fallback. */
 const MAIN_MODEL_BUDGET_MS = 15_000;
 

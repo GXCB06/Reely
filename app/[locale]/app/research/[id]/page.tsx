@@ -7,6 +7,7 @@ import { OutlierCard } from "@/components/outlier-card";
 import { PlatformIcon } from "@/components/platform-icon";
 import { FilterBar } from "@/components/results/filter-bar";
 import { FollowTopicButton } from "@/components/results/follow-topic-button";
+import { IdeasLoader } from "@/components/results/ideas-loader";
 import { InsightCard } from "@/components/results/insight-card";
 import { Patterns } from "@/components/results/patterns";
 import { RefreshRunButton } from "@/components/results/refresh-run-button";
@@ -234,6 +235,10 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
                 <h3 className="font-heading text-lg font-bold">{t("bestTitle", { n: top.length })}</h3>
                 <span className="text-xs text-muted-foreground">{t("bestHint")}</span>
               </div>
+              {/* Ideas are written once the results are on screen; older researches without a goal have none. */}
+              {run.status === "done" && goal && input?.productName && summary && !summary.ideas?.length && (
+                <IdeasLoader runId={run.id as string} />
+              )}
               <ScoreExplainer />
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {top.map((v) => (
