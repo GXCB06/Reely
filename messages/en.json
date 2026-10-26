@@ -167,7 +167,8 @@
     "goalLabel": "Clips for",
     "goalGuessed": "Reely guessed this from your message. Change it if it's wrong (keywords follow).",
     "goalRemembered": "Remembered from last time. You can change it.",
-    "goalReplanning": "Re-planning the keywords for this goal…"
+    "goalReplanning": "Re-planning the keywords for this goal…",
+    "drafting": "Reely is writing the plan…"
   },
   "search": {
     "title": "Test search",

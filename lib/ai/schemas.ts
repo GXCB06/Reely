@@ -9,32 +9,71 @@ export const planSchema = z.object({
 });
 export type ResearchPlan = z.infer<typeof planSchema>;
 
-/** Chat home: what Reely understood from the user's text, link and/or image, plus the search plan. */
-export const understandingSchema = z.object({
-  goal: z
-    .enum(GOALS)
-    .describe("What the user wants the clips for: sell (affiliate / TikTok Shop), shop (local business), startup (app or SaaS), brand (personal brand)"),
+const goalField = z
+  .enum(GOALS)
+  .describe("What the user wants the clips for: sell (affiliate / TikTok Shop), shop (local business), startup (app or SaaS), brand (personal brand)");
+const keywordText = z.string().min(2).max(80);
+const keywordRegion = z.enum(["th", "global"]).describe("th = a Thai-language phrase; global = an English phrase");
+const keywordEnglish = z.string().max(80).describe("The same phrase in natural English (for Instagram search)");
+const competitorsField = z
+  .array(z.string().min(1).max(40))
+  .max(6)
+  .describe("Brand names of direct competitors or similar products people search for (the saved list if given)");
+const productFields = {
   productName: z.string().min(1).max(80).describe("The product or brand name; a short descriptive name if none is given"),
   whatItIs: z.string().max(300).describe("One sentence: what the product does"),
   audience: z.string().max(200).describe("Who it is for, a few words"),
-  reply: z.string().max(400).describe("1-2 friendly sentences to the user: what you understood and what videos you will look for"),
+};
+
+/** Chat home: what Reely understood from the user's text, link and/or image, plus the search plan. */
+export const understandingSchema = z.object({
+  goal: goalField,
+  reply: z.string().max(400),
   keywords: z
-    .array(
-      z.object({
-        text: z.string().min(2).max(80),
-        region: z.enum(["th", "global"]).describe("th = a Thai-language phrase; global = an English phrase"),
-        english: z.string().max(80).describe("The same phrase in natural English (for Instagram search)"),
-      }),
-    )
+    .array(z.object({ text: keywordText, region: keywordRegion, english: keywordEnglish.optional() }))
     .min(1)
     .max(MAX_KEYWORDS),
   exclusions: z.array(z.string().min(2).max(40)).max(10),
-  competitors: z
-    .array(z.string().min(1).max(40))
-    .max(6)
-    .describe("Brand names of direct competitors or similar products people search for (the saved list if given)"),
+  competitors: competitorsField,
+  ...productFields,
 });
 export type Understanding = z.infer<typeof understandingSchema>;
+
+/**
+ * What the AI actually writes for a plan: only what Reely doesn't know yet, in the order the chat shows it (reply,
+ * then keywords), so it streams in usefully and finishes sooner. A saved product skips its name, description and
+ * audience (and competitors when saved); keywords get English versions only when Reels is on.
+ */
+export function planOutputSchema(o: { knownProduct: boolean; knownCompetitors: boolean; english: boolean }) {
+  return z.object({
+    goal: goalField,
+    reply: z
+      .string()
+      .max(300)
+      .describe("1-2 short sentences (max 30 words) to the user: what they want the clips for and what videos you will look for"),
+    keywords: z
+      .array(z.object({ text: keywordText, region: keywordRegion, ...(o.english ? { english: keywordEnglish } : {}) }))
+      .min(1)
+      .max(MAX_KEYWORDS),
+    exclusions: z.array(z.string().min(2).max(40)).max(8),
+    ...(o.knownCompetitors ? {} : { competitors: competitorsField }),
+    ...(o.knownProduct ? {} : productFields),
+  });
+}
+
+/** A plan while it streams in: any field may still be missing, keywords arrive one by one. */
+export type PlanDraft = Partial<Omit<Understanding, "keywords">> & {
+  keywords?: Partial<Understanding["keywords"][number]>[];
+};
+
+/** What /api/plan sends, one JSON object per line. */
+export type PlanEvent =
+  | { type: "draft"; plan: PlanDraft }
+  | { type: "done"; understanding: Understanding & { source: "ai" | "sample" }; linkRead: boolean | null }
+  | { type: "error" };
+
+/** Run time: English versions of Thai keywords, for Instagram (when Reels was turned on after planning). */
+export const englishKeywordsSchema = z.object({ english: z.array(z.string().max(80)) });
 
 /** Relevance of each search result to the user's product: 0 unrelated, 1 same audience, 2 on topic. */
 export const relevanceSchema = z.object({

@@ -1,5 +1,5 @@
 import "server-only";
-import { generateText, Output } from "ai";
+import { generateText, Output, streamText } from "ai";
 import type { Goal } from "@/lib/goals";
 import type { LinkPreview } from "@/lib/link-preview";
 import { keywordRegions, type RegionChoice } from "@/lib/region";
@@ -21,8 +21,10 @@ import {
   clipIdeasSchema,
   todaySchema,
   scriptSchema,
+  englishKeywordsSchema,
+  type PlanDraft,
+  planOutputSchema,
   type Understanding,
-  understandingSchema,
   type VideoAnalysis,
   videoAnalysisSchema,
 } from "./schemas";
@@ -147,33 +149,53 @@ const REGION_RULE: Record<RegionChoice, string> = {
 };
 
 /**
- * Chat home, step 1: reads the user's description, product page and/or image, then plans the search.
- * Keyword regions are forced to match the region choice, whatever the model returns.
+ * Chat home, step 1: reads the user's description, product page and/or image, then plans the search. `onDraft`
+ * gets the plan as it streams in (a saved product's details at once, then the reply, then keywords one by one).
+ * The AI only writes what is not known yet: a saved product's name, description, audience and competitors come
+ * from memory, and keywords get English versions only when Reels is on (`english`). Keyword regions are forced
+ * to match the region choice, whatever the model returns.
  */
 export async function understandProduct(
-  msg: ProductMessage,
+  msg: ProductMessage & { english?: boolean },
   locale: string,
+  onDraft?: (draft: PlanDraft) => void,
 ): Promise<Understanding & { source: "ai" | "sample" }> {
+  const known = msg.saved
+    ? { productName: msg.saved.name, whatItIs: msg.saved.description ?? "", audience: msg.saved.audience ?? "" }
+    : null;
+  const knownCompetitors = msg.saved?.competitors?.length ? msg.saved.competitors : null;
+  const draftOf = (partial: PlanDraft, count = MAX_KEYWORDS): PlanDraft => {
+    const regions = keywordRegions(msg.region, count);
+    return {
+      ...partial,
+      ...known,
+      ...(knownCompetitors ? { competitors: knownCompetitors } : {}),
+      goal: msg.goal ?? partial.goal,
+      keywords: partial.keywords?.map((k, i) => ({ ...k, region: regions[i] ?? k.region })),
+    };
+  };
+
   const model = getModel();
   if (model) {
     try {
+      if (known) onDraft?.(draftOf({}));
       const prompt = [
         "You are Reely, a research assistant that finds viral short-form videos (TikTok, YouTube Shorts,",
         "Instagram Reels) a user can turn into their own content. Work out what the product is from everything below,",
-        `then plan the search. Write productName, whatItIs, audience and reply in ${languageName(locale)}.`,
+        `then plan the search. Write ${known ? "reply" : "reply, productName, whatItIs and audience"} in ${languageName(locale)}.`,
         "In reply, say in a few words what you think they want the clips for and what kind of videos you will look for.",
         `Keywords: search phrases, 2-4 words each, that people actually type or use as hashtags. ${REGION_RULE[msg.region]}`,
         "Avoid broad or ambiguous phrases that also name unrelated things (e.g. a university faculty, a",
         "celebrity, a TV show): every phrase should still clearly point at the product's topic.",
         ...goalPlan(msg.goal),
-        "competitors: real brand names only (never guess); the saved list if given.",
+        knownCompetitors ? "" : "competitors: real brand names only (never guess).",
         "Exclusions: single words that would bring off-topic videos. Never exclude a word that is part of the",
         "product's own topic or its audience's everyday work (e.g. for accounting software never exclude tax,",
         "finance, ภาษี or การเงิน); exclude only clearly different subjects (e.g. stocks, crypto, gaming).",
         "",
         msg.saved
-          ? `Their saved product: ${msg.saved.name} — ${msg.saved.description ?? ""}. Audience: ${msg.saved.audience ?? ""}. Link: ${msg.saved.url ?? ""}. Keep this product name.` +
-            (msg.saved.competitors?.length ? ` Competitors: ${msg.saved.competitors.join(", ")}.` : "")
+          ? `Their saved product: ${msg.saved.name} — ${msg.saved.description ?? ""}. Audience: ${msg.saved.audience ?? ""}. Link: ${msg.saved.url ?? ""}.` +
+            (knownCompetitors ? ` Competitors: ${knownCompetitors.join(", ")}.` : "")
           : "",
         msg.text
           ? `The user wrote${msg.saved ? " (what to look for this time)" : ""}:\n${msg.text}`
@@ -191,12 +213,14 @@ Text: ${msg.link.text.slice(0, 2000)}`
       ].join("\n");
       const imageData = msg.image?.split(",")[1];
       const mediaType = msg.image?.match(/^data:([^;]+);/)?.[1] ?? "image/jpeg";
-      const { output } = await generateText({
-        // The whole plan (goal, product, 5 keywords with English versions) can take Gemini 20-30 s; a timeout
-        // falls back to much weaker sample keywords, so this step gets more time than the others.
+      const result = streamText({
+        // Gemini can take 20-30 s for a full plan; a timeout falls back to much weaker sample keywords, so this
+        // step gets more time than the others.
         ...aiCallOptions(45_000),
         model,
-        output: Output.object({ schema: understandingSchema }),
+        output: Output.object({
+          schema: planOutputSchema({ knownProduct: !!known, knownCompetitors: !!knownCompetitors, english: !!msg.english }),
+        }),
         messages: [
           {
             role: "user",
@@ -207,11 +231,20 @@ Text: ${msg.link.text.slice(0, 2000)}`
           },
         ],
       });
-      const regions = keywordRegions(msg.region, output.keywords.length);
+      for await (const partial of result.partialOutputStream) onDraft?.(draftOf(partial as PlanDraft));
+      const output = (await result.output) as PlanDraft;
+      const plan = draftOf(output, output.keywords?.length ?? 0);
       return {
-        ...output,
-        goal: msg.goal ?? output.goal,
-        keywords: output.keywords.map((k, i) => ({ ...k, region: regions[i] })),
+        goal: plan.goal ?? "startup",
+        reply: plan.reply ?? "",
+        keywords: (plan.keywords ?? [])
+          .filter((k) => k.text)
+          .map((k) => ({ text: k.text!, region: k.region ?? "th", ...(k.english ? { english: k.english } : {}) })),
+        exclusions: (plan.exclusions ?? []).filter((w): w is string => !!w),
+        competitors: (plan.competitors ?? []).filter((c): c is string => !!c),
+        productName: plan.productName ?? "",
+        whatItIs: plan.whatItIs ?? "",
+        audience: plan.audience ?? "",
         source: "ai",
       };
     } catch (e) {
@@ -238,6 +271,28 @@ Text: ${msg.link.text.slice(0, 2000)}`
     competitors: msg.saved?.competitors ?? [],
     source: "sample",
   };
+}
+
+/** English versions of keywords, for Instagram (its search only understands English). Null when AI is unavailable. */
+export async function englishKeywords(phrases: string[]): Promise<string[] | null> {
+  const model = getModel();
+  if (!model || !phrases.length) return null;
+  try {
+    const { output } = await generateText({
+      ...aiCallOptions(),
+      model,
+      output: Output.object({ schema: englishKeywordsSchema }),
+      prompt: [
+        "Translate each short-video search phrase into the natural English phrase people would search on Instagram.",
+        "Keep brand names. Return one phrase per line, in the same order.",
+        ...phrases.map((p, i) => `${i} | ${p}`),
+      ].join("\n"),
+    });
+    return phrases.map((p, i) => output.english[i]?.trim() || p);
+  } catch (e) {
+    console.warn("[ai] englishKeywords failed", (e as Error).message);
+    return null;
+  }
 }
 
 export type ProductBrief = { name: string; whatItIs: string; audience: string };

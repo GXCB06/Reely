@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
 import { MAX_KEYWORDS } from "@/lib/ai/schemas";
-import { enhanceBrief, ideasForClips, summarizeRun, understandProduct } from "@/lib/ai/tasks";
+import { englishKeywords, enhanceBrief, ideasForClips, summarizeRun } from "@/lib/ai/tasks";
 import { GOALS, type Goal, isGoal, scoreFor } from "@/lib/goals";
-import { readLink } from "@/lib/link-preview";
 import { diverseTop } from "@/lib/results";
+import { looksThai } from "@/lib/region";
 import { keepRate } from "@/lib/scoring";
 import { type ScoredVideo, searchKeywords } from "@/lib/search";
 import { DEFAULT_MIN_VIEWS } from "@/lib/search-settings";
@@ -33,37 +33,6 @@ const imageDataUrl = z
   .max(1_400_000)
   .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/);
 const thumbDataUrl = imageDataUrl.max(60_000);
-
-const messageSchema = z
-  .object({
-    text: z.string().trim().max(1000),
-    url: z.union([z.literal(""), z.string().trim().max(300)]),
-    image: imageDataUrl.nullable(),
-    region: regionChoice,
-    locale,
-    productId,
-    /** Picked by the user (or remembered with the product); null = let AI work it out. */
-    goal: goalChoice.nullable().default(null),
-  })
-  .refine((m) => m.text.length >= 3 || m.url || m.image || m.productId, { message: "empty" });
-
-export type ChatMessageInput = z.infer<typeof messageSchema>;
-
-/** Chat step 1: read the link (if any) and let AI work out the product and plan the keywords. */
-export async function understandAction(input: ChatMessageInput) {
-  const parsed = messageSchema.safeParse(input);
-  if (!parsed.success) return { ok: false as const, error: "empty" };
-  const { text, url, image, region, locale, productId } = parsed.data;
-  const supabase = await createClient();
-  // A saved product ("agent memory"): reuse what we already know instead of asking again, including its goal.
-  const { data: saved } = productId
-    ? await supabase.from("products").select("name, url, description, audience, competitors, goal").eq("id", productId).maybeSingle()
-    : { data: null };
-  const goal = parsed.data.goal ?? (isGoal(saved?.goal) ? saved.goal : null);
-  const link = url ? await readLink(url) : null;
-  const understanding = await understandProduct({ text, link, image, region, saved, goal }, locale);
-  return { ok: true as const, understanding, linkRead: url ? link !== null : null, linkTitle: link?.title ?? null };
-}
 
 /** Chat "Enhance": sharpens a rough line into a brief and says which of the 4 parts it covers. */
 export async function enhanceBriefAction(text: string, lang: string) {
@@ -157,7 +126,14 @@ const resultRow = (runId: string, v: ScoredVideo, rank: number) => ({
 export async function runResearchAction(input: RunInput) {
   const parsed = runSchema.safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
-  const { text, url, imageThumb, understanding, keywords, exclusions, platforms, region, goal, settings, locale } = parsed.data;
+  const { text, url, imageThumb, understanding, exclusions, platforms, region, goal, settings, locale } = parsed.data;
+  let { keywords } = parsed.data;
+  // Plans only include English versions when Reels was on; if Reels was turned on afterwards (or a keyword was
+  // added by hand), translate the Thai ones now (Instagram's search only understands English).
+  if (platforms.includes("instagram") && keywords.some((k) => !k.english && looksThai(k.text))) {
+    const english = await englishKeywords(keywords.map((k) => k.text));
+    if (english) keywords = keywords.map((k, i) => ({ ...k, english: k.english || english[i] }));
+  }
   const brief = (text || `${understanding.productName}: ${understanding.whatItIs}`).slice(0, 1000);
 
   const supabase = await createClient();

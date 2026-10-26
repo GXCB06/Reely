@@ -24,11 +24,11 @@ import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { enhanceBriefAction, runResearchAction, understandAction } from "@/app/[locale]/app/research/actions";
+import { enhanceBriefAction, runResearchAction } from "@/app/[locale]/app/research/actions";
 import { PlatformIcon } from "@/components/platform-icon";
 import { Mascot } from "@/components/mascot";
 import { useRouter } from "@/i18n/navigation";
-import type { Understanding } from "@/lib/ai/schemas";
+import type { PlanDraft, Understanding } from "@/lib/ai/schemas";
 import type { SearchWindow } from "@/lib/adapters/types";
 import { GOALS, type Goal } from "@/lib/goals";
 import { REGION_CHOICES, type RegionChoice } from "@/lib/region";
@@ -41,6 +41,7 @@ import {
   WINDOW_CHOICES,
 } from "@/lib/search-settings";
 import { findLink, hostOf, resizeImage } from "./image-utils";
+import { streamPlan } from "./plan-stream";
 import { RegionIcon } from "./region-flag";
 import { ResearchStory } from "./research-story";
 
@@ -91,6 +92,10 @@ export function ResearchChat({
   const [phase, setPhase] = useState<Phase>("compose");
   const [sent, setSent] = useState<Sent | null>(null);
   const [plan, setPlan] = useState<(Understanding & { source: "ai" | "sample" }) | null>(null);
+  // The plan as it streams in (shown read-only until it is finished).
+  const [draft, setDraft] = useState<PlanDraft | null>(null);
+  // Each plan request gets a number, so events from an older request (before a goal or region switch) are ignored.
+  const planRequest = useRef(0);
   const [keywords, setKeywords] = useState<(Keyword & { on: boolean })[]>([]);
   const [exclusions, setExclusions] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState("");
@@ -106,6 +111,14 @@ export function ResearchChat({
   const link = findLink(text);
   const selected = keywords.filter((k) => k.on);
   const credits = creditEstimate(platforms, selected.length);
+  // While the plan streams in, show the draft with everything disabled; then the finished plan.
+  const drafting = phase === "thinking" && draft !== null;
+  const view: PlanDraft | null = drafting ? draft : phase === "plan" || phase === "running" ? plan : null;
+  const viewKeywords =
+    drafting && draft
+      ? (draft.keywords ?? []).filter((k) => k?.text).map((k) => ({ text: k.text!, region: k.region ?? "th", on: true }))
+      : keywords;
+  const viewExclusions = drafting && draft ? (draft.exclusions ?? []).filter((w): w is string => !!w) : exclusions;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -123,9 +136,12 @@ export function ResearchChat({
   }
 
   function understand(message: Sent, regionChoice: RegionChoice, goalChoice: Goal | null = goal) {
+    const id = ++planRequest.current;
     setPhase("thinking");
-    startTransition(async () => {
-      const res = await understandAction({
+    setDraft(null);
+    let finished = false;
+    streamPlan(
+      {
         text: message.text,
         url: message.link ?? "",
         image: message.image,
@@ -133,20 +149,32 @@ export function ResearchChat({
         locale,
         productId: message.product?.id ?? null,
         goal: goalChoice,
-      }).catch(() => null);
-      setReplanning(false);
-      if (!res?.ok) {
+        english: platforms.includes("instagram"),
+      },
+      (event) => {
+        if (id !== planRequest.current) return;
+        if (event.type === "draft") return setDraft(event.plan);
+        finished = true;
+        setReplanning(false);
+        setDraft(null);
+        if (event.type === "error") return setPhase("error");
+        const u = event.understanding;
+        if (event.linkRead === false) toast.info(t("linkFailed"));
+        if (u.source === "sample") toast.info(t("sampleNotice"));
+        setPlan(u);
+        setGoal(u.goal);
+        setKeywords(u.keywords.map((k) => ({ ...k, on: true })));
+        setExclusions(u.exclusions);
+        setPhase("plan");
+      },
+    )
+      .catch(() => {})
+      .finally(() => {
+        if (finished || id !== planRequest.current) return;
+        setReplanning(false);
+        setDraft(null);
         setPhase("error");
-        return;
-      }
-      if (res.linkRead === false) toast.info(t("linkFailed"));
-      if (res.understanding.source === "sample") toast.info(t("sampleNotice"));
-      setPlan(res.understanding);
-      setGoal(res.understanding.goal);
-      setKeywords(res.understanding.keywords.map((k) => ({ ...k, on: true })));
-      setExclusions(res.understanding.exclusions);
-      setPhase("plan");
-    });
+      });
   }
 
   function send(overrideText?: string) {
@@ -201,7 +229,7 @@ export function ResearchChat({
     const k = newKeyword.trim();
     if (k.length < 2 || keywords.some((x) => x.text === k)) return;
     const on = selected.length < MAX_KEYWORDS;
-    setKeywords((ks) => [...ks, { text: k, region: region === "global" ? "global" : "th", english: k, on }]);
+    setKeywords((ks) => [...ks, { text: k, region: region === "global" ? "global" : "th", english: region === "global" ? k : undefined, on }]);
     setNewKeyword("");
   }
 
@@ -410,7 +438,7 @@ export function ResearchChat({
         <UserBubble text={sent.text} link={sent.link} thumb={sent.thumb} productName={sent.product?.name ?? null} />
 
         <ReelyBubble>
-          {phase === "thinking" && (
+          {phase === "thinking" && !drafting && (
             <p className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
               {replanning ? t("goalReplanning") : t(sent.link ? "thinking.link" : sent.image ? "thinking.image" : "thinking.text")}
@@ -426,9 +454,9 @@ export function ResearchChat({
             </div>
           )}
 
-          {(phase === "plan" || phase === "running") && plan && (
+          {view && (
             <div className="space-y-4">
-              <p className="leading-relaxed">{plan.reply}</p>
+              {view.reply && <p className="leading-relaxed">{view.reply}</p>}
               <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
                 <p className="mb-2 text-sm font-semibold">{t("goalLabel")}</p>
                 <div className="flex flex-wrap gap-1.5">
@@ -436,45 +464,47 @@ export function ResearchChat({
                     <button
                       key={g}
                       type="button"
-                      disabled={phase === "running"}
-                      aria-pressed={plan.goal === g}
+                      disabled={phase !== "plan"}
+                      aria-pressed={view.goal === g}
                       onClick={() => switchGoal(g)}
-                      className={`chip ${plan.goal === g ? "chip-on" : "bg-card"}`}
+                      className={`chip ${view.goal === g ? "chip-on" : "bg-card"}`}
                     >
                       <GoalIcon goal={g} /> {tg(`${g}.label`)}
                     </button>
                   ))}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {tg(`${plan.goal}.desc`)}
+                  {view.goal && tg(`${view.goal}.desc`)}
                   {goalFrom !== "user" && <> · {t(goalFrom === "product" ? "goalRemembered" : "goalGuessed")}</>}
                 </p>
               </div>
-              <dl className="grid gap-1 rounded-2xl bg-muted/60 px-4 py-3 text-sm sm:grid-cols-[auto_1fr] sm:gap-x-4">
-                <dt className="text-muted-foreground">{t("product")}</dt>
-                <dd className="font-medium">
-                  {plan.productName}
-                  {plan.whatItIs && <span className="font-normal text-muted-foreground"> — {plan.whatItIs}</span>}
-                </dd>
-                {plan.audience && (
-                  <>
-                    <dt className="text-muted-foreground">{t("audience")}</dt>
-                    <dd>{plan.audience}</dd>
-                  </>
-                )}
-                {plan.competitors?.length > 0 && (
-                  <>
-                    <dt className="text-muted-foreground">{t("competitors")}</dt>
-                    <dd className="flex flex-wrap gap-1">
-                      {plan.competitors.map((c) => (
-                        <span key={c} className="rounded-full bg-card px-2 py-0.5 text-xs ring-1 ring-border">
-                          {c}
-                        </span>
-                      ))}
-                    </dd>
-                  </>
-                )}
-              </dl>
+              {view.productName && (
+                <dl className="grid gap-1 rounded-2xl bg-muted/60 px-4 py-3 text-sm sm:grid-cols-[auto_1fr] sm:gap-x-4">
+                  <dt className="text-muted-foreground">{t("product")}</dt>
+                  <dd className="font-medium">
+                    {view.productName}
+                    {view.whatItIs && <span className="font-normal text-muted-foreground"> — {view.whatItIs}</span>}
+                  </dd>
+                  {view.audience && (
+                    <>
+                      <dt className="text-muted-foreground">{t("audience")}</dt>
+                      <dd>{view.audience}</dd>
+                    </>
+                  )}
+                  {(view.competitors?.length ?? 0) > 0 && (
+                    <>
+                      <dt className="text-muted-foreground">{t("competitors")}</dt>
+                      <dd className="flex flex-wrap gap-1">
+                        {view.competitors!.filter(Boolean).map((c) => (
+                          <span key={c} className="rounded-full bg-card px-2 py-0.5 text-xs ring-1 ring-border">
+                            {c}
+                          </span>
+                        ))}
+                      </dd>
+                    </>
+                  )}
+                </dl>
+              )}
 
               <div>
                 <div className="mb-2 flex items-baseline justify-between gap-2">
@@ -482,11 +512,11 @@ export function ResearchChat({
                   <p className="text-xs text-muted-foreground">{t("keywordsHint")}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {keywords.map((k) => (
+                  {viewKeywords.map((k) => (
                     <button
                       key={k.text}
                       type="button"
-                      disabled={phase === "running"}
+                      disabled={phase !== "plan"}
                       onClick={() => toggleKeyword(k.text)}
                       className={`chip ${k.on ? "chip-on" : "opacity-60"}`}
                     >
@@ -514,11 +544,11 @@ export function ResearchChat({
               <div>
                 <p className="mb-2 text-sm font-semibold">{t("filterOut")}</p>
                 <div className="flex flex-wrap gap-2">
-                  {exclusions.map((w) => (
+                  {viewExclusions.map((w) => (
                     <button
                       key={w}
                       type="button"
-                      disabled={phase === "running"}
+                      disabled={phase !== "plan"}
                       onClick={() => setExclusions((e) => e.filter((x) => x !== w))}
                       className="chip border-amber-300 bg-amber-50 text-amber-900"
                     >
@@ -539,6 +569,11 @@ export function ResearchChat({
                 </div>
               </div>
 
+              {drafting && (
+                <p className="flex items-center gap-2 border-t pt-3 text-xs text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" /> {t("drafting")}
+                </p>
+              )}
               {phase === "plan" && (
                 <div className="flex flex-wrap items-center gap-2 border-t pt-4">
                   <RegionPicker value={region} onChange={switchRegion} />

@@ -30,6 +30,7 @@ competitors and turn videos into scripts for their own product. Full product spe
 app/[locale]/login            # magic-link sign-in
 app/[locale]/app/...          # signed-in pages (see docs/SPEC.md §4)
 app/auth/callback             # magic-link landing (outside the locale segment)
+app/api/plan/route.ts         # chat step 1, streamed: goal + keyword plan as newline-separated JSON (checks the session itself)
 components/ui/                # shadcn components (generated — don't hand-edit)
 components/shell/             # sidebar, logo
 components/                   # app components (OutlierCard, ...)
