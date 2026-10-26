@@ -1,18 +1,40 @@
 "use client";
 
-import { ArrowUp, CalendarDays, Check, Eye, ImagePlus, Link2, Loader2, Package, Plus, RotateCcw, Search, X } from "lucide-react";
+import {
+  ArrowUp,
+  CalendarDays,
+  Check,
+  Eye,
+  ImagePlus,
+  Languages,
+  Link2,
+  Loader2,
+  Package,
+  Plus,
+  RotateCcw,
+  Search,
+  Sparkles,
+  X,
+} from "lucide-react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { runResearchAction, understandAction } from "@/app/[locale]/app/research/actions";
+import { enhanceBriefAction, runResearchAction, understandAction } from "@/app/[locale]/app/research/actions";
 import { PlatformIcon } from "@/components/platform-icon";
 import { Logo } from "@/components/shell/logo";
 import { useRouter } from "@/i18n/navigation";
 import type { Understanding } from "@/lib/ai/schemas";
 import type { SearchWindow } from "@/lib/adapters/types";
 import { REGION_CHOICES, type RegionChoice } from "@/lib/region";
-import { creditEstimate, DEFAULT_MIN_VIEWS, MIN_VIEWS_CHOICES, WINDOW_CHOICES } from "@/lib/search-settings";
+import {
+  type ContentLanguage,
+  creditEstimate,
+  DEFAULT_MIN_VIEWS,
+  LANGUAGE_CHOICES,
+  MIN_VIEWS_CHOICES,
+  WINDOW_CHOICES,
+} from "@/lib/search-settings";
 import { findLink, hostOf, resizeImage } from "./image-utils";
 import { RegionIcon } from "./region-flag";
 
@@ -51,6 +73,7 @@ export function ResearchChat({
   // Trends move fast: 90 days by default, and only videos with real views.
   const [days, setDays] = useState<SearchWindow>(90);
   const [minViews, setMinViews] = useState<number>(DEFAULT_MIN_VIEWS);
+  const [language, setLanguage] = useState<ContentLanguage>("any");
   const [phase, setPhase] = useState<Phase>("compose");
   const [sent, setSent] = useState<Sent | null>(null);
   const [plan, setPlan] = useState<(Understanding & { source: "ai" | "sample" }) | null>(null);
@@ -59,6 +82,9 @@ export function ResearchChat({
   const [newKeyword, setNewKeyword] = useState("");
   const [newExclusion, setNewExclusion] = useState("");
   const [runStep, setRunStep] = useState(0);
+  // "Enhance": which of the 4 parts of a good brief the text covers (set by the AI after enhancing).
+  const [covered, setCovered] = useState<Record<"topic" | "audience" | "angle" | "avoid", boolean> | null>(null);
+  const [enhancing, setEnhancing] = useState(false);
   const [, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -167,12 +193,18 @@ export function ResearchChat({
         text: sent.text,
         url: sent.link ?? "",
         imageThumb: sent.thumb,
-        understanding: { productName: plan.productName, whatItIs: plan.whatItIs, audience: plan.audience, reply: plan.reply },
+        understanding: {
+          productName: plan.productName,
+          whatItIs: plan.whatItIs,
+          audience: plan.audience,
+          reply: plan.reply,
+          competitors: plan.competitors ?? [],
+        },
         keywords: selected.map(({ text: k, region: r }) => ({ text: k, region: r })),
         exclusions,
         platforms,
         region,
-        settings: { days, minViews },
+        settings: { days, minViews, language },
         productId: sent.product?.id ?? null,
         locale,
       }).catch(() => null);
@@ -251,6 +283,21 @@ export function ResearchChat({
         maxLength={1000}
         className="w-full resize-none bg-transparent px-2 py-1 text-base outline-none placeholder:text-muted-foreground/70"
       />
+      {text.trim().length > 0 && (
+        <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1 text-xs">
+          {(["topic", "audience", "angle", "avoid"] as const).map((k) => (
+            <span
+              key={k}
+              title={t(`brief.${k}Hint`)}
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ${covered?.[k] ? "bg-emerald-50 text-emerald-800" : "bg-muted text-muted-foreground"}`}
+            >
+              {covered?.[k] ? <Check className="size-3" /> : <span className="size-2 rounded-full border border-current" />}
+              {t(`brief.${k}`)}
+            </span>
+          ))}
+          {!covered && <span className="text-muted-foreground">{t("brief.tip")}</span>}
+        </div>
+      )}
       {link && (
         <p className="mb-2 ml-2 inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">
           <Link2 className="size-3" /> {t("linkDetected", { host: hostOf(link) })}
@@ -266,6 +313,23 @@ export function ResearchChat({
           className="grid size-9 place-items-center rounded-full border text-muted-foreground hover:bg-muted"
         >
           <ImagePlus className="size-4" />
+        </button>
+        <button
+          type="button"
+          disabled={enhancing || text.trim().length < 3}
+          onClick={async () => {
+            setEnhancing(true);
+            const res = await enhanceBriefAction(text, locale).catch(() => null);
+            setEnhancing(false);
+            if (!res?.ok) return void toast.error(t("brief.failed"));
+            setText(res.brief);
+            setCovered(res.covered);
+          }}
+          title={t("brief.enhanceHint")}
+          className="inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm text-muted-foreground hover:bg-muted disabled:opacity-40"
+        >
+          {enhancing ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+          {t("brief.enhance")}
         </button>
         <RegionPicker value={region} onChange={setRegion} />
         <PlatformPicker value={platforms} onChange={setPlatforms} />
@@ -342,6 +406,18 @@ export function ResearchChat({
                     <dd>{plan.audience}</dd>
                   </>
                 )}
+                {plan.competitors?.length > 0 && (
+                  <>
+                    <dt className="text-muted-foreground">{t("competitors")}</dt>
+                    <dd className="flex flex-wrap gap-1">
+                      {plan.competitors.map((c) => (
+                        <span key={c} className="rounded-full bg-card px-2 py-0.5 text-xs ring-1 ring-border">
+                          {c}
+                        </span>
+                      ))}
+                    </dd>
+                  </>
+                )}
               </dl>
 
               <div>
@@ -411,7 +487,14 @@ export function ResearchChat({
                 <div className="flex flex-wrap items-center gap-2 border-t pt-4">
                   <RegionPicker value={region} onChange={switchRegion} />
                   <PlatformPicker value={platforms} onChange={setPlatforms} />
-                  <SettingsPicker days={days} minViews={minViews} onDays={setDays} onMinViews={setMinViews} />
+                  <SettingsPicker
+                    days={days}
+                    minViews={minViews}
+                    language={language}
+                    onDays={setDays}
+                    onMinViews={setMinViews}
+                    onLanguage={setLanguage}
+                  />
                   <span className="text-xs text-muted-foreground">
                     {credits ? t("credits", { credits }) : t("free")}
                   </span>
@@ -523,13 +606,17 @@ function RegionPicker({ value, onChange }: { value: RegionChoice; onChange: (r: 
 function SettingsPicker({
   days,
   minViews,
+  language,
   onDays,
   onMinViews,
+  onLanguage,
 }: {
   days: SearchWindow;
   minViews: number;
+  language: ContentLanguage;
   onDays: (d: SearchWindow) => void;
   onMinViews: (n: number) => void;
+  onLanguage: (l: ContentLanguage) => void;
 }) {
   const t = useTranslations("chat");
   const select = "rounded-full border bg-card py-1.5 pr-2 pl-7 text-sm outline-none hover:bg-muted";
@@ -556,6 +643,16 @@ function SettingsPicker({
           {MIN_VIEWS_CHOICES.map((n) => (
             <option key={n} value={n}>
               {t("minViewsN", { n: n / 1000 })}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="relative" title={t("languageHint")}>
+        <Languages className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <select value={language} onChange={(e) => onLanguage(e.target.value as ContentLanguage)} className={select} aria-label={t("languageLabel")}>
+          {LANGUAGE_CHOICES.map((l) => (
+            <option key={l} value={l}>
+              {t(`language.${l}`)}
             </option>
           ))}
         </select>

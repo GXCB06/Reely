@@ -14,6 +14,8 @@ import {
   type FormatDescription,
   formatMatchSchema,
   formatSchema,
+  type Enhanced,
+  enhanceSchema,
   type Script,
   todaySchema,
   scriptSchema,
@@ -63,7 +65,13 @@ export type ProductMessage = {
   image: string | null;
   region: RegionChoice;
   /** A product the user saved earlier ("agent memory"); the text then refines what to look for. */
-  saved?: { name: string; url: string | null; description: string | null; audience: string | null } | null;
+  saved?: {
+    name: string;
+    url: string | null;
+    description: string | null;
+    audience: string | null;
+    competitors?: string[] | null;
+  } | null;
 };
 
 const REGION_RULE: Record<RegionChoice, string> = {
@@ -92,10 +100,14 @@ export async function understandProduct(
         "similar products AND content the same audience watches. " + REGION_RULE[msg.region],
         "Avoid broad or ambiguous phrases that also name unrelated things (e.g. a university faculty, a",
         "celebrity, a TV show): every phrase should still clearly point at the product's topic.",
+        "At least 2 of the phrases must name competitors or well-known similar products, the way people search",
+        "for them (e.g. '<brand> รีวิว', 'สอนใช้ <brand>', '<brand A> vs <brand B>', '<brand> review'): those find",
+        "on-topic videos far better than generic category words. List those brands in competitors.",
         "Exclusions: single words that would bring off-topic videos.",
         "",
         msg.saved
-          ? `Their saved product: ${msg.saved.name} — ${msg.saved.description ?? ""}. Audience: ${msg.saved.audience ?? ""}. Link: ${msg.saved.url ?? ""}. Keep this product name.`
+          ? `Their saved product: ${msg.saved.name} — ${msg.saved.description ?? ""}. Audience: ${msg.saved.audience ?? ""}. Link: ${msg.saved.url ?? ""}. Keep this product name.` +
+            (msg.saved.competitors?.length ? ` Competitors: ${msg.saved.competitors.join(", ")}.` : "")
           : "",
         msg.text
           ? `The user wrote${msg.saved ? " (what to look for this time)" : ""}:\n${msg.text}`
@@ -149,6 +161,7 @@ Text: ${msg.link.text.slice(0, 2000)}`
       : "These are sample keywords (AI is off). Edit them before you search.",
     keywords: plan.keywords.map((text, i) => ({ text, region: regions[i] })),
     exclusions: plan.exclusions,
+    competitors: msg.saved?.competitors ?? [],
     source: "sample",
   };
 }
@@ -522,6 +535,36 @@ export async function matchFormat(
     return { scores, topics: output.topics.map((t) => ({ ...t, examples: t.examples.filter((i) => i < videos.length) })) };
   } catch (e) {
     console.warn("[ai] matchFormat failed", (e as Error).message);
+    return null;
+  }
+}
+
+/**
+ * Chat "Enhance": rewrites a rough description into a brief that covers the topic, who it is for, the
+ * angle and what to avoid (keeping the user's facts, product names and links). Null when AI is off.
+ */
+export async function enhanceBrief(text: string, locale: string): Promise<Enhanced | null> {
+  const model = getModel();
+  if (!model) return null;
+  try {
+    const { output } = await generateText({
+      ...aiCallOptions(),
+      model,
+      output: Output.object({ schema: enhanceSchema }),
+      prompt: [
+        "Rewrite this rough request into a clear brief for finding viral short videos for a founder.",
+        "Cover: 1) the topic / product category, 2) who it is for, 3) the angle or kinds of videos wanted",
+        "(e.g. tutorials, reviews, comparisons, quick tips), 4) what to avoid. Keep every fact, product name,",
+        "competitor and link the user gave; add sensible specifics where missing, without inventing claims.",
+        `Write the brief in ${languageName(locale)} unless the user wrote in another language. Then mark which`,
+        "of the 4 parts the brief covers.",
+        "",
+        `Request:\n${text}`,
+      ].join("\n"),
+    });
+    return output;
+  } catch (e) {
+    console.warn("[ai] enhanceBrief failed", (e as Error).message);
     return null;
   }
 }

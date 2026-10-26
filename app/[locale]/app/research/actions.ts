@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { MAX_KEYWORDS } from "@/lib/ai/schemas";
-import { summarizeRun, understandProduct } from "@/lib/ai/tasks";
+import { enhanceBrief, summarizeRun, understandProduct } from "@/lib/ai/tasks";
 import { readLink } from "@/lib/link-preview";
 import { keepRate } from "@/lib/scoring";
 import { type ScoredVideo, searchKeywords } from "@/lib/search";
@@ -20,6 +20,7 @@ const productId = z.string().uuid().nullable();
 const settingsSchema = z.object({
   days: z.union([z.literal(7), z.literal(30), z.literal(90)]),
   minViews: z.number().int().min(0).max(10_000_000),
+  language: z.enum(["any", "th", "en"]).default("any"),
 });
 // A resized JPEG/PNG/WebP from the composer (~100-300 KB as base64).
 const imageDataUrl = z
@@ -49,11 +50,19 @@ export async function understandAction(input: ChatMessageInput) {
   const supabase = await createClient();
   // A saved product ("agent memory"): reuse what we already know instead of asking again.
   const { data: saved } = productId
-    ? await supabase.from("products").select("name, url, description, audience").eq("id", productId).maybeSingle()
+    ? await supabase.from("products").select("name, url, description, audience, competitors").eq("id", productId).maybeSingle()
     : { data: null };
   const link = url ? await readLink(url) : null;
   const understanding = await understandProduct({ text, link, image, region, saved }, locale);
   return { ok: true as const, understanding, linkRead: url ? link !== null : null, linkTitle: link?.title ?? null };
+}
+
+/** Chat "Enhance": sharpens a rough line into a brief and says which of the 4 parts it covers. */
+export async function enhanceBriefAction(text: string, lang: string) {
+  const parsed = z.object({ text: z.string().trim().min(3).max(1000), lang: locale }).safeParse({ text, lang });
+  if (!parsed.success) return { ok: false as const };
+  const enhanced = await enhanceBrief(parsed.data.text, parsed.data.lang);
+  return enhanced ? { ok: true as const, ...enhanced } : { ok: false as const };
 }
 
 const runSchema = z.object({
@@ -65,6 +74,7 @@ const runSchema = z.object({
     whatItIs: z.string().trim().max(300),
     audience: z.string().trim().max(200),
     reply: z.string().trim().max(400),
+    competitors: z.array(z.string().trim().min(1).max(40)).max(6).default([]),
   }),
   keywords: z
     .array(z.object({ text: z.string().trim().min(2).max(80), region: z.enum(["th", "global"]) }))
@@ -84,8 +94,14 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 /** The run's product: the chosen one, one with the same name, or a new one (up to 5) so it is remembered. */
 async function resolveProduct(supabase: Supabase, input: RunInput): Promise<string | null> {
-  if (input.productId) return input.productId;
-  const { productName, whatItIs, audience } = input.understanding;
+  const { productName, whatItIs, audience, competitors } = input.understanding;
+  if (input.productId) {
+    // Remember competitors the AI found for a saved product that had none yet.
+    if (competitors.length) {
+      await supabase.from("products").update({ competitors }).eq("id", input.productId).is("competitors", null);
+    }
+    return input.productId;
+  }
   const { data: products } = await supabase.from("products").select("id, name");
   const same = products?.find((p) => (p.name as string).trim().toLowerCase() === productName.trim().toLowerCase());
   if (same) return same.id as string;
@@ -97,6 +113,7 @@ async function resolveProduct(supabase: Supabase, input: RunInput): Promise<stri
       url: input.url ? (/^https?:\/\//i.test(input.url) ? input.url : `https://${input.url}`) : null,
       description: whatItIs || null,
       audience: audience || null,
+      competitors: competitors.length ? competitors : null,
       language: input.locale,
     })
     .select("id")
@@ -218,7 +235,7 @@ export async function refreshRunAction(id: string) {
 
   const sinceDays = (Date.now() - lastAt) / 864e5;
   const days = sinceDays <= 7 ? 7 : sinceDays <= 30 ? 30 : 90;
-  const settings = (run.settings as { minViews?: number } | null) ?? {};
+  const settings = (run.settings as { minViews?: number; language?: "any" | "th" | "en" } | null) ?? {};
   const input = (run.input ?? {}) as { productName?: string; whatItIs?: string; audience?: string };
   const regions = (run.keyword_regions as ("th" | "global")[] | null) ?? [];
   const keywords = (run.keywords as string[]).map((text, i) => ({ text, region: regions[i] ?? ("th" as const) }));
@@ -230,7 +247,7 @@ export async function refreshRunAction(id: string) {
     keywords,
     run.platforms as ("tiktok" | "youtube" | "instagram")[],
     (run.exclusions as string[]) ?? [],
-    { product, days, minViews: settings.minViews ?? DEFAULT_MIN_VIEWS },
+    { product, days, minViews: settings.minViews ?? DEFAULT_MIN_VIEWS, language: settings.language },
   );
   const { data: existing } = await supabase.from("run_results").select("video_id, rank").eq("run_id", run.id);
   const have = new Set((existing ?? []).map((r) => r.video_id as number));

@@ -45,6 +45,13 @@ the user's product. Saved in `daily_digests`, so reopening costs nothing.
   clip: how to do it (keep the same / make it yours), who it works for (B2B, consumer, local), what topics people
   applied it to, sounds used, videos posted per day and its stage (fresh / rising / steady / fading).
 
+**Search quality and speed (2026-10-26, after comparing with Virlo's agent setup):** TikTok keywords alternate
+most-liked and Top search (median views 1.8K → ~15-18K per search in a test, same credits); products store
+competitors and at least 2 keywords name them ("<brand> รีวิว", "สอนใช้ <brand>"); "Enhance" rewrites a rough
+line into a brief and ticks topic / audience / angle / avoid; optional caption-language filter (Thai / English);
+covers are copied to Supabase Storage (vendor links expire); Vercel functions run in Singapore; a loading
+skeleton shows on every page switch.
+
 ## 3. Not in the MVP
 
 Open-ended Copilot chat (the Home chat only runs the research flow) · bring-your-own AI keys · automatic alerts (LINE/Telegram) · content trends, hashtags, sounds · Meta ads in-app

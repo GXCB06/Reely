@@ -139,7 +139,29 @@
     "windowDays": "Last {n} days",
     "minViewsLabel": "Minimum views",
     "minViewsHint": "Only videos with at least this many views.",
-    "minViewsN": "{n}K+ views"
+    "minViewsN": "{n}K+ views",
+    "competitors": "Competitors",
+    "languageLabel": "Caption language",
+    "languageHint": "Keep only videos whose caption is in this language.",
+    "language": {
+      "any": "Any language",
+      "th": "Thai only",
+      "en": "English only"
+    },
+    "brief": {
+      "topic": "Topic",
+      "audience": "Who it’s for",
+      "angle": "Angle",
+      "avoid": "What to avoid",
+      "topicHint": "e.g. AI accounting software",
+      "audienceHint": "e.g. Thai SME owners and accounting offices",
+      "angleHint": "e.g. tutorials, reviews, comparisons, quick tips",
+      "avoidHint": "e.g. investing, crypto",
+      "tip": "Tap Enhance to sharpen it",
+      "enhance": "Enhance",
+      "enhanceHint": "Let AI turn your rough line into a sharper brief",
+      "failed": "Couldn’t enhance right now. You can still send it as is."
+    }
   },
   "search": {
     "title": "Test search",
@@ -292,7 +314,9 @@
     "deleteConfirm": "Delete “{name}”? Its research chats stay.",
     "noDescription": "No description yet",
     "researchCount": "{n, plural, =0 {No research yet} one {# research} other {# researches}}",
-    "research": "Research"
+    "research": "Research",
+    "competitors": "Competitors or similar brands",
+    "competitorsHint": "Comma-separated, e.g. FlowAccount, PEAK, Xero. Reely searches “<brand> review”, “how to use <brand>”, comparisons."
   },
   "script": {
     "needProduct": "Add your product first, so Reely can adapt this video for you.",

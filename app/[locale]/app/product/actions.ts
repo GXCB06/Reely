@@ -12,6 +12,8 @@ const productSchema = z.object({
   url: z.union([z.literal(""), z.string().trim().url().max(300)]),
   description: z.string().trim().max(1000),
   audience: z.string().trim().max(300),
+  /** Comma-separated brand names; stored as a list (max 6). */
+  competitors: z.string().trim().max(300),
   language: z.enum(["th", "en"]),
 });
 
@@ -23,8 +25,19 @@ export async function saveProductAction(form: ProductForm, id?: string | null) {
   if (!parsed.success) return { ok: false as const, field: String(parsed.error.issues[0]?.path[0] ?? "") };
   const productId = z.string().uuid().nullish().safeParse(id);
   if (!productId.success) return { ok: false as const, field: "" };
-  const { url, description, audience, ...rest } = parsed.data;
-  const values = { ...rest, url: url || null, description: description || null, audience: audience || null };
+  const { url, description, audience, competitors, ...rest } = parsed.data;
+  const list = competitors
+    .split(/[,\n]/)
+    .map((c) => c.trim().slice(0, 40))
+    .filter(Boolean)
+    .slice(0, 6);
+  const values = {
+    ...rest,
+    url: url || null,
+    description: description || null,
+    audience: audience || null,
+    competitors: list.length ? list : null,
+  };
 
   const supabase = await createClient();
   if (productId.data) {

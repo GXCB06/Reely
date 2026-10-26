@@ -4,6 +4,7 @@ import { DEFAULT_WINDOW, type NormalizedVideo, type Platform, type SearchRegion 
 import type { SearchSettings } from "@/lib/search-settings";
 import { type ProductBrief, rateRelevance } from "@/lib/ai/tasks";
 import { getFreshCreator, saveCreator, saveVideos } from "@/lib/cache";
+import { captionLanguage } from "@/lib/region";
 import { isExcluded } from "@/lib/results";
 import {
   bestScore,
@@ -71,10 +72,12 @@ export async function searchKeywords(
   const days = opts.days ?? DEFAULT_WINDOW;
   const since = Date.now() - days * 864e5;
   const errors: string[] = [];
-  const jobs = keywords.flatMap(({ text: keyword, region }) =>
+  // Alternate the two rankings that surface viral videos: most-liked and the platform's "Top" (same cost).
+  const jobs = keywords.flatMap(({ text: keyword, region }, i) =>
     platforms.map(async (p) => {
       try {
-        const found = await adapters[p].searchVideos(keyword, { region, days });
+        const order = i % 2 === 0 ? "popular" : "top";
+        const found = await adapters[p].searchVideos(keyword, { region, days, order });
         return found.map((v) => ({ ...v, keyword }));
       } catch (e) {
         errors.push(`${p} "${keyword}": ${(e as Error).message}`);
@@ -96,6 +99,7 @@ export async function searchKeywords(
       passesNoiseFilter(v.views, v.creatorFollowers) &&
       (v.views ?? 0) >= (opts.minViews ?? 0) &&
       (!v.publishedAt || new Date(v.publishedAt).getTime() >= since) &&
+      (!opts.language || opts.language === "any" || captionLanguage(v) === opts.language) &&
       !isExcluded(v.caption, exclusions),
   );
   // AI relevance check before any paid baseline lookups, so off-topic creators cost nothing.

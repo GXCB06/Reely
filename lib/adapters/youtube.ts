@@ -97,6 +97,8 @@ export const youtubeAdapter: PlatformAdapter = {
           maxResults: "25",
           publishedAfter: since,
           q: keyword,
+          // Most-viewed first, like TikTok's most-liked; "top" keeps YouTube's own relevance ranking.
+          order: opts?.order === "top" ? "relevance" : "viewCount",
           ...(opts?.region === "global" ? { relevanceLanguage: "en" } : { regionCode: "TH", relevanceLanguage: "th" }),
         });
     return loadVideosWithChannels((data?.items ?? []).map((i) => i.id.videoId));

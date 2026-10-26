@@ -24,6 +24,10 @@ export const understandingSchema = z.object({
     .min(1)
     .max(MAX_KEYWORDS),
   exclusions: z.array(z.string().min(2).max(40)).max(10),
+  competitors: z
+    .array(z.string().min(1).max(40))
+    .max(6)
+    .describe("Brand names of direct competitors or similar products people search for (the saved list if given)"),
 });
 export type Understanding = z.infer<typeof understandingSchema>;
 
@@ -136,3 +140,15 @@ export const formatMatchSchema = z.object({
     )
     .max(6),
 });
+
+/** Chat "Enhance": a rough line rewritten into a brief, plus which of the 4 parts it now covers. */
+export const enhanceSchema = z.object({
+  brief: z.string().max(1000).describe("The improved brief, 2-4 sentences, in the user's language"),
+  covered: z.object({
+    topic: z.boolean(),
+    audience: z.boolean(),
+    angle: z.boolean(),
+    avoid: z.boolean(),
+  }),
+});
+export type Enhanced = z.infer<typeof enhanceSchema>;

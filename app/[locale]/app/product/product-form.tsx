@@ -49,6 +49,12 @@ export function ProductForm({ initial, id = null }: { initial: Values; id?: stri
         <Textarea rows={4} maxLength={1000} value={values.description} onChange={set("description")} className="bg-white" />,
       )}
       {field("audience", t("audience"), t("audienceHint"), <Input maxLength={300} value={values.audience} onChange={set("audience")} className="bg-white" />)}
+      {field(
+        "competitors",
+        t("competitors"),
+        t("competitorsHint"),
+        <Input maxLength={300} value={values.competitors} onChange={set("competitors")} placeholder="FlowAccount, PEAK, Xero" className="bg-white" />,
+      )}
       <div className="space-y-1.5">
         <span className="text-sm font-medium">{t("language")}</span>
         <div className="flex gap-2">

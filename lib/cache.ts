@@ -1,6 +1,7 @@
 import "server-only";
 import type { NormalizedVideo, Platform } from "@/lib/adapters/types";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { storeThumbnails } from "@/lib/thumbs";
 
 // Shared 24-hour cache (CLAUDE.md cost rule 4). All functions are no-ops until Supabase is configured.
 const TTL_MS = 24 * 60 * 60 * 1000;
@@ -46,6 +47,24 @@ export async function saveVideos(videos: NormalizedVideo[]): Promise<Map<string,
   const ids = new Map<string, number>();
   const admin = createAdminClient();
   if (!admin || !videos.length) return ids;
+
+  // Covers already copied to our storage keep that URL; new ones are copied now (vendor links expire).
+  const stored = new Map<string, string>();
+  for (const platform of [...new Set(videos.map((v) => v.platform))]) {
+    const { data: rows } = await admin
+      .from("videos")
+      .select("platform, platform_video_id, thumbnail_url")
+      .eq("platform", platform)
+      .in("platform_video_id", videos.filter((v) => v.platform === platform).map((v) => v.platformVideoId))
+      .like("thumbnail_url", "%/storage/v1/object/public/thumbs/%");
+    rows?.forEach((r) => stored.set(`${r.platform}:${r.platform_video_id}`, r.thumbnail_url as string));
+  }
+  const fresh = await storeThumbnails(videos, new Set(stored.keys()));
+  const thumbOf = (v: NormalizedVideo) => {
+    const key = `${v.platform}:${v.platformVideoId}`;
+    return stored.get(key) ?? fresh.get(key) ?? v.thumbnailUrl;
+  };
+
   const { data } = await admin
     .from("videos")
     .upsert(
@@ -53,7 +72,7 @@ export async function saveVideos(videos: NormalizedVideo[]): Promise<Map<string,
         platform: v.platform,
         platform_video_id: v.platformVideoId,
         url: v.url,
-        thumbnail_url: v.thumbnailUrl,
+        thumbnail_url: thumbOf(v),
         caption: v.caption,
         creator_handle: v.creatorHandle,
         creator_followers: v.creatorFollowers,

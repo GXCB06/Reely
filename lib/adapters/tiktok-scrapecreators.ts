@@ -13,9 +13,14 @@ const BASE = "https://api.scrapecreators.com";
 type Media = { url_list?: string[] };
 type Aweme = {
   aweme_id: string;
+  /** Top search uses `id` instead of `aweme_id`, and also returns photo carousels. */
+  id?: string;
+  content_type?: string;
+  desc_language?: string;
   desc?: string;
   url?: string;
-  create_time?: number;
+  /** Unix seconds; the Top search returns an ISO string instead. */
+  create_time?: number | string;
   statistics?: {
     play_count?: number;
     digg_count?: number;
@@ -48,6 +53,12 @@ function pickThumbnail(video: Aweme["video"]): string | null {
   return urls.find((u) => !/\.heic(\?|~|$)/i.test(u)) ?? urls[0] ?? null;
 }
 
+function publishedAt(t: Aweme["create_time"]): string | null {
+  if (t === undefined || t === null || t === "") return null;
+  const d = typeof t === "number" || /^\d+$/.test(t) ? new Date(Number(t) * 1000) : new Date(t);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 function soundOf(m: Aweme["music"]): NormalizedVideo["sound"] {
   const id = m?.id_str ?? (m?.id !== undefined ? String(m.id) : null);
   if (!m || !id || id === "0") return null;
@@ -61,8 +72,8 @@ function toVideo(a: Aweme): NormalizedVideo {
   const rawDuration = a.video?.duration ?? null;
   return {
     platform: "tiktok",
-    platformVideoId: a.aweme_id,
-    url: a.url ?? `https://www.tiktok.com/@${handle}/video/${a.aweme_id}`,
+    platformVideoId: a.aweme_id ?? a.id ?? "",
+    url: a.url ?? `https://www.tiktok.com/@${handle}/video/${a.aweme_id ?? a.id}`,
     thumbnailUrl: pickThumbnail(a.video),
     caption: a.desc ?? "",
     creatorHandle: handle,
@@ -74,10 +85,11 @@ function toVideo(a: Aweme): NormalizedVideo {
     shares: s.share_count ?? null,
     saves: s.collect_count ?? null,
     durationSeconds: rawDuration === null ? null : rawDuration > 1000 ? Math.round(rawDuration / 1000) : rawDuration,
-    publishedAt: a.create_time ? new Date(a.create_time * 1000).toISOString() : null,
+    publishedAt: publishedAt(a.create_time),
     country: a.region && /^[A-Z]{2}$/.test(a.region) ? a.region : null,
     hasShop: Boolean(a.shop_product_url),
     sound: soundOf(a.music),
+    language: a.desc_language || null,
   };
 }
 
@@ -85,15 +97,22 @@ export const tiktokAdapter: PlatformAdapter = {
   platform: "tiktok",
 
   async searchVideos(keyword, opts) {
+    const when = DATE_POSTED[opts?.days ?? DEFAULT_WINDOW];
+    // Sets where the search runs from (not a hard filter): Thai results from TH, worldwide from US.
+    const region = opts?.region === "global" ? "US" : "TH";
+    if (opts?.order === "top") {
+      type TopRes = { items?: Aweme[] };
+      const data = fixturesEnabled()
+        ? await readFixture<TopRes>("tiktok-search-top")
+        : await call<TopRes>("/v1/tiktok/search/top", { query: keyword, publish_time: when, region });
+      return (data?.items ?? [])
+        .filter((a) => (a.aweme_id ?? a.id) && (!a.content_type || a.content_type === "video"))
+        .map(toVideo);
+    }
     type Res = { search_item_list?: (Aweme & { aweme_info?: Aweme })[] };
     const data = fixturesEnabled()
       ? await readFixture<Res>("tiktok-search")
-      : await call<Res>("/v1/tiktok/search/keyword", {
-          query: keyword,
-          date_posted: DATE_POSTED[opts?.days ?? DEFAULT_WINDOW],
-          // Sets where the search runs from (not a hard filter): Thai results from TH, worldwide from US.
-          region: opts?.region === "global" ? "US" : "TH",
-        });
+      : await call<Res>("/v1/tiktok/search/keyword", { query: keyword, date_posted: when, sort_by: "most-liked", region });
     return (data?.search_item_list ?? []).map((item) => toVideo(item.aweme_info ?? item));
   },
 

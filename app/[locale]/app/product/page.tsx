@@ -13,7 +13,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/app/p
   const t = await getTranslations("product");
   const supabase = await createClient();
   const [{ data: products }, { data: runs }] = await Promise.all([
-    supabase.from("products").select("id, name, url, description, audience, language").order("created_at"),
+    supabase.from("products").select("id, name, url, description, audience, competitors, language").order("created_at"),
     supabase.from("research_runs").select("product_id").not("product_id", "is", null),
   ]);
   const runCount = new Map<string, number>();
@@ -58,6 +58,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/app/p
                   url: p.url ?? "",
                   description: p.description ?? "",
                   audience: p.audience ?? "",
+                  competitors: ((p.competitors as string[] | null) ?? []).join(", "),
                   language: p.language === "en" ? "en" : "th",
                 }}
               />
@@ -68,7 +69,9 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/app/p
         {list.length < MAX_PRODUCTS ? (
           <section className="space-y-3 pt-4">
             <h2 className="font-heading text-lg font-bold">{list.length ? t("addAnother") : t("addFirst")}</h2>
-            <ProductForm initial={{ name: "", url: "", description: "", audience: "", language: locale === "en" ? "en" : "th" }} />
+            <ProductForm
+              initial={{ name: "", url: "", description: "", audience: "", competitors: "", language: locale === "en" ? "en" : "th" }}
+            />
           </section>
         ) : (
           <p className="text-sm text-muted-foreground">{t("limit")}</p>
