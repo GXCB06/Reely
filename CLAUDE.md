@@ -74,7 +74,10 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 3. Usual-views lookups only for the top 5 creators per platform in a run, and for tracked accounts.
 4. Before any external call, check the 24-hour cache (`lib/cache.ts`).
 5. Tracked accounts refresh only when their page is opened, max once per 24 h.
-6. Transcripts only when the user requests the breakdown; try the caption first.
+6. Transcripts only when the user presses "Read what the clip says" on the video page (`lib/hook-breakdown.ts`):
+   1 credit the first time anyone reads a clip, then cached for everyone in `video_transcripts` (a clip with no
+   speech is remembered as 'none'); max 100 a day; clips over 2 minutes are not sent. The caption-based breakdown
+   stays the free default.
 7. Every external call goes through `lib/usage.ts` to log to `api_usage`.
 8. Develop and test with `USE_FIXTURES=true` (the default). Never call real APIs in loops, tests,
    or seed scripts.

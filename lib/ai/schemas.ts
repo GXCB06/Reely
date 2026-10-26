@@ -99,6 +99,30 @@ export const clipIdeasSchema = z.object({
   ),
 });
 
+/** The parts a short video can have, for the real-hook breakdown. */
+export const HOOK_BEATS = ["hook", "setup", "problem", "demo", "proof", "story", "twist", "payoff", "cta"] as const;
+
+/** Video page, from the clip's timed transcript: the opening line as spoken, and the structure with timing. */
+export const hookBreakdownSchema = z.object({
+  hook: z.string().describe("The opening line exactly as spoken, copied from the transcript (what viewers hear first)"),
+  hookTranslated: z.string().describe("The opening line in the user's language, or an empty string when it already is"),
+  hookType: z.string().describe("Short label, e.g. question, bold claim, POV, problem callout, list, story, how-to, shock"),
+  hookWhy: z.string().describe("1-2 sentences: why this opening stops the scroll"),
+  beats: z
+    .array(
+      z.object({
+        label: z.enum(HOOK_BEATS),
+        start: z.number().min(0),
+        end: z.number().min(0),
+        summary: z.string().describe("What happens in this part, max 15 words"),
+      }),
+    )
+    .min(2)
+    .max(7),
+  cta: z.string().describe("What the video asks viewers to do at the end, or 'none'"),
+});
+export type HookBreakdown = z.infer<typeof hookBreakdownSchema>;
+
 export const videoAnalysisSchema = z.object({
   hook: z.string().describe("The opening line or on-screen hook, quoted or closely paraphrased from the caption"),
   hookType: z.string().describe("Short label, e.g. question, bold claim, POV, problem callout, list, story, how-to"),

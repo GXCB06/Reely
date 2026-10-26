@@ -3,6 +3,7 @@ import { generateText, Output, streamText } from "ai";
 import type { Feedback } from "@/lib/feedback";
 import type { Goal } from "@/lib/goals";
 import type { LinkPreview } from "@/lib/link-preview";
+import { firstSeconds, type Segment } from "@/lib/transcript";
 import { keywordRegions, type RegionChoice } from "@/lib/region";
 import { formatMultiplier } from "@/lib/scoring";
 import { aiCallOptions, getModel, languageName } from "./model";
@@ -19,6 +20,8 @@ import {
   type Enhanced,
   enhanceSchema,
   type Script,
+  type HookBreakdown,
+  hookBreakdownSchema,
   clipIdeasSchema,
   todaySchema,
   scriptSchema,
@@ -460,7 +463,58 @@ export async function analyzeVideo(v: VideoInput, locale: string): Promise<Video
 }
 
 export type ProductInput = { name: string; url: string | null; description: string | null; audience: string | null };
-type ScriptVideoInput = VideoInput & { hook: string | null; format: string | null; angle: string | null };
+type ScriptVideoInput = VideoInput & {
+  hook: string | null;
+  format: string | null;
+  angle: string | null;
+  /** From the clip's transcript, when the user read it: what is really said first, and the parts with timing. */
+  spoken?: { hook: string; beats: { label: string; start: number; end: number; summary: string }[] } | null;
+};
+
+/** Transcript lines for a prompt, capped so a long talking-head clip doesn't crowd it out. */
+function transcriptLines(segments: Segment[], maxChars = 4000): string[] {
+  const out: string[] = [];
+  let used = 0;
+  for (const s of segments) {
+    const line = `[${s.start.toFixed(1)}-${s.end.toFixed(1)}] ${s.text}`;
+    if (used + line.length > maxChars) break;
+    out.push(line);
+    used += line.length;
+  }
+  return out;
+}
+
+/** Video page: the real hook and structure, from the clip's timed transcript. Null when AI is unavailable or fails. */
+export async function breakDownHook(
+  v: { caption: string; platform: string; handle: string; duration: number | null },
+  segments: Segment[],
+  locale: string,
+): Promise<HookBreakdown | null> {
+  const model = getModel();
+  if (!model || !segments.length) return null;
+  try {
+    const { output } = await generateText({
+      ...aiCallOptions(30_000),
+      model,
+      output: Output.object({ schema: hookBreakdownSchema }),
+      prompt: [
+        `Break down how this ${v.platform} video by @${v.handle} is built, from its timed transcript.`,
+        `Write hookTranslated, hookType, hookWhy, the beat summaries and cta in ${languageName(locale)}.`,
+        "hook: copy the opening line exactly as spoken, in its own language (finish the sentence if the 3-second estimate cuts it).",
+        "beats: the parts of the video in order, with start and end in seconds, covering the whole video; the first beat is the hook.",
+        v.duration ? `Video length: ${v.duration} s.` : "",
+        `Spoken in about the first 3 seconds: ${firstSeconds(segments, 3)}`,
+        `Caption: ${v.caption.slice(0, 300).replace(/\s+/g, " ")}`,
+        "Transcript ([start-end seconds] text):",
+        ...transcriptLines(segments),
+      ].join("\n"),
+    });
+    return output;
+  } catch (e) {
+    console.warn("[ai] breakDownHook failed", (e as Error).message);
+    return null;
+  }
+}
 
 /** "Make my version": adapt the structure of an outlier video to the user's product. */
 export async function makeMyVersion(
@@ -495,6 +549,14 @@ export async function makeMyVersion(
           v.hook ? `Its hook: ${v.hook}` : "",
           v.format ? `Its format: ${v.format}` : "",
           v.angle ? `Its angle: ${v.angle}` : "",
+          ...(v.spoken
+            ? [
+                `What it actually says first (transcript): "${v.spoken.hook}". Use the same KIND of opening, in new words.`,
+                v.spoken.beats.length
+                  ? `Its real structure: ${v.spoken.beats.map((b) => `${b.label} ${b.start.toFixed(0)}-${b.end.toFixed(0)}s (${b.summary})`).join("; ")}. Match this pacing: start each beat at about the same time.`
+                  : "",
+              ]
+            : []),
           `Its caption: ${v.caption.slice(0, 400)}`,
         ].join("\n"),
       });

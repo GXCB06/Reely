@@ -592,5 +592,35 @@
     "formatsHint": "More creators posting them this week",
     "formatsEmpty": "No rising formats yet. Open any video and press \"Same format\".",
     "formatStat": "{n, plural, one {# creator} other {# creators}} this week"
+  },
+  "hook": {
+    "title": "The real hook",
+    "intro": "Read what the clip actually says: the first 3 seconds as spoken, its parts with timing, and how much of it is talk. \"Make my version\" scripts then borrow the real structure too.",
+    "read": "Read what the clip says (~1 credit)",
+    "reading": "Listening to the clip… about 5-30 seconds",
+    "firstSeconds": "First 3 seconds (as spoken)",
+    "startsAt": "talking from {s}s",
+    "talkShare": "talk in {p}% of the clip",
+    "length": "{t} long",
+    "structure": "Structure over time",
+    "cta": "Ends with:",
+    "transcript": "Everything said in the clip",
+    "none": "This clip has no speech or captions to read (music or on-screen text only). See the caption-based breakdown below.",
+    "tooLong": "Clips over 2 minutes can't be read. See the caption-based breakdown below.",
+    "limit": "Today's transcript limit is used up. Try again tomorrow.",
+    "failed": "Couldn't read the clip. Try again.",
+    "analysisFailed": "Got the words, but the AI couldn't break down the structure yet.",
+    "retry": "Try again",
+    "beat": {
+      "hook": "Hook",
+      "setup": "Setup",
+      "problem": "Problem",
+      "demo": "Demo",
+      "proof": "Proof",
+      "story": "Story",
+      "twist": "Twist",
+      "payoff": "Payoff",
+      "cta": "CTA"
+    }
   }
 }

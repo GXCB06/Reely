@@ -15,6 +15,9 @@ import { formatMultiplier, labelFor, reachScore, usualScore } from "@/lib/scorin
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { SavedScript } from "./actions";
+import type { HookBreakdown } from "@/lib/ai/schemas";
+import type { Segment } from "@/lib/transcript";
+import { HookPanel } from "./hook-panel";
 import { ScriptPanel } from "./script-panel";
 
 type Scores = { usual: number | null; reach: number | null };
@@ -89,13 +92,24 @@ export default async function VideoPage({ params }: PageProps<"/[locale]/app/vid
   const { data: video } = await supabase.from("videos").select("*").eq("id", videoId).maybeSingle<VideoRow>();
   if (!video) notFound();
 
-  const [{ data: creator }, { data: savedRow }, { data: product }, { data: scripts }, { data: trackedRow }] = await Promise.all([
+  const [{ data: creator }, { data: savedRow }, { data: product }, { data: scripts }, { data: trackedRow }, { data: transcript }] = await Promise.all([
     supabase.from("creators").select("usual_views").eq("platform", video.platform).eq("handle", video.creator_handle).maybeSingle(),
     supabase.from("saved_videos").select("video_id").eq("video_id", videoId).maybeSingle(),
     supabase.from("products").select("id, name, goal").order("created_at"),
     supabase.from("scripts").select("id, content, created_at").eq("video_id", videoId).order("created_at", { ascending: false }),
     supabase.from("tracked_accounts").select("id").eq("platform", video.platform).eq("handle", video.creator_handle).maybeSingle(),
+    supabase.from("video_transcripts").select("status, segments, breakdowns").eq("video_id", videoId).maybeSingle(),
   ]);
+  // The real hook, when anyone has read this clip's transcript before (shared, so it shows at once).
+  const hookInitial =
+    transcript?.status === "none"
+      ? ("none" as const)
+      : transcript
+        ? {
+            segments: transcript.segments as Segment[],
+            breakdown: ((transcript.breakdowns ?? {}) as Record<string, HookBreakdown>)[locale] ?? null,
+          }
+        : null;
   const usualViews = (creator?.usual_views as number | null) ?? null;
   const scores = { usual: usualScore(video.views, usualViews), reach: reachScore(video.views, video.creator_followers) };
   const label = labelFor(scores.usual, scores.reach, { views: video.views, followers: video.creator_followers });
@@ -172,6 +186,11 @@ export default async function VideoPage({ params }: PageProps<"/[locale]/app/vid
                 </div>
               ))}
           </div>
+
+          <section>
+            <h2 className="mb-3 font-heading text-xl font-bold">{(await getTranslations("hook"))("title")}</h2>
+            <HookPanel videoId={video.id} duration={video.duration_seconds} initial={hookInitial} />
+          </section>
 
           <section>
             <h2 className="mb-3 font-heading text-xl font-bold">{t("breakdown")}</h2>
