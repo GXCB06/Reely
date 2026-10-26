@@ -8,5 +8,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
   return {
     locale,
     messages: (await import(`../messages/${locale}.json`)).default,
+    // Users are in Thailand; servers run in UTC, which showed "today" as yesterday before 7 am.
+    timeZone: "Asia/Bangkok",
   };
 });
