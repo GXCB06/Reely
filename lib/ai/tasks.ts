@@ -468,7 +468,7 @@ type ScriptVideoInput = VideoInput & {
   format: string | null;
   angle: string | null;
   /** From the clip's transcript, when the user read it: what is really said first, and the parts with timing. */
-  spoken?: { hook: string; beats: { label: string; start: number; end: number; summary: string }[] } | null;
+  spoken?: { hook: string; beats: { label: string; start: number; end: number; summary: string }[]; duration: number | null } | null;
 };
 
 /** Transcript lines for a prompt, capped so a long talking-head clip doesn't crowd it out. */
@@ -532,7 +532,7 @@ export async function makeMyVersion(
         model,
         output: Output.object({ schema: scriptSchema }),
         prompt: [
-          `Write a short-form video script for the product below, in ${languageName(locale)}.`,
+          `Write a short-form video script for the product below. Write every field (including title, caption and borrowed) in ${languageName(locale)}.`,
           "Borrow the STRUCTURE of the reference video (hook style, format, pacing, angle) — never copy its",
           "words, jokes or footage. Make it filmable by a founder with a phone in one take. 20-45 seconds.",
           ...(goal ? [`The user ${GOAL_BRIEF[goal]}.`, ...GOAL_BEATS[goal]] : ["Beats in order: hook, setup, demo, payoff, cta."]),
@@ -555,6 +555,7 @@ export async function makeMyVersion(
                 v.spoken.beats.length
                   ? `Its real structure: ${v.spoken.beats.map((b) => `${b.label} ${b.start.toFixed(0)}-${b.end.toFixed(0)}s (${b.summary})`).join("; ")}. Match this pacing: start each beat at about the same time.`
                   : "",
+                v.spoken.duration ? `It runs ${Math.round(v.spoken.duration)} s: keep durationSeconds within about 30% of that (10-45 s).` : "",
               ]
             : []),
           `Its caption: ${v.caption.slice(0, 400)}`,

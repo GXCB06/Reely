@@ -52,8 +52,8 @@ export async function makeMyVersionAction(videoId: number, locale: string, produ
   const spoken =
     transcript?.status === "ok"
       ? real
-        ? { hook: real.hook, beats: real.beats }
-        : { hook: firstSeconds(transcript.segments as Segment[], 3), beats: [] }
+        ? { hook: real.hook, beats: real.beats, duration: video.duration_seconds }
+        : { hook: firstSeconds(transcript.segments as Segment[], 3), beats: [], duration: video.duration_seconds }
       : null;
 
   const script = await makeMyVersion(
