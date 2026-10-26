@@ -287,11 +287,18 @@
     "clearTag": "Remove the hashtag filter",
     "ideasWriting": "Reely is writing an idea for each clip…",
     "ideasFailed": "Couldn't write the ideas yet.",
-    "ideasRetry": "Try again"
+    "ideasRetry": "Try again",
+    "teachHint": "Tap 👍/👎 under a clip to teach Reely what works for {product}",
+    "learnedFrom": "This research learned from your 👍 {liked} · 👎 {disliked} earlier votes"
   },
   "card": {
     "save": "Save",
-    "saved": "Saved"
+    "saved": "Saved",
+    "useful": "Useful for this product?",
+    "upTip": "Useful: the next research for this product looks for more clips like this",
+    "downTip": "Not useful: the next research leaves this clip out and looks for fewer like it",
+    "learned": "Reely will remember: the next research for this product uses it as an example",
+    "voteFailed": "Couldn't save that. Try again."
   },
   "video": {
     "back": "Home",

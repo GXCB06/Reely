@@ -1,5 +1,6 @@
 import "server-only";
 import { generateText, Output, streamText } from "ai";
+import type { Feedback } from "@/lib/feedback";
 import type { Goal } from "@/lib/goals";
 import type { LinkPreview } from "@/lib/link-preview";
 import { keywordRegions, type RegionChoice } from "@/lib/region";
@@ -351,7 +352,18 @@ export async function rateRelevance(
   product: ProductBrief,
   videos: { caption: string; creatorHandle: string }[],
   goal?: Goal | null,
+  examples?: Feedback["examples"] | null,
 ): Promise<{ scores: number[]; copy: (number | null)[] } | null> {
+  // The user's own 👍/👎 for this product: the clearest signal of what "relevant" means to them.
+  const example = (c: { creatorHandle: string; caption: string }) => `- @${c.creatorHandle} | ${c.caption.slice(0, 120).replace(/\s+/g, " ")}`;
+  const taught = [
+    ...(examples?.liked.length
+      ? ["The user marked these clips USEFUL for this product. Give 2 to clips with the same kind of topic, angle or format:", ...examples.liked.map(example)]
+      : []),
+    ...(examples?.disliked.length
+      ? ["The user marked these clips NOT useful for this product. Give 0 to clips like them:", ...examples.disliked.map(example)]
+      : []),
+  ];
   const model = getModel();
   if (!model || !videos.length) return null;
   const batches = Array.from({ length: Math.ceil(videos.length / RELEVANCE_BATCH) }, (_, b) =>
@@ -379,6 +391,7 @@ export async function rateRelevance(
             "For a business (B2B) product, personal/consumer topics are outside the field (personal debt, home loans,",
             "personal budgeting or investing, motivation and mindset clips).",
             goal ? GOAL_RELEVANCE[goal] : "",
+            ...taught,
             "Also rate copy: how easily a small business could film a similar clip with a phone.",
             "2: easy (talking head, screen recording or demo, simple skit, product in hand, voiceover on photos or text).",
             "1: needs some production (studio set, actors, many locations, heavy editing).",

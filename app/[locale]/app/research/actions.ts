@@ -6,6 +6,8 @@ import { z } from "zod";
 import { MAX_KEYWORDS, type RunSummary } from "@/lib/ai/schemas";
 import { englishKeywords, enhanceBrief, ideasForClips, summarizeRun } from "@/lib/ai/tasks";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
+import { withFeedback } from "@/lib/feedback";
+import { loadFeedback } from "@/lib/feedback-store";
 import { GOALS, type Goal, isGoal, scoreFor } from "@/lib/goals";
 import { diverseTop } from "@/lib/results";
 import { looksThai } from "@/lib/region";
@@ -163,7 +165,9 @@ export async function runResearchAction(input: RunInput) {
 
   try {
     const product = { name: understanding.productName, whatItIs: understanding.whatItIs, audience: understanding.audience };
-    const result = await searchKeywords(keywords, platforms, exclusions, { product, goal, ...settings });
+    // What the user taught Reely about this product (👍/👎 on earlier researches).
+    const { feedback } = await loadFeedback(supabase, productRowId);
+    const result = await searchKeywords(keywords, platforms, exclusions, { product, goal, feedback, ...settings });
     const rows = result.videos.filter((v) => v.dbId !== undefined).map((v, i) => resultRow(run.id, v, i + 1));
     after(() => persistThumbnails(result.videos));
     if (rows.length) {
@@ -177,13 +181,18 @@ export async function runResearchAction(input: RunInput) {
       .update({
         status: "done",
         error: result.errors.length ? result.errors.join("\n").slice(0, 2000) : null,
-        stats: { hidden: result.hidden, offTopic: result.offTopic, platforms: result.platforms },
+        stats: {
+          hidden: result.hidden,
+          offTopic: result.offTopic,
+          platforms: result.platforms,
+          feedback: feedback ? { liked: feedback.liked.size, disliked: feedback.disliked.size } : undefined,
+        },
         finished_at: new Date().toISOString(),
       })
       .eq("id", run.id);
 
     // The page shows these 10 first; the AI sees them first too (patterns use up to 15).
-    const top10 = diverseTop(result.videos, 10, 2, scoreFor(goal));
+    const top10 = diverseTop(result.videos, 10, 2, withFeedback<ScoredVideo>(scoreFor(goal), feedback));
     const top = [...top10, ...result.videos.filter((v) => !top10.includes(v))].slice(0, 15);
     // The "your idea" lines are written after the results are on screen (writeIdeasAction), so they never slow a run.
     const summary = await summarizeRun(
@@ -231,7 +240,7 @@ export async function writeIdeasAction(id: string, lang: string) {
   if (!parsed.success) return { ok: false as const };
   const supabase = await createClient();
   const [{ data: run }, { data: rows }] = await Promise.all([
-    supabase.from("research_runs").select("id, goal, input, summary").eq("id", parsed.data.id).maybeSingle(),
+    supabase.from("research_runs").select("id, goal, input, summary, product_id").eq("id", parsed.data.id).maybeSingle(),
     supabase
       .from("run_results")
       .select("keyword, reach_score, usual_score, usual_views, label, copyable, videos(*)")
@@ -245,7 +254,8 @@ export async function writeIdeasAction(id: string, lang: string) {
 
   // The same 10 the page shows first.
   const all = ((rows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null);
-  const top10 = diverseTop(all, 10, 2, scoreFor(run.goal));
+  const { feedback } = await loadFeedback(supabase, run.product_id as string | null);
+  const top10 = diverseTop(all, 10, 2, withFeedback<ScoredVideo>(scoreFor(run.goal), feedback));
   const ideas = await ideasForClips(
     { name: input.productName, whatItIs: input.whatItIs ?? "", audience: input.audience ?? "" },
     run.goal,
@@ -278,7 +288,7 @@ export async function refreshRunAction(id: string) {
   const supabase = await createClient();
   const { data: run } = await supabase
     .from("research_runs")
-    .select("id, keywords, keyword_regions, keyword_english, exclusions, platforms, settings, input, goal, created_at, last_refreshed_at, status")
+    .select("id, keywords, keyword_regions, keyword_english, exclusions, platforms, settings, input, goal, product_id, created_at, last_refreshed_at, status")
     .eq("id", parsed.data)
     .maybeSingle();
   if (!run || run.status === "running") return { ok: false as const, error: "invalid" as const };
@@ -307,6 +317,7 @@ export async function refreshRunAction(id: string) {
     {
       product,
       goal: isGoal(run.goal) ? (run.goal as Goal) : null,
+      feedback: (await loadFeedback(supabase, run.product_id as string | null)).feedback,
       days,
       minViews: settings.minViews ?? DEFAULT_MIN_VIEWS,
       language: settings.language,

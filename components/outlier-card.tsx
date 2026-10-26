@@ -5,6 +5,8 @@ import { SaveButton } from "@/components/save-button";
 import { Thumb } from "@/components/thumb";
 import { Link } from "@/i18n/navigation";
 import { CountryFlag } from "@/components/country-flag";
+import { FeedbackButtons } from "@/components/feedback-buttons";
+import type { Vote } from "@/lib/feedback";
 import { formatMultiplier, keepRate } from "@/lib/scoring";
 import type { ScoredVideo } from "@/lib/search";
 
@@ -23,6 +25,7 @@ export async function OutlierCard({
   variant = "grid",
   isNew = false,
   idea = null,
+  feedback,
 }: {
   video: ScoredVideo;
   saved?: boolean;
@@ -31,6 +34,8 @@ export async function OutlierCard({
   isNew?: boolean;
   /** How the user could use this clip for their product and goal (top 10 of a research). */
   idea?: string | null;
+  /** 👍/👎 for the research's product (research pages only). */
+  feedback?: { productId: string; vote: Vote | null };
 }) {
   const t = await getTranslations("search");
   const tl = await getTranslations("labels");
@@ -162,6 +167,11 @@ export async function OutlierCard({
             </span>
           )}
         </div>
+        {feedback && video.dbId && (
+          <div className="border-t pt-1.5">
+            <FeedbackButtons productId={feedback.productId} videoId={video.dbId} initialVote={feedback.vote} />
+          </div>
+        )}
         {video.dbId && (
           <div className="flex items-center justify-between gap-2 pt-1">
             <Link

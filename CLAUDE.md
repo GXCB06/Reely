@@ -40,6 +40,7 @@ lib/adapters/__fixtures__/    # real vendor responses saved on Day 0 (used when 
 lib/scoring.ts                # reach score, usual-views score, labels, noise filter (+ scoring.test.ts)
 lib/search.ts                 # keywords (with region) → adapters → noise filter → baselines → ranked results
 lib/region.ts                 # Thailand / Worldwide / Both → keyword regions; Thai-caption check
+lib/feedback.ts               # 👍/👎 per product (clip_feedback): examples for the relevance check, 👎 clips dropped, ranking nudged
 lib/goals.ts                  # what the clips are for (sell / shop / startup / brand) → goal-aware ranking; prompts in lib/ai/tasks.ts
 lib/link-preview.ts           # reads a pasted product link (blocks private addresses — keep that check)
 lib/today.ts                  # Today page: new breakouts (7 days) from tracked accounts + followed topics → 3-5 ideas

@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronDown, ChevronUp, Eye, Globe, Layers, PenLine, Radar, RotateCcw, Sparkles, Target } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronUp, Eye, Globe, Layers, PenLine, Radar, RotateCcw, Sparkles, Target, ThumbsUp } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { ReelyBubble, UserBubble } from "@/components/chat/research-chat";
@@ -16,6 +16,8 @@ import { Link } from "@/i18n/navigation";
 import type { RunSummary } from "@/lib/ai/schemas";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
 import { applyFilters, diverseTop, parseFilters, type PlatformTab } from "@/lib/results";
+import { withFeedback } from "@/lib/feedback";
+import { loadFeedback } from "@/lib/feedback-store";
 import { isGoal, scoreFor } from "@/lib/goals";
 import type { RegionChoice } from "@/lib/region";
 import { runTotals } from "@/lib/run-stats";
@@ -54,13 +56,17 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
     supabase.from("saved_videos").select("video_id"),
   ]);
   if (!run) notFound();
+  // The product's 👍/👎: shown on each clip and used to order them.
+  const { feedback, votes } = await loadFeedback(supabase, run.product_id as string | null);
   const saved = new Set((savedRows ?? []).map((r) => r.video_id as number));
   const all = ((rows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null);
 
   // Videos added by "update with new videos" (well after the research was created) are marked new.
   // "Best" = best for what the user wants the clips for (plain best on researches made before goals).
   const goal = isGoal(run.goal) ? run.goal : null;
-  const score = scoreFor(goal);
+  const score = withFeedback<ScoredVideo>(scoreFor(goal), feedback);
+  const feedbackFor = (v: ScoredVideo) =>
+    run.product_id && v.dbId ? { productId: run.product_id as string, vote: votes.get(v.dbId) ?? null } : undefined;
   const createdAt = new Date(run.created_at as string).getTime();
   const newIds = new Set(
     ((rows ?? []) as unknown as { added_at: string | null; videos: { id: number } | null }[])
@@ -78,7 +84,12 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   const top = diverseTop(all, 10, 2, score);
   const summary = run.summary as RunSummary | null;
   const ideaOf = new Map((summary?.ideas ?? []).map((x) => [x.videoId, x.idea]));
-  const stats = run.stats as { hidden?: number; offTopic?: number; platforms?: Partial<Record<"tiktok" | "youtube" | "instagram", PlatformStats>> } | null;
+  const stats = run.stats as {
+    hidden?: number;
+    offTopic?: number;
+    platforms?: Partial<Record<"tiktok" | "youtube" | "instagram", PlatformStats>>;
+    feedback?: { liked: number; disliked: number };
+  } | null;
   // The main reason each platform's videos were dropped, so a thin platform is explained, not hidden.
   const mainDrop = (s: PlatformStats) =>
     (Object.entries(s.dropped) as [DropReason, number][]).sort((a, b) => b[1] - a[1])[0] ?? null;
@@ -168,6 +179,11 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
               <Sparkles className="size-3.5 text-primary" />
               {t("statsLine", { offTopic: stats.offTopic ?? 0, hidden: stats.hidden ?? 0 })}
             </p>
+            {stats.feedback && (
+              <p className="flex items-center gap-1.5 text-primary">
+                <ThumbsUp className="size-3.5" /> {t("learnedFrom", { liked: stats.feedback.liked, disliked: stats.feedback.disliked })}
+              </p>
+            )}
             {stats.platforms && (
               <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 {(Object.entries(stats.platforms) as ["tiktok" | "youtube" | "instagram", PlatformStats][]).map(([p, s]) => {
@@ -192,7 +208,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
             <h3 className="font-heading text-lg font-bold">{t("freshTitle", { n: fresh.length })}</h3>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {fresh.slice(0, 10).map((v) => (
-                <OutlierCard key={`${v.platform}:${v.platformVideoId}`} video={v} saved={v.dbId ? saved.has(v.dbId) : false} isNew />
+                <OutlierCard key={`${v.platform}:${v.platformVideoId}`} video={v} saved={v.dbId ? saved.has(v.dbId) : false} isNew feedback={feedbackFor(v)} />
               ))}
             </div>
           </section>
@@ -223,6 +239,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
                     saved={v.dbId ? saved.has(v.dbId) : false}
                     isNew={!!v.dbId && newIds.has(v.dbId)}
                     idea={v.dbId ? ideaOf.get(v.dbId) : null}
+                    feedback={feedbackFor(v)}
                   />
                 ))}
               </div>
@@ -235,6 +252,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
                 <h3 className="font-heading text-lg font-bold">{t("bestTitle", { n: top.length })}</h3>
                 <span className="text-xs text-muted-foreground">{t("bestHint")}</span>
               </div>
+              {run.product_id && <p className="-mt-2 text-xs text-muted-foreground">{t("teachHint", { product: input?.productName ?? "" })}</p>}
               {/* Ideas are written once the results are on screen; older researches without a goal have none. */}
               {run.status === "done" && goal && input?.productName && summary && !summary.ideas?.length && (
                 <IdeasLoader runId={run.id as string} />
@@ -248,6 +266,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
                     saved={v.dbId ? saved.has(v.dbId) : false}
                     isNew={!!v.dbId && newIds.has(v.dbId)}
                     idea={v.dbId ? ideaOf.get(v.dbId) : null}
+                    feedback={feedbackFor(v)}
                   />
                 ))}
               </div>
