@@ -63,12 +63,15 @@ export function ResearchChat({
   autoSend = false,
   products = [],
   initialProductId = null,
+  dashboard = null,
 }: {
   initialText?: string;
   initialRegion?: RegionChoice;
   autoSend?: boolean;
   products?: SavedProduct[];
   initialProductId?: string | null;
+  /** Home dashboard shown under the composer until a message is sent (server-rendered, streamed). */
+  dashboard?: React.ReactNode;
 }) {
   const t = useTranslations("chat");
   const tg = useTranslations("goals");
@@ -409,25 +412,28 @@ export function ResearchChat({
 
   if (phase === "compose" || !sent) {
     return (
-      <div className="mx-auto flex min-h-[calc(100dvh-1rem)] max-w-3xl flex-col justify-center px-6 py-10">
-        <div className="mb-6 text-center">
-          <Mascot size={84} className="mx-auto mb-4" />
-          <h1 className="font-heading text-3xl font-bold md:text-4xl">{t("greeting")}</h1>
-          <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{t("subtitle")}</p>
+      <div className={dashboard ? "mx-auto max-w-6xl px-6 pt-14 pb-16" : "mx-auto flex min-h-[calc(100dvh-1rem)] max-w-3xl flex-col justify-center px-6 py-10"}>
+        <div className="mx-auto max-w-3xl">
+          <div className="mb-6 text-center">
+            <Mascot size={84} className="mx-auto mb-4" />
+            <h1 className="font-heading text-3xl font-bold md:text-4xl">{t("greeting")}</h1>
+            <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{t("subtitle")}</p>
+          </div>
+          {products.length === 0 && <GoalCards value={goal} onChange={pickGoal} />}
+          {composer}
+          <p className="mt-2 px-3 text-xs text-muted-foreground">
+            <RegionIcon region={region} /> {t(`regionHint.${region}`)}
+            {platforms.includes("instagram") && <> · {t("instagramHint")}</>}
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            {(["s1", "s2", "s3"] as const).map((s) => (
+              <button key={s} type="button" onClick={() => setText(t(`suggestions.${s}`))} className="chip text-left">
+                {t(`suggestions.${s}`)}
+              </button>
+            ))}
+          </div>
         </div>
-        {products.length === 0 && <GoalCards value={goal} onChange={pickGoal} />}
-        {composer}
-        <p className="mt-2 px-3 text-xs text-muted-foreground">
-          <RegionIcon region={region} /> {t(`regionHint.${region}`)}
-          {platforms.includes("instagram") && <> · {t("instagramHint")}</>}
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {(["s1", "s2", "s3"] as const).map((s) => (
-            <button key={s} type="button" onClick={() => setText(t(`suggestions.${s}`))} className="chip text-left">
-              {t(`suggestions.${s}`)}
-            </button>
-          ))}
-        </div>
+        {dashboard && <div className="mt-12">{dashboard}</div>}
       </div>
     );
   }

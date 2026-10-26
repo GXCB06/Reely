@@ -563,5 +563,25 @@
       "short": "Personal brand",
       "desc": "Grow followers: talking-head hooks, stories, tips"
     }
+  },
+  "home": {
+    "products": "Your products",
+    "researchCount": "{n, plural, one {# research} other {# researches}}",
+    "lastRun": "last {when}",
+    "noRuns": "No research yet",
+    "research": "New research",
+    "latest": "Latest results",
+    "addProduct": "Add a product",
+    "winners": "Outliers you found recently",
+    "winnersHint": "Breakouts from your researches, last 30 days",
+    "hashtags": "Hashtags rising this week",
+    "hashtagsHint": "From clips posted in the last 7 days · tap to search",
+    "hashtagsEmpty": "No new clips this week in your researches yet. Run a research or press \"Update with new videos\" on one.",
+    "tagClips": "{n, plural, one {# clip} other {# clips}}",
+    "tagNew": "new",
+    "formats": "Formats on the rise",
+    "formatsHint": "More creators posting them this week",
+    "formatsEmpty": "No rising formats yet. Open any video and press \"Same format\".",
+    "formatStat": "{n, plural, one {# creator} other {# creators}} this week"
   }
 }

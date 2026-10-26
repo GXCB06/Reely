@@ -43,3 +43,34 @@ export function runTotals(
     .map(([tag, count]) => ({ tag, count }));
   return { videos: videos.length, views, avgViews: counted ? Math.round(views / counted) : 0, creators, hashtags: tags.size, topHashtags };
 }
+
+export type RisingTag = { tag: string; thisWeek: number; lastWeek: number };
+const WEEK_MS = 7 * 864e5;
+
+/**
+ * Home dashboard: topic hashtags in clips posted in the last 7 days, with the week before for comparison.
+ * Each clip counts once per tag; generic tags are left out, and a tag needs at least 2 clips this week.
+ */
+export function risingHashtags(
+  videos: { caption: string; publishedAt: string | null }[],
+  now = Date.now(),
+  topN = 10,
+): RisingTag[] {
+  const counts = new Map<string, RisingTag>();
+  for (const v of videos) {
+    if (!v.publishedAt) continue;
+    const age = now - new Date(v.publishedAt).getTime();
+    if (age < 0 || age > 2 * WEEK_MS) continue;
+    for (const tag of hashtagsOf(v.caption)) {
+      if (isGenericTag(tag)) continue;
+      const c = counts.get(tag) ?? { tag, thisWeek: 0, lastWeek: 0 };
+      if (age <= WEEK_MS) c.thisWeek++;
+      else c.lastWeek++;
+      counts.set(tag, c);
+    }
+  }
+  return [...counts.values()]
+    .filter((c) => c.thisWeek >= 2)
+    .sort((a, b) => b.thisWeek - a.thisWeek || b.thisWeek - b.lastWeek - (a.thisWeek - a.lastWeek))
+    .slice(0, topN);
+}

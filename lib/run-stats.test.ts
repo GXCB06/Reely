@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hashtagsOf, runTotals } from "./run-stats";
+import { hashtagsOf, risingHashtags, runTotals } from "./run-stats";
 
 const v = (caption: string, views: number | null, creatorHandle = "a", platform = "tiktok") => ({ caption, views, creatorHandle, platform });
 
@@ -22,5 +22,21 @@ describe("runTotals", () => {
     const t = runTotals([v("#fyp #บัญชี #viral", 1), v("#fyp #บัญชี", 1), v("#once", 1), v("#foryoupage #fyp", 1)]);
     expect(t.topHashtags).toEqual([{ tag: "บัญชี", count: 2 }]);
     expect(t.hashtags).toBe(5);
+  });
+});
+
+describe("risingHashtags", () => {
+  const now = new Date("2026-10-27T00:00:00Z").getTime();
+  const daysAgo = (d: number) => new Date(now - d * 864e5).toISOString();
+  it("counts this week against last week and drops generic or one-off tags", () => {
+    const rows = [
+      { caption: "#ปิดงบ #fyp", publishedAt: daysAgo(1) },
+      { caption: "#ปิดงบ #ภาษี", publishedAt: daysAgo(3) },
+      { caption: "#ปิดงบ", publishedAt: daysAgo(10) },
+      { caption: "#ภาษี", publishedAt: daysAgo(9) },
+      { caption: "#old #old2", publishedAt: daysAgo(30) },
+      { caption: "#nodate", publishedAt: null },
+    ];
+    expect(risingHashtags(rows, now)).toEqual([{ tag: "ปิดงบ", thisWeek: 2, lastWeek: 1 }]);
   });
 });

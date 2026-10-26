@@ -1,5 +1,7 @@
 import { setRequestLocale } from "next-intl/server";
+import { Suspense } from "react";
 import { ResearchChat, type SavedProduct } from "@/components/chat/research-chat";
+import { HomeDashboard, HomeDashboardSkeleton } from "@/components/home/dashboard";
 import { isSupabaseConfigured } from "@/lib/env";
 import { isGoal } from "@/lib/goals";
 import type { RegionChoice } from "@/lib/region";
@@ -38,6 +40,13 @@ export default async function HomePage({ params, searchParams }: PageProps<"/[lo
       autoSend={sp.go === "1" && !!q}
       products={products}
       initialProductId={productId}
+      dashboard={
+        isSupabaseConfigured() ? (
+          <Suspense fallback={<HomeDashboardSkeleton />}>
+            <HomeDashboard />
+          </Suspense>
+        ) : null
+      }
     />
   );
 }
