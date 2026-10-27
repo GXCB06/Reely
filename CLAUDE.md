@@ -142,8 +142,9 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 - All user-facing text goes in `messages/th.json` and `messages/en.json` — no hard-coded strings.
 - Show the numbers behind every score label ("usually ~510 views → 41.3K").
 - A label needs real views too: Breakout = 5x+ AND 10K+ views; Strong = 2x+ AND 5K+ views. Views ÷ followers
-  only counts for accounts with 1K+ followers. Default order is "best": label, then views weighted by
-  saves + shares (`bestScore` in lib/scoring.ts).
+  only counts for accounts with 1K+ followers. Default order is "best": label, then views weighted by engagement
+  (likes + 3x comments + 5x saves and shares per view, versus a typical clip on that platform: `engagementFactor`,
+  `bestScore` in lib/scoring.ts). Cards show the plain engagement % (likes + comments + saves + shares per view).
 - Design: Peekly-inspired — near-black sidebar, light content panel with rounded corners,
   lavender `page-wash` header, purple primary, rounded-2xl cards, pill buttons. Virlo is the
   reference for flows (brief → keywords → results, outlier cards with views + multiplier).

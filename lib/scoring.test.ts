@@ -3,6 +3,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   bestScore,
+  engagementFactor,
+  engagementRate,
   formatMultiplier,
   keepRate,
   labelFor,
@@ -92,5 +94,20 @@ describe("real viral rules", () => {
     const strong = bestScore({ label: "strong", views: 900_000, saves: null, shares: null });
     expect(kept).toBeGreaterThan(plain);
     expect(plain).toBeGreaterThan(strong);
+  });
+
+  it("puts a well-engaged clip above a bigger one nobody engages with", () => {
+    const big = { platform: "tiktok", label: "breakout" as const, views: 1_000_000, likes: 10_000, comments: 50, saves: 300, shares: 100 };
+    const engaged = { platform: "tiktok", label: "breakout" as const, views: 400_000, likes: 40_000, comments: 900, saves: 4_000, shares: 2_500 };
+    expect(engagementRate(big)).toBeCloseTo(0.01045, 4);
+    expect(engagementFactor(engaged)).toBeGreaterThan(1);
+    expect(bestScore(engaged)).toBeGreaterThan(bestScore(big));
+  });
+
+  it("judges engagement against the platform and stays neutral without data", () => {
+    // 4% likes is typical on YouTube, low on TikTok.
+    expect(engagementFactor({ platform: "youtube", views: 100_000, likes: 3_500, comments: 0, saves: null, shares: null })).toBeCloseTo(1, 5);
+    expect(engagementFactor({ platform: "tiktok", views: 100_000, likes: 3_500, comments: 0, saves: 0, shares: 0 })).toBeLessThan(0.5);
+    expect(engagementFactor({ platform: "instagram", views: 100_000, likes: null, comments: null, saves: null, shares: null })).toBe(1);
   });
 });

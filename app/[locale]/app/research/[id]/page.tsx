@@ -230,9 +230,6 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
           </section>
         )}
 
-        {summary?.patterns && summary.patterns.length > 0 && (
-          <Patterns patterns={summary.patterns} videos={all} productName={input?.productName ?? null} />
-        )}
 
         {showAll ? (
           <section className="space-y-4">
@@ -327,6 +324,11 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
               ))}
             </div>
           </section>
+        )}
+
+        {/* Formulas come after the clips they are drawn from (users looked for the videos first). */}
+        {!showAll && summary?.patterns && summary.patterns.length > 0 && (
+          <Patterns patterns={summary.patterns} videos={all} productName={input?.productName ?? null} />
         )}
 
         {run.status !== "running" && (

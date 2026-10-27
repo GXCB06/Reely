@@ -7,7 +7,7 @@ import { Link } from "@/i18n/navigation";
 import { CountryFlag } from "@/components/country-flag";
 import { FeedbackButtons } from "@/components/feedback-buttons";
 import type { Vote } from "@/lib/feedback";
-import { formatMultiplier, keepRate } from "@/lib/scoring";
+import { engagementFactor, engagementRate, formatMultiplier, keepRate } from "@/lib/scoring";
 import type { ScoredVideo } from "@/lib/search";
 
 const LABEL_STYLE = {
@@ -43,6 +43,8 @@ export async function OutlierCard({
   const compact = (n: number) => format.number(n, { notation: "compact", maximumFractionDigits: 1 });
   const headline = video.usual ?? video.reach;
   const keep = keepRate(video);
+  const engagement = engagementRate(video);
+  const engagedX = engagementFactor(video);
   const href = video.dbId ? `/app/video/${video.dbId}` : null;
   const hook = (video.caption.split(/\n|#/)[0] || video.caption).trim();
 
@@ -157,9 +159,13 @@ export async function OutlierCard({
               {t("usual", { x: formatMultiplier(video.usual) })} · {t("usually", { views: compact(video.usualViews) })}
             </span>
           )}
-          {keep !== null && (
-            <span title={t("keepTip")} className="cursor-help rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-800">
-              {t("keep", { p: (keep * 100).toFixed(1) })}
+          {/* Engagement next to views: big views with nobody liking, commenting or saving is a weaker model. */}
+          {engagement !== null && (
+            <span
+              title={t("engagementTip", { keep: keep !== null ? (keep * 100).toFixed(1) : "–", x: engagedX.toFixed(1) })}
+              className={`cursor-help rounded-full px-2 py-0.5 ${engagedX >= 1.5 ? "bg-emerald-100 font-semibold text-emerald-900" : engagedX < 0.7 ? "bg-muted text-muted-foreground" : "bg-emerald-50 text-emerald-800"}`}
+            >
+              {t(engagedX >= 1.5 ? "engagementHigh" : "engagement", { p: (engagement * 100).toFixed(1) })}
             </span>
           )}
           {video.reach !== null && (

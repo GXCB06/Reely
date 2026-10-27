@@ -1,8 +1,8 @@
 // Pure helpers for research results: exclusions, URL filters and sorting. No server imports (tested directly).
 import { hashtagsOf } from "./run-stats";
-import { bestScore, type OutlierLabel } from "./scoring";
+import { bestScore, engagementFactor, type OutlierLabel } from "./scoring";
 
-export type Sort = "best" | "outlier" | "views" | "saves" | "recent";
+export type Sort = "best" | "outlier" | "engagement" | "views" | "saves" | "recent";
 export type PlatformTab = "all" | "tiktok" | "youtube" | "instagram";
 
 export type ResultFilters = {
@@ -23,7 +23,7 @@ export const FILTER_PRESETS = {
   postedDays: [7, 30, 90, 180],
 } as const;
 
-const SORTS: Sort[] = ["best", "outlier", "views", "saves", "recent"];
+const SORTS: Sort[] = ["best", "outlier", "engagement", "views", "saves", "recent"];
 const TABS: PlatformTab[] = ["all", "tiktok", "youtube", "instagram"];
 
 /** True when the caption mentions any excluded word (case-insensitive substring; Thai has no spaces). */
@@ -79,6 +79,8 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
 export type FilterableResult = {
   platform: string;
   views: number | null;
+  likes?: number | null;
+  comments?: number | null;
   saves: number | null;
   shares: number | null;
   label: OutlierLabel;
@@ -113,6 +115,8 @@ export function applyFilters<T extends FilterableResult>(
   const key: Record<Sort, (r: T) => number> = {
     best: score,
     outlier: outlierOf,
+    // Engagement versus the platform's typical clip; views break ties.
+    engagement: (r) => engagementFactor(r) * 1e12 + (r.views ?? 0),
     views: (r) => r.views ?? 0,
     saves: (r) => r.saves ?? 0,
     recent: (r) => (r.publishedAt ? new Date(r.publishedAt).getTime() : 0),

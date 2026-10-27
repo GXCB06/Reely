@@ -213,7 +213,10 @@
     "formatTip": "See who else made this kind of clip, what topics they used it for and which sounds",
     "ideaFor": "Your idea",
     "hardToCopy": "Hard to copy",
-    "hardToCopyTip": "From the caption, AI thinks a small business would struggle to film this (celebrity, TV/movie footage, re-uploads or big production). Good for ideas, hard to copy as is."
+    "hardToCopyTip": "From the caption, AI thinks a small business would struggle to film this (celebrity, TV/movie footage, re-uploads or big production). Good for ideas, hard to copy as is.",
+    "engagement": "{p}% engaged",
+    "engagementHigh": "High engagement {p}%",
+    "engagementTip": "Likes + comments + saves + shares per 100 views (saved/shared {keep}%) · {x}x a typical clip on this platform. Also used in the \"best\" order."
   },
   "labels": {
     "breakout": "Breakout",
@@ -248,7 +251,8 @@
       "outlier": "Biggest outlier",
       "views": "Most views",
       "saves": "Most saves",
-      "recent": "Most recent"
+      "recent": "Most recent",
+      "engagement": "Most engaging"
     },
     "noMatch": "No videos match these filters.",
     "nextTitle": "What next?",

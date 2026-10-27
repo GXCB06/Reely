@@ -70,17 +70,45 @@ export function keepRate(v: { views: number | null; saves: number | null; shares
 
 const LABEL_RANK: Record<OutlierLabel, number> = { breakout: 2, strong: 1, normal: 0 };
 
-/**
- * "Best" order: label first, then views weighted by keep rate (a 2% keep rate counts like 1.2x views).
- * Raw multipliers are not used here, so tiny accounts with huge ratios don't float to the top.
- */
-export function bestScore(v: {
-  label: OutlierLabel;
+type Engageable = {
+  platform?: string;
   views: number | null;
+  likes?: number | null;
+  comments?: number | null;
   saves: number | null;
   shares: number | null;
-}): number {
-  return LABEL_RANK[v.label] * 1e12 + (v.views ?? 0) * (1 + 10 * (keepRate(v) ?? 0));
+};
+
+/** Likes + comments + saves + shares per view, as shown on cards. Null when the platform gave none of them. */
+export function engagementRate(v: Engageable): number | null {
+  const parts = [v.likes, v.comments, v.saves, v.shares];
+  if (!v.views || parts.every((p) => p === null || p === undefined)) return null;
+  return parts.reduce<number>((sum, p) => sum + (p ?? 0), 0) / v.views;
+}
+
+/**
+ * Weighted engagement (likes + 3x comments + 5x saves and shares, per view) on a typical clip of each platform:
+ * TikTok shows all four; YouTube and Instagram feeds only likes and comments.
+ */
+const TYPICAL_ENGAGEMENT: Record<string, number> = { tiktok: 0.1, youtube: 0.035, instagram: 0.04 };
+
+/**
+ * How engaged viewers were versus a typical clip on the same platform (0.4-3x; 1 when unknown). A 1M-view clip
+ * nobody likes or saves ranks below a 400K-view clip people comment on, save and share.
+ */
+export function engagementFactor(v: Engageable): number {
+  if (!v.views || engagementRate(v) === null) return 1;
+  const weighted = ((v.likes ?? 0) + 3 * (v.comments ?? 0) + 5 * ((v.saves ?? 0) + (v.shares ?? 0))) / v.views;
+  const typical = TYPICAL_ENGAGEMENT[v.platform ?? "tiktok"] ?? TYPICAL_ENGAGEMENT.tiktok;
+  return Math.min(3, Math.max(0.4, weighted / typical));
+}
+
+/**
+ * "Best" order: label first, then views weighted by engagement (engagementFactor).
+ * Raw multipliers are not used here, so tiny accounts with huge ratios don't float to the top.
+ */
+export function bestScore(v: Engageable & { label: OutlierLabel }): number {
+  return LABEL_RANK[v.label] * 1e12 + (v.views ?? 0) * engagementFactor(v);
 }
 
 export function passesNoiseFilter(
