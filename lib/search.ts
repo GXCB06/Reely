@@ -1,6 +1,6 @@
 import "server-only";
 import { adapters } from "@/lib/adapters";
-import { INSTAGRAM_MIN_DAYS } from "@/lib/adapters/instagram-scrapecreators";
+import { INSTAGRAM_MIN_DAYS, instagramReels } from "@/lib/adapters/instagram-scrapecreators";
 import { DEFAULT_WINDOW, type NormalizedVideo, type Platform, type SearchRegion } from "@/lib/adapters/types";
 import type { SearchSettings } from "@/lib/search-settings";
 import { type ProductBrief, rateRelevance } from "@/lib/ai/tasks";
@@ -29,6 +29,15 @@ const BASELINE_CREATORS_REELS_ONLY = 8;
  * already paid for) also add their own standout reels: at least 2x their usual views, after the same relevance check.
  */
 const FEED_EXTRA_PLATFORMS: Platform[] = ["instagram"];
+/** The top Instagram creators get 3 pages of reels (~36, +2 credits each), so their older hits are found too. */
+const IG_DEEP_CREATORS = 3;
+const IG_DEEP_PAGES = 3;
+/**
+ * Instagram can't be searched in Thai through ScrapeCreators (popular answers nothing, reels search returns
+ * unrelated clips; checked 2026-10-27). Thai TikTok creators often use the same handle on Instagram, so up to 4 of
+ * them are tried there: a handle that doesn't exist costs nothing, one that does costs 1 credit.
+ */
+const IG_FROM_TIKTOK = 4;
 /**
  * Accounts that are themselves a product like the user's (an app or brand promoting itself, flagged by the relevance
  * check or matching a competitor's name): up to 2 per platform get a usual-views lookup even outside the top creators,
@@ -93,11 +102,12 @@ function dropReason(
 /** `english`: the same phrase in English, for Instagram (its popular search only understands English). */
 export type KeywordQuery = { text: string; region: SearchRegion; english?: string };
 
-async function creatorBaseline(platform: Platform, handle: string) {
+async function creatorBaseline(platform: Platform, handle: string, deep = false) {
   const cached = await getFreshCreator(platform, handle);
   if (cached?.usualViews) return { usualViews: cached.usualViews, recent: null, feed: null };
 
-  const recent = await adapters[platform].getCreatorVideos(handle);
+  const recent =
+    platform === "instagram" && deep ? await instagramReels(handle, IG_DEEP_PAGES) : await adapters[platform].getCreatorVideos(handle);
   const posts = recent.map((v) => ({ id: v.platformVideoId, views: v.views }));
   const usualViews = usualViewsExcluding(posts);
   if (recent.length) {
@@ -236,9 +246,9 @@ export async function searchKeywords(
         ]),
       ];
       await Promise.all(
-        top.map(async (handle) => {
+        top.map(async (handle, n) => {
           try {
-            baselines.set(`${p}:${handle}`, await creatorBaseline(p, handle));
+            baselines.set(`${p}:${handle}`, await creatorBaseline(p, handle, p === "instagram" && n < IG_DEEP_CREATORS));
           } catch (e) {
             errors.push(`${p} @${handle}: ${(e as Error).message}`);
           }
@@ -246,6 +256,23 @@ export async function searchKeywords(
       );
     }),
   );
+
+  // Thai Reels that search can't reach: Thai TikTok creators from this run, tried under the same Instagram handle.
+  const crossKeyword = new Map<string, string>();
+  if (opts.product && relevance && platforms.includes("instagram") && platforms.includes("tiktok") && thaiKeywords.size) {
+    const tiktokThai = kept
+      .filter((v) => v.platform === "tiktok" && captionLanguage(v) === "th" && !baselines.has(`instagram:${v.creatorHandle}`))
+      .sort((a, b) => (b.views ?? 0) - (a.views ?? 0));
+    const handles = [...new Set(tiktokThai.map((v) => v.creatorHandle))].slice(0, IG_FROM_TIKTOK);
+    await Promise.all(
+      handles.map(async (handle) => {
+        const base = await creatorBaseline("instagram", handle).catch(() => null);
+        if (!base || (base.feed !== null && !base.feed.length)) return;
+        baselines.set(`instagram:${handle}`, base);
+        crossKeyword.set(handle, tiktokThai.find((v) => v.creatorHandle === handle)?.keyword ?? "");
+      }),
+    );
+  }
 
   // More clips from the creators just looked up (Instagram creators, and similar-product accounts everywhere).
   // Needs the relevance check (a product), and drops nothing when it fails.
@@ -267,7 +294,7 @@ export async function searchKeywords(
         const [p, handle] = [key.slice(0, key.indexOf(":")) as Platform, key.slice(key.indexOf(":") + 1)];
         if (!FEED_EXTRA_PLATFORMS.includes(p) && !similar.has(key)) return [];
         // Labelled with the keyword that found this creator.
-        const keyword = kept.find((v) => v.platform === p && v.creatorHandle === handle)?.keyword ?? "";
+        const keyword = kept.find((v) => v.platform === p && v.creatorHandle === handle)?.keyword ?? crossKeyword.get(handle) ?? "";
         return (await feedPicks(p, handle, base, skip).catch(() => [])).map((v) => ({ ...v, keyword }));
       }),
     );

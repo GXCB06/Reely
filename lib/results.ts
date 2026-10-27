@@ -41,7 +41,7 @@ export function relevanceKeep(scores: number[], strictAt = STRICT_RELEVANCE_AT):
   return scores.map((s) => s >= minScore);
 }
 
-const squash = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+const squash = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]/gu, "");
 
 /**
  * True for the product's own account (e.g. @accospro.app for "AccOS Pro"): its clips are not ideas to borrow.

@@ -24,5 +24,6 @@ export const RESEARCHES_PER_DAY: number | null = null;
  */
 export function creditEstimate(platforms: string[], keywords: number) {
   const tiktok = platforms.includes("tiktok");
-  return (tiktok ? keywords + 10 : 0) + (platforms.includes("instagram") ? keywords + (tiktok ? 5 : 8) : 0);
+  // Instagram: + 2 more pages of reels for the top 3 creators (6), + Thai TikTok creators found there (~1).
+  return (tiktok ? keywords + 10 : 0) + (platforms.includes("instagram") ? keywords + (tiktok ? 5 : 8) + 6 + (tiktok ? 1 : 0) : 0);
 }

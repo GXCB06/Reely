@@ -104,7 +104,10 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     media id). Baseline = one page of `/v1/instagram/user/reels` (`trim=true`). No profile calls.
     Popular has no next page (~12 reels per keyword), so the looked-up creators' feeds also add their own standout
     reels (2x+ their usual views, max 3 per creator) after a second `rateRelevance` call: no extra credits
-    (`feedPicks` in lib/search.ts, counted as `fromFeeds`).
+    (`feedPicks` in lib/search.ts, counted as `fromFeeds`). The top 3 Instagram creators get 3 pages of reels (~36,
+    +2 credits each) so older hits count. Thai can't be searched on Instagram (popular is English-only, reels search
+    returns unrelated clips), so with TikTok + Reels and Thai keywords, up to 4 Thai TikTok creators are tried under
+    the same Instagram handle (`instagramReels`; a missing profile is free) and their standout reels join too.
 12. Run the AI relevance check (`rateRelevance`) BEFORE baseline lookups, so off-topic creators cost nothing.
     Score 1 means "inside the product's field", not just "same audience"; with 15+ clear matches, only score 2 stays.
 16. Covers are copied to storage with `after()` (`persistThumbnails`), never inside the search itself:

@@ -103,8 +103,8 @@ async function CreatorHits({ video }: { video: VideoRow }) {
 
 /** "Find more like this": the chat, pre-filled with what the clip is about, on the clip's platform. */
 function moreLikeThisHref(video: VideoRow, query: (caption: string) => string, productId: string | null) {
-  const words = video.caption.replace(/https?:\/\/\S+|[#@][\p{L}\p{N}_.]+/gu, " ").replace(/\s+/g, " ").trim();
-  const tags = video.caption.match(/#[\p{L}\p{N}_]+/gu)?.slice(0, 5).join(" ") ?? "";
+  const words = video.caption.replace(/https?:\/\/\S+|[#@][\p{L}\p{M}\p{N}_.]+/gu, " ").replace(/\s+/g, " ").trim();
+  const tags = video.caption.match(/#[\p{L}\p{M}\p{N}_]+/gu)?.slice(0, 5).join(" ") ?? "";
   const about = (words || tags || `@${video.creator_handle}`).slice(0, 160);
   const params = new URLSearchParams({ q: query(about), p: video.platform === "instagram" ? "instagram" : "tiktok,youtube" });
   if (productId) params.set("product", productId);

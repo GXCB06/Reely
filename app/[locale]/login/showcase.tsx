@@ -18,11 +18,11 @@ const REAL_CLIPS = [
   {
     kind: "startup",
     platform: "instagram" as const,
-    cover: `${THUMBS}/instagram/Dc70ZuezCBP.jpg`,
+    cover: `${THUMBS}/instagram/Dc1CYjWTOcz.jpg`,
     handle: "accos.pro",
-    caption: "คอมเมนต์ “เอไอบัญชี” เดียวผมส่งรายละเอียดไปให้ครับ",
-    views: "11.9K",
-    x: "2.8×",
+    caption: "นักบัญชีจะไม่อดหลับอดนอนอีกต่อไป",
+    views: "1.4M",
+    x: "327×",
     of: "usual",
   },
   {

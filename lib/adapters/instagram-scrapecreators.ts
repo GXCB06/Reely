@@ -191,6 +191,24 @@ export const instagramAdapter: PlatformAdapter = {
   },
 };
 
+/**
+ * Up to `pages` pages (~12 reels each, newest first) of a creator's reels: 1 credit per page found, and a profile that
+ * doesn't exist costs nothing. One page misses older hits: AccOS Pro's 1.4M-play reel was 3 weeks and ~25 reels back.
+ */
+export async function instagramReels(handle: string, pages = 1): Promise<NormalizedVideo[]> {
+  if (fixturesEnabled()) return instagramAdapter.getCreatorVideos(handle);
+  type Res = { items?: ProfileReel[]; max_id?: string | null };
+  const items: ProfileReel[] = [];
+  let maxId: string | null | undefined;
+  for (let page = 0; page < pages; page++) {
+    const data = await call<Res>("/v1/instagram/user/reels", { handle, trim: "true", ...(maxId ? { max_id: maxId } : {}) });
+    items.push(...(data?.items ?? []));
+    maxId = data?.max_id;
+    if (!maxId) break;
+  }
+  return dropPinned(items.filter((r) => r.code).map(fromProfile));
+}
+
 /** /v1/instagram/post (checked live 2026-10-27): plays match the profile feed's play_count; no follower count. */
 type PostMedia = {
   shortcode?: string;
