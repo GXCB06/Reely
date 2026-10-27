@@ -14,6 +14,7 @@ import { looksThai } from "@/lib/region";
 import { keepRate } from "@/lib/scoring";
 import { type PlatformStats, type ScoredVideo, searchKeywords } from "@/lib/search";
 import { DEFAULT_MIN_VIEWS } from "@/lib/search-settings";
+import { researchesLeft } from "@/lib/limits";
 import { createClient } from "@/lib/supabase/server";
 import { persistThumbnails } from "@/lib/thumbs";
 
@@ -141,6 +142,7 @@ export async function runResearchAction(input: RunInput) {
   const brief = (text || `${understanding.productName}: ${understanding.whatItIs}`).slice(0, 1000);
 
   const supabase = await createClient();
+  if ((await researchesLeft(supabase)) === 0) return { ok: false as const, error: "limit" };
   const productRowId = await resolveProduct(supabase, parsed.data);
   const { data: run, error: runError } = await supabase
     .from("research_runs")

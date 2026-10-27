@@ -6,10 +6,10 @@ import { parseHandle } from "@/lib/handles";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_TRACKED = 20;
-const platformSchema = z.enum(["tiktok", "youtube"]);
+const platformSchema = z.enum(["tiktok", "youtube", "instagram"]);
 
 /** Adds an account to the user's tracking list. Posts are fetched the next time the page opens. */
-export async function trackAccountAction(input: string, platform: "tiktok" | "youtube") {
+export async function trackAccountAction(input: string, platform: "tiktok" | "youtube" | "instagram") {
   const parsed = parseHandle(input);
   const fallbackPlatform = platformSchema.safeParse(platform);
   if (!parsed || !fallbackPlatform.success) return { ok: false as const, error: "invalid" };

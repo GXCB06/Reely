@@ -182,9 +182,7 @@ export default async function VideoPage({ params, searchParams }: PageProps<"/[l
             </a>
             <SaveButton videoId={video.id} initialSaved={Boolean(savedRow)} />
           </div>
-          {video.platform !== "instagram" && (
-            <TrackButton platform={video.platform} handle={video.creator_handle} initialTracked={Boolean(trackedRow)} />
-          )}
+          <TrackButton platform={video.platform} handle={video.creator_handle} initialTracked={Boolean(trackedRow)} />
           <Link
             href={moreLikeThisHref(video, (caption) => t("moreLikeThisQuery", { caption }), typeof productParam === "string" ? productParam : null)}
             className="flex w-full items-center justify-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium hover:bg-muted"

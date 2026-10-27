@@ -79,7 +79,7 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
    accounts per platform (an app or brand like the user's promoting itself: `brand` from `rateRelevance`, or a handle
    matching a competitor): their standout clips join the results and get their own section ("From similar products").
 4. Before any external call, check the 24-hour cache (`lib/cache.ts`).
-5. Tracked accounts refresh only when their page is opened, max once per 24 h.
+5. Tracked accounts refresh only when their page is opened, max once per 24 h (TikTok 2 credits, Instagram 1, YouTube free).
 6. Transcripts only when the user presses "Read what the clip says" on the video page (`lib/hook-breakdown.ts`):
    1 credit the first time anyone reads a clip, then cached for everyone in `video_transcripts` (a clip with no
    speech is remembered as 'none'); max 100 a day; clips over 2 minutes are not sent. The caption-based breakdown
@@ -93,8 +93,11 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
    window (7/30/90 days, default 90);
    profile videos always `trim=true&include_pinned=false`, max 2 pages for a baseline.
 10. Never call `/v1/tiktok/user/audience` (26 credits) or transcripts with `use_ai_as_fallback`.
+20. Researches per person per Thai day: `RESEARCHES_PER_DAY` (3, lib/search-settings.ts), enforced in
+    `runResearchAction` (lib/limits.ts). Owners listed in the `REELY_OWNER_EMAILS` env var (comma-separated) have no cap
+    and see everyone's researches on the account page (lib/usage-report.ts).
 11. Instagram: `/v1/instagram/search/popular` with the keyword's English version (Thai returns nothing;
-    test: median 44.6K views vs ~9K from reels search), falling back to `/v2/instagram/reels/search` only when
+    test: median 44.6K views vs ~9K from reels search), after up to 2 free rewordings ('… tips', '… ideas'; an empty popular answer costs nothing), falling back to `/v2/instagram/reels/search` only when
     popular is empty. Reels look back at least 365 days (popular is mostly older posts; dates come from the
     media id). Baseline = one page of `/v1/instagram/user/reels` (`trim=true`). No profile calls.
     Popular has no next page (~12 reels per keyword), so the looked-up creators' feeds also add their own standout

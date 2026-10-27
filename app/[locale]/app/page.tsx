@@ -4,6 +4,7 @@ import { type PlatformId, ResearchChat, type SavedProduct } from "@/components/c
 import { HomeDashboard, HomeDashboardSkeleton } from "@/components/home/dashboard";
 import { isSupabaseConfigured } from "@/lib/env";
 import { isGoal } from "@/lib/goals";
+import { researchesLeft } from "@/lib/limits";
 import type { RegionChoice } from "@/lib/region";
 import { createClient } from "@/lib/supabase/server";
 
@@ -31,8 +32,10 @@ export default async function HomePage({ params, searchParams }: PageProps<"/[lo
   const dashProduct = typeof sp.dash === "string" ? sp.dash.slice(0, 64) : null;
 
   let products: SavedProduct[] = [];
+  let left: number | null = null;
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
+    left = await researchesLeft(supabase);
     const { data } = await supabase.from("products").select("id, name, goal").order("created_at");
     products = (data ?? []).map((p) => ({ id: p.id as string, name: p.name as string, goal: isGoal(p.goal) ? p.goal : null }));
   }
@@ -47,6 +50,7 @@ export default async function HomePage({ params, searchParams }: PageProps<"/[lo
       products={products}
       initialProductId={productId}
       initialPlatforms={linkPlatforms.length ? linkPlatforms : null}
+      researchesLeft={left}
       dashboard={
         isSupabaseConfigured() ? (
           <Suspense fallback={<HomeDashboardSkeleton />}>

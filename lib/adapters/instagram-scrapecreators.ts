@@ -3,6 +3,7 @@ import { fixturesEnabled } from "@/lib/env";
 import { logApiCall } from "@/lib/usage";
 import { readFixture } from "./fixtures";
 import { dropPinned } from "./pinned";
+import { popularQueries } from "./popular-queries";
 import { DEFAULT_WINDOW, type NormalizedCreator, type NormalizedVideo, type PlatformAdapter, type SearchWindow } from "./types";
 
 // Instagram only offers week / month / year; search.ts trims anything older than the window afterwards.
@@ -157,12 +158,16 @@ export const instagramAdapter: PlatformAdapter = {
     // "Popular" first: Instagram's own top reels for the topic (test 2026-10-26: median 44.6K views vs
     // ~9K from reels search). It only understands English, so search.ts passes the English keyword.
     // Falls back to the Google-indexed reels search when popular has nothing (1 more credit).
+    // Popular only knows some phrasings (checked 2026-10-27: "accounting tips" has 12 reels, "calorie counting" none)
+    // and an empty answer is free, so a couple of rewordings are tried before the weaker reels search.
     type PopRes = { posts?: PopularPost[] };
-    const popular = fixturesEnabled()
-      ? await readFixture<PopRes>("instagram-popular")
-      : await call<PopRes>("/v1/instagram/search/popular", { query: keyword });
-    const reels = (popular?.posts ?? []).filter((p) => p.shortcode && (!p.type || p.type === "reel")).map(fromPopular);
-    if (reels.length) return reels;
+    for (const query of popularQueries(keyword)) {
+      const popular = fixturesEnabled()
+        ? await readFixture<PopRes>("instagram-popular")
+        : await call<PopRes>("/v1/instagram/search/popular", { query });
+      const reels = (popular?.posts ?? []).filter((p) => p.shortcode && (!p.type || p.type === "reel")).map(fromPopular);
+      if (reels.length) return reels;
+    }
     type Res = { reels?: SearchReel[] };
     const days = Math.max(opts?.days ?? DEFAULT_WINDOW, INSTAGRAM_MIN_DAYS) as SearchWindow;
     const data = fixturesEnabled()

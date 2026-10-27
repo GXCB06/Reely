@@ -1,7 +1,7 @@
 // Turns what a user pastes ("@flowaccount", a profile URL, a video URL) into a platform + handle.
 // Pure, so it is tested directly.
 
-export type TrackablePlatform = "tiktok" | "youtube";
+export type TrackablePlatform = "tiktok" | "youtube" | "instagram";
 
 export type ParsedHandle = { platform: TrackablePlatform | null; handle: string };
 
@@ -11,7 +11,7 @@ export function parseHandle(input: string): ParsedHandle | null {
   const raw = input.trim();
   if (!raw) return null;
 
-  if (/^https?:\/\//i.test(raw) || /^(www\.)?(tiktok|youtube)\.com\//i.test(raw)) {
+  if (/^https?:\/\//i.test(raw) || /^(www\.)?(tiktok|youtube|instagram)\.com\//i.test(raw)) {
     let url: URL;
     try {
       url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
@@ -22,6 +22,11 @@ export function parseHandle(input: string): ParsedHandle | null {
     const at = url.pathname.match(/\/@([^/?#]+)/)?.[1];
     if (host.endsWith("tiktok.com") && at) return valid({ platform: "tiktok", handle: at });
     if ((host.endsWith("youtube.com") || host === "youtu.be") && at) return valid({ platform: "youtube", handle: at });
+    // instagram.com/<user>/ (a reel or post link has no user in it, so it is not a profile)
+    const ig = url.pathname.match(/^\/([A-Za-z0-9._]{2,30})\/?$/)?.[1];
+    if (host.endsWith("instagram.com") && ig && !["reel", "reels", "p", "tv", "explore", "stories"].includes(ig)) {
+      return valid({ platform: "instagram", handle: ig });
+    }
     const channel = url.pathname.match(/\/channel\/(UC[\w-]{22})/)?.[1];
     if (host.endsWith("youtube.com") && channel) return { platform: "youtube", handle: channel };
     return null;

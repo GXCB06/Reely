@@ -132,6 +132,8 @@
     "errorImage": "That image couldn’t be read. Try a JPG or PNG under 10 MB.",
     "errorUnderstand": "Something went wrong. Try again.",
     "errorRun": "The research couldn’t finish. Try again in a moment.",
+    "errorLimit": "You've used today's {n} researches. More tomorrow (Thai time).",
+    "researchesLeft": "{n} of {max} researches left today",
     "retry": "Try again",
     "you": "You",
     "reely": "Reely",
@@ -347,7 +349,16 @@
   "saved": {
     "title": "Saved",
     "subtitle": "Your swipe file of videos worth learning from.",
-    "empty": "Nothing saved yet. Tap Save on any video."
+    "empty": "Nothing saved yet. Tap Save on any video.",
+    "all": "All",
+    "noFolder": "No folder",
+    "newFolder": "New folder…",
+    "folder": "Folder",
+    "folderLimit": "You can have up to 20 folders.",
+    "folderFailed": "Couldn't save that. Try again.",
+    "deleteFolder": "Delete folder",
+    "deleteConfirm": "Delete the folder “{name}”? Its clips stay saved.",
+    "emptyFolder": "No clips in this folder yet. Pick it under any saved clip."
   },
   "product": {
     "title": "My products",
@@ -413,6 +424,15 @@
   },
   "account": {
     "title": "Account",
+    "usageTitle": "Usage",
+    "usageHint": "Everyone gets {n} researches a day (resets at midnight Thai time), so the shared credits last.",
+    "usageOwner": "You're an owner: no daily cap. The table shows everyone's researches.",
+    "usageToday": "Researches today",
+    "usageMonth": "Researches this month",
+    "creditsToday": "Credits used today (everyone)",
+    "creditsMonth": "Credits used this month (everyone)",
+    "creditsHint": "Credits are ScrapeCreators calls (TikTok and Instagram); YouTube Shorts are free. Credit days follow UTC.",
+    "person": "Person",
     "passwordTitle": "Password",
     "passwordHint": "Set a password so you can sign in on any browser without waiting for an email.",
     "newPassword": "New password (at least {n} characters)",

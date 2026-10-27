@@ -40,6 +40,7 @@ import {
   DEFAULT_MIN_VIEWS,
   LANGUAGE_CHOICES,
   MIN_VIEWS_CHOICES,
+  RESEARCHES_PER_DAY,
   WINDOW_CHOICES,
 } from "@/lib/search-settings";
 import { findLink, hostOf, resizeImage } from "./image-utils";
@@ -78,6 +79,7 @@ export function ResearchChat({
   products = [],
   initialProductId = null,
   initialPlatforms = null,
+  researchesLeft = null,
   dashboard = null,
 }: {
   initialText?: string;
@@ -87,6 +89,8 @@ export function ResearchChat({
   initialProductId?: string | null;
   /** Platforms set by the link (e.g. "find more like this Reel"); otherwise the last ones this browser used. */
   initialPlatforms?: PlatformId[] | null;
+  /** Researches left today (null = no cap). */
+  researchesLeft?: number | null;
   /** Home dashboard shown under the composer until a message is sent (server-rendered, streamed). */
   dashboard?: React.ReactNode;
 }) {
@@ -327,7 +331,7 @@ export function ResearchChat({
       }).catch(() => null);
       if (res?.ok) return router.push(`/app/research/${res.runId}`);
       if (res?.runId) return router.push(`/app/research/${res.runId}`);
-      toast.error(t("errorRun"));
+      toast.error(res?.error === "limit" ? t("errorLimit", { n: RESEARCHES_PER_DAY }) : t("errorRun"));
       setPhase("plan");
     });
   }
@@ -647,11 +651,12 @@ export function ResearchChat({
                   />
                   <span className="text-xs text-muted-foreground">
                     {credits ? t("credits", { credits }) : t("free")}
+                    {researchesLeft !== null && <> · {t("researchesLeft", { n: researchesLeft, max: RESEARCHES_PER_DAY })}</>}
                   </span>
                   <button
                     type="button"
                     onClick={run}
-                    disabled={!selected.length}
+                    disabled={!selected.length || researchesLeft === 0}
                     className="ml-auto inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
                   >
                     <Search className="size-4" /> {t("find")}

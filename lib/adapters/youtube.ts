@@ -25,7 +25,14 @@ type ChannelItem = {
 async function call<T>(endpoint: string, params: Record<string, string>): Promise<T> {
   const key = process.env.YOUTUBE_API_KEY;
   if (!key) throw new Error("YOUTUBE_API_KEY is not set");
-  const res = await fetch(`${BASE}/${endpoint}?${new URLSearchParams({ ...params, key })}`, { cache: "no-store" });
+  const url = `${BASE}/${endpoint}?${new URLSearchParams({ ...params, key })}`;
+  let res = await fetch(url, { cache: "no-store" });
+  // Five keyword searches at once can get 429 (too many requests): a run on 2026-10-27 lost its two English
+  // keywords that way. Wait and retry twice; a 429 costs no quota.
+  for (let retry = 1; res.status === 429 && retry <= 2; retry++) {
+    await new Promise((r) => setTimeout(r, 800 * retry + Math.random() * 400));
+    res = await fetch(url, { cache: "no-store" });
+  }
   if (!res.ok) throw new Error(`YouTube ${endpoint} failed: ${res.status}`);
   await logApiCall("youtube", endpoint);
   return (await res.json()) as T;

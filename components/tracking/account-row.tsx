@@ -11,6 +11,7 @@ const STRIP_LIMIT = 8;
 
 export function profileUrl(platform: Platform, handle: string) {
   if (platform === "tiktok") return `https://www.tiktok.com/@${handle}`;
+  if (platform === "instagram") return `https://www.instagram.com/${handle}/`;
   return /^UC[\w-]{22}$/.test(handle) ? `https://www.youtube.com/channel/${handle}` : `https://www.youtube.com/@${handle}`;
 }
 
@@ -84,7 +85,7 @@ export async function AccountRow({ id, platform, handle }: { id: string; platfor
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 truncate text-xs text-muted-foreground hover:text-foreground"
               >
-                @{handle} · {platform === "tiktok" ? "TikTok" : "YouTube"} <ExternalLink className="size-3" />
+                @{handle} · {platform === "tiktok" ? "TikTok" : platform === "instagram" ? "Instagram" : "YouTube"} <ExternalLink className="size-3" />
               </a>
             </div>
           </div>

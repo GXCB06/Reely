@@ -12,7 +12,7 @@ export function TrackButton({
   handle,
   initialTracked,
 }: {
-  platform: "tiktok" | "youtube";
+  platform: "tiktok" | "youtube" | "instagram";
   handle: string;
   initialTracked: boolean;
 }) {

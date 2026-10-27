@@ -24,6 +24,12 @@ describe("parseHandle", () => {
     });
   });
 
+  it("reads Instagram profile URLs, not reel links", () => {
+    expect(parseHandle("https://www.instagram.com/liftoff_app/")).toEqual({ platform: "instagram", handle: "liftoff_app" });
+    expect(parseHandle("instagram.com/lyfta.app?igsh=abc")).toEqual({ platform: "instagram", handle: "lyfta.app" });
+    expect(parseHandle("https://www.instagram.com/reel/DUGJmvFEbnZ/")).toBeNull();
+  });
+
   it("rejects junk", () => {
     expect(parseHandle("")).toBeNull();
     expect(parseHandle("https://example.com/@someone")).toBeNull();

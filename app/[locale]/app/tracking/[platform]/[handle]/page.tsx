@@ -9,7 +9,7 @@ import { loadAccount } from "@/lib/tracking";
 export default async function AccountPage({ params }: PageProps<"/[locale]/app/tracking/[platform]/[handle]">) {
   const { locale, platform, handle: rawHandle } = await params;
   setRequestLocale(locale);
-  if (platform !== "tiktok" && platform !== "youtube") notFound();
+  if (platform !== "tiktok" && platform !== "youtube" && platform !== "instagram") notFound();
   const handle = decodeURIComponent(rawHandle);
   const t = await getTranslations("tracking");
   const format = await getFormatter();
@@ -30,7 +30,7 @@ export default async function AccountPage({ params }: PageProps<"/[locale]/app/t
               rel="noreferrer"
               className="mt-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
             >
-              @{handle} · {platform === "tiktok" ? "TikTok" : "YouTube"} <ExternalLink className="size-3.5" />
+              @{handle} · {platform === "tiktok" ? "TikTok" : platform === "instagram" ? "Instagram" : "YouTube"} <ExternalLink className="size-3.5" />
             </a>
             {stats.fetchedAt && (
               <p className="mt-1 text-xs text-muted-foreground">{t("updated", { when: format.relativeTime(new Date(stats.fetchedAt)) })}</p>

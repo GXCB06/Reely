@@ -29,7 +29,8 @@ export type AccountStats = {
 
 /**
  * Refreshes one account's recent posts if the shared cache is older than 24 hours (cost rule 5).
- * TikTok: 2 calls (2 pages of 10). YouTube: free. Shared by every user who tracks the account.
+ * TikTok: 2 calls (2 pages of 10). Instagram: 1 call (one page of ~12 reels). YouTube: free. Shared by every user
+ * who tracks the account.
  */
 export async function refreshIfStale(platform: Platform, handle: string): Promise<{ refreshed: boolean; error?: string }> {
   const admin = createAdminClient();

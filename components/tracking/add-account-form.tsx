@@ -13,7 +13,7 @@ export function AddAccountForm() {
   const t = useTranslations("tracking");
   const router = useRouter();
   const [value, setValue] = useState("");
-  const [platform, setPlatform] = useState<"tiktok" | "youtube">("tiktok");
+  const [platform, setPlatform] = useState<"tiktok" | "youtube" | "instagram">("tiktok");
   const [pending, startTransition] = useTransition();
 
   function submit(e: React.FormEvent) {
@@ -30,10 +30,10 @@ export function AddAccountForm() {
   return (
     <form onSubmit={submit} className="flex flex-wrap items-center gap-2">
       <div className="flex gap-1.5">
-        {(["tiktok", "youtube"] as const).map((p) => (
+        {(["tiktok", "instagram", "youtube"] as const).map((p) => (
           <button key={p} type="button" onClick={() => setPlatform(p)} className={`chip ${platform === p ? "chip-on" : ""}`}>
             {platform === p && <Check className="size-3.5" />}
-            {p === "tiktok" ? "TikTok" : "YouTube"}
+            {p === "tiktok" ? "TikTok" : p === "instagram" ? "Instagram" : "YouTube"}
           </button>
         ))}
       </div>
