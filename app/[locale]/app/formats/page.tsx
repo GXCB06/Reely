@@ -24,11 +24,11 @@ export default async function FormatsPage({ params }: PageProps<"/[locale]/app/f
 
   return (
     <div>
-      <header className="page-wash px-10 pt-10 pb-8">
+      <header className="page-wash px-4 md:px-10 pt-10 pb-8">
         <h1 className="font-heading text-3xl font-bold">{t("boardTitle")}</h1>
         <p className="mt-1 max-w-2xl text-muted-foreground">{t("boardSubtitle")}</p>
       </header>
-      <div className="mx-auto max-w-6xl space-y-4 px-10 pb-16">
+      <div className="mx-auto max-w-6xl space-y-4 px-4 md:px-10 pb-16">
         {formats.length === 0 && (
           <section className="rounded-3xl border bg-card p-8 text-center shadow-sm">
             <Layers className="mx-auto size-8 text-primary" />

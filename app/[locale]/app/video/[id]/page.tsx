@@ -125,7 +125,7 @@ export default async function VideoPage({ params }: PageProps<"/[locale]/app/vid
   ];
 
   return (
-    <div className="px-10 py-8">
+    <div className="px-4 md:px-10 py-8">
       <Link href="/app" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> {t("back")}
       </Link>

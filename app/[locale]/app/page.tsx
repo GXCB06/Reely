@@ -14,7 +14,7 @@ export const maxDuration = 120;
 
 /**
  * Home = the research chat. `?q=…&region=…&go=1` pre-fills and sends it (used by "search again" on results);
- * `?product=<id>` starts from a saved product.
+ * `?product=<id>` starts from a saved product; `?dash=<id>` narrows the dashboard to one product.
  */
 export default async function HomePage({ params, searchParams }: PageProps<"/[locale]/app">) {
   const { locale } = await params;
@@ -23,6 +23,8 @@ export default async function HomePage({ params, searchParams }: PageProps<"/[lo
   const q = typeof sp.q === "string" ? sp.q.slice(0, 1000) : "";
   const region = typeof sp.region === "string" && REGIONS.has(sp.region as RegionChoice) ? (sp.region as RegionChoice) : "th";
   const productId = typeof sp.product === "string" ? sp.product : null;
+  // Dashboard filter (outliers and hashtags of one product's researches).
+  const dashProduct = typeof sp.dash === "string" ? sp.dash.slice(0, 64) : null;
 
   let products: SavedProduct[] = [];
   if (isSupabaseConfigured()) {
@@ -43,7 +45,7 @@ export default async function HomePage({ params, searchParams }: PageProps<"/[lo
       dashboard={
         isSupabaseConfigured() ? (
           <Suspense fallback={<HomeDashboardSkeleton />}>
-            <HomeDashboard />
+            <HomeDashboard productId={dashProduct} />
           </Suspense>
         ) : null
       }

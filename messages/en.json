@@ -25,7 +25,9 @@
     "pinned": "Pinned",
     "today": "Today",
     "formats": "Formats",
-    "products": "My products"
+    "products": "My products",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
   "login": {
     "title": "Sign in to Reely",
@@ -195,8 +197,8 @@
     "format": "Same format",
     "formatTip": "See who else made this kind of clip, what topics they used it for and which sounds",
     "ideaFor": "Your idea",
-    "copyable": "Phone-friendly",
-    "copyableTip": "From the caption, AI thinks a small business could film a clip like this with a phone (talking head, screen demo, simple skit)."
+    "hardToCopy": "Hard to copy",
+    "hardToCopyTip": "From the caption, AI thinks a small business would struggle to film this (celebrity, TV/movie footage, re-uploads or big production). Good for ideas, hard to copy as is."
   },
   "labels": {
     "breakout": "Breakout",
@@ -597,7 +599,9 @@
     "formats": "Formats on the rise",
     "formatsHint": "More creators posting them this week",
     "formatsEmpty": "No rising formats yet. Open any video and press \"Same format\".",
-    "formatStat": "{n, plural, one {# creator} other {# creators}} this week"
+    "formatStat": "{n, plural, one {# creator} other {# creators}} this week",
+    "showFor": "Show:",
+    "allProducts": "All products"
   },
   "hook": {
     "title": "The real hook",

@@ -9,7 +9,7 @@ export default function Loading() {
           <div className="h-28 flex-1 rounded-3xl rounded-tl-md bg-muted" />
         </div>
       </div>
-      <div className="space-y-8 px-10 pb-16">
+      <div className="space-y-8 px-4 md:px-10 pb-16">
         <div className="rounded-3xl border bg-card p-6">
           <div className="h-8 w-3/4 max-w-xl rounded-xl bg-muted" />
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

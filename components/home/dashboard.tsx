@@ -24,26 +24,34 @@ const postedWithin = (v: ScoredVideo, ms: number) => !!v.publishedAt && Date.now
 /**
  * Home, under the chat: the user's products with their goal and last research, outliers their researches found
  * recently, hashtags rising this week and formats on the rise. Everything comes from stored data (no credits).
+ * `productId` narrows the outliers and hashtags to that product's researches.
  */
-export async function HomeDashboard() {
+export async function HomeDashboard({ productId = null }: { productId?: string | null }) {
   const t = await getTranslations("home");
   const tg = await getTranslations("goals");
   const format = await getFormatter();
   const supabase = await createClient();
 
-  const [{ data: products }, { data: runs }, { data: results }, { data: savedRows }, formats] = await Promise.all([
+  const [{ data: products }, { data: runs }, { data: savedRows }, formats] = await Promise.all([
     supabase.from("products").select("id, name, goal").order("created_at"),
     supabase.from("research_runs").select("id, product_id, created_at").order("created_at", { ascending: false }).limit(200),
-    supabase
-      .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, copyable, added_at, videos(*)")
-      .gte("added_at", recentSince())
-      .order("added_at", { ascending: false })
-      .limit(RECENT_RESULTS),
     supabase.from("saved_videos").select("video_id"),
     listFormats(),
   ]);
   if (!products?.length && !runs?.length) return null;
+
+  // One product's researches only, when a product is picked (and is one of theirs).
+  const picked = products?.find((p) => p.id === productId) ?? null;
+  const pickedRuns = picked ? (runs ?? []).filter((r) => r.product_id === picked.id).map((r) => r.id as string) : null;
+  let resultsQuery = supabase
+    .from("run_results")
+    .select("keyword, reach_score, usual_score, usual_views, label, copyable, added_at, videos(*)")
+    .gte("added_at", recentSince())
+    .order("added_at", { ascending: false })
+    .limit(RECENT_RESULTS);
+  if (pickedRuns) resultsQuery = resultsQuery.in("run_id", pickedRuns);
+  // A picked product with no researches yet has nothing to show (and an empty `in` list is not a valid filter).
+  const { data: results } = pickedRuns && !pickedRuns.length ? { data: [] } : await resultsQuery;
 
   const lastRun = new Map<string, { id: string; at: string }>();
   const runCount = new Map<string, number>();
@@ -122,6 +130,20 @@ export async function HomeDashboard() {
           )}
         </div>
       </section>
+
+      {(products?.length ?? 0) > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="text-muted-foreground">{t("showFor")}</span>
+          <Link href="/app" scroll={false} className={`chip ${picked ? "" : "chip-on"}`}>
+            {t("allProducts")}
+          </Link>
+          {(products ?? []).map((p) => (
+            <Link key={p.id} href={`/app?dash=${p.id}`} scroll={false} className={`chip ${picked?.id === p.id ? "chip-on" : ""}`}>
+              {p.name}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {winners.length > 0 && (
         <section>

@@ -29,7 +29,7 @@ export default async function TrackingPage({ params }: PageProps<"/[locale]/app/
 
   return (
     <div>
-      <header className="page-wash px-10 pt-10 pb-8">
+      <header className="page-wash px-4 md:px-10 pt-10 pb-8">
         <h1 className="font-heading text-3xl font-bold">{t("title")}</h1>
         <p className="mt-1 max-w-2xl text-muted-foreground">{t("subtitle")}</p>
         <div className="mt-6">
@@ -38,7 +38,7 @@ export default async function TrackingPage({ params }: PageProps<"/[locale]/app/
         <p className="mt-2 text-xs text-muted-foreground">{t("costNote")}</p>
       </header>
 
-      <div className="space-y-4 px-10 pb-16">
+      <div className="space-y-4 px-4 md:px-10 pb-16">
         {accounts.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">{t("empty")}</p>
         ) : (

@@ -1,4 +1,4 @@
-import { Bookmark, Eye, Flame, Heart, Layers, Lightbulb, MessageCircle, Music2, Share2, ShoppingBag, Smartphone, Users } from "lucide-react";
+import { Bookmark, Clapperboard, Eye, Flame, Heart, Layers, Lightbulb, MessageCircle, Music2, Share2, ShoppingBag, Users } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { PlatformIcon } from "@/components/platform-icon";
 import { SaveButton } from "@/components/save-button";
@@ -146,9 +146,10 @@ export async function OutlierCard({
           </p>
         )}
         <div className="flex flex-wrap gap-1.5 pt-1 text-[11px]">
-          {video.copyable === 2 && (
-            <span title={t("copyableTip")} className="inline-flex cursor-help items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-sky-800">
-              <Smartphone className="size-3" /> {t("copyable")}
+          {/* Most top clips are easy to film, so only the exceptions get a badge. */}
+          {video.copyable === 0 && (
+            <span title={t("hardToCopyTip")} className="inline-flex cursor-help items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-amber-800">
+              <Clapperboard className="size-3" /> {t("hardToCopy")}
             </span>
           )}
           {video.usual !== null && video.usualViews !== null && (

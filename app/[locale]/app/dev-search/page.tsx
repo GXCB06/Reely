@@ -17,7 +17,7 @@ export default async function DevSearchPage({ params, searchParams }: PageProps<
 
   return (
     <div>
-      <header className="page-wash px-10 pt-10 pb-8">
+      <header className="page-wash px-4 md:px-10 pt-10 pb-8">
         <h1 className="font-heading text-3xl font-bold">{t("title")}</h1>
         <p className="mt-1 text-muted-foreground">{t("subtitle")}</p>
         <form className="mt-6 flex max-w-xl gap-2">
@@ -38,7 +38,7 @@ export default async function DevSearchPage({ params, searchParams }: PageProps<
       </header>
 
       {result && (
-        <section className="px-10 pb-12">
+        <section className="px-4 md:px-10 pb-12">
           {result.errors.length > 0 && (
             <ul className="mb-4 rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
               {result.errors.map((e) => (

@@ -164,7 +164,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
         </ReelyBubble>
       </div>
 
-      <div className="space-y-8 px-10 pb-16">
+      <div className="space-y-8 px-4 md:px-10 pb-16">
         {run.status === "failed" && <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{t("failed")}</p>}
         {run.status === "done" && stats?.relevanceFailed && <RecheckBanner runId={run.id as string} />}
 

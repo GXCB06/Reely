@@ -23,11 +23,11 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/app/p
 
   return (
     <div>
-      <header className="page-wash px-10 pt-10 pb-8">
+      <header className="page-wash px-4 md:px-10 pt-10 pb-8">
         <h1 className="font-heading text-3xl font-bold">{t("title")}</h1>
         <p className="mt-1 max-w-2xl text-muted-foreground">{t("subtitle")}</p>
       </header>
-      <div className="max-w-3xl space-y-4 px-10 pb-16">
+      <div className="max-w-3xl space-y-4 px-4 md:px-10 pb-16">
         {list.map((p) => (
           <details key={p.id} className="group rounded-3xl border bg-card shadow-sm">
             <summary className="flex cursor-pointer list-none items-center gap-3 p-5">

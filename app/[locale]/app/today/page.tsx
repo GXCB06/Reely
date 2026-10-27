@@ -38,7 +38,7 @@ export default async function TodayPage({ params }: PageProps<"/[locale]/app/tod
 
   return (
     <div>
-      <header className="page-wash px-10 pt-10 pb-8">
+      <header className="page-wash px-4 md:px-10 pt-10 pb-8">
         <p className="text-xs font-semibold tracking-widest text-primary uppercase">
           {format.dateTime(new Date(`${bangkokDay()}T00:00:00+07:00`), { weekday: "long", day: "numeric", month: "long" })}
         </p>
@@ -54,7 +54,7 @@ export default async function TodayPage({ params }: PageProps<"/[locale]/app/tod
         )}
       </header>
 
-      <div className="mx-auto max-w-5xl space-y-6 px-10 pb-16">
+      <div className="mx-auto max-w-5xl space-y-6 px-4 md:px-10 pb-16">
         {!hasSources && (
           <section className="rounded-3xl border bg-card p-8 text-center shadow-sm">
             <h2 className="font-heading text-xl font-bold">{t("emptyTitle")}</h2>

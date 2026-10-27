@@ -17,7 +17,7 @@ export default async function AccountPage({ params }: PageProps<"/[locale]/app/t
 
   return (
     <div>
-      <header className="page-wash px-10 pt-8 pb-8">
+      <header className="page-wash px-4 md:px-10 pt-8 pb-8">
         <Link href="/app/tracking" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" /> {t("back")}
         </Link>
@@ -46,7 +46,7 @@ export default async function AccountPage({ params }: PageProps<"/[locale]/app/t
         </div>
       </header>
 
-      <section className="px-10 pb-16">
+      <section className="px-4 md:px-10 pb-16">
         <h2 className="mb-4 font-heading text-lg font-bold">{t("allPosts")}</h2>
         {stats.videos.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">{t("noVideos")}</p>

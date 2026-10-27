@@ -42,7 +42,7 @@ export default async function AppLayout({ children, params }: LayoutProps<"/[loc
   return (
     <div className="flex min-h-dvh items-start bg-sidebar">
       <Sidebar email={email} recent={recent} onSignOut={email ? signOut : undefined} />
-      <main className="my-2 mr-2 flex-1 overflow-hidden rounded-3xl bg-background">
+      <main className="mx-2 mt-16 mb-2 min-w-0 flex-1 overflow-hidden rounded-3xl bg-background md:my-2 md:mr-2 md:ml-0">
         {!isSupabaseConfigured() && (
           <p className="bg-amber-100 px-6 py-2 text-xs text-amber-900">
             Supabase keys are not set yet — sign-in and saving are off. Add them to .env.local.

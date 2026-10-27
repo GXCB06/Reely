@@ -42,7 +42,7 @@ export default async function FormatPage({ params }: PageProps<"/[locale]/app/fo
 
   return (
     <div>
-      <header className="page-wash px-10 pt-8 pb-8">
+      <header className="page-wash px-4 md:px-10 pt-8 pb-8">
         <Link href={`/app/video/${id}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" /> {t("back")}
         </Link>
@@ -70,7 +70,7 @@ export default async function FormatPage({ params }: PageProps<"/[locale]/app/fo
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl space-y-8 px-10 pb-16">
+      <div className="mx-auto max-w-6xl space-y-8 px-4 md:px-10 pb-16">
         {!f && <FormatBuilder videoId={id} />}
 
         {f && (

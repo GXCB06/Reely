@@ -11,11 +11,11 @@ export default async function AccountPage({ params }: PageProps<"/[locale]/app/a
 
   return (
     <div>
-      <header className="page-wash px-10 pt-10 pb-8">
+      <header className="page-wash px-4 md:px-10 pt-10 pb-8">
         <h1 className="font-heading text-3xl font-bold">{t("title")}</h1>
         <p className="mt-1 text-muted-foreground">{(data?.claims?.email as string | undefined) ?? ""}</p>
       </header>
-      <div className="px-10 pb-16">
+      <div className="px-4 md:px-10 pb-16">
         <PasswordForm />
       </div>
     </div>
