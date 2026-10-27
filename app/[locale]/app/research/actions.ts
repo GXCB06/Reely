@@ -4,14 +4,14 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
 import { MAX_KEYWORDS, type RunSummary } from "@/lib/ai/schemas";
-import { englishKeywords, enhanceBrief, ideasForClips, type ProductBrief, rateRelevance, summarizeRun } from "@/lib/ai/tasks";
+import { answerFollowUp, englishKeywords, enhanceBrief, ideasForClips, type ProductBrief, rateRelevance, summarizeRun } from "@/lib/ai/tasks";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
 import { type Feedback, withFeedback } from "@/lib/feedback";
 import { loadFeedback } from "@/lib/feedback-store";
 import { GOALS, type Goal, isGoal, scoreFor } from "@/lib/goals";
 import { diverseTop, relevanceKeep } from "@/lib/results";
 import { looksThai } from "@/lib/region";
-import { keepRate } from "@/lib/scoring";
+import { engagementRate, keepRate } from "@/lib/scoring";
 import { type PlatformStats, type ScoredVideo, searchKeywords } from "@/lib/search";
 import { DEFAULT_MIN_VIEWS } from "@/lib/search-settings";
 import { researchesLeft } from "@/lib/limits";
@@ -486,4 +486,59 @@ export async function followRunAction(id: string, follow: boolean) {
     .eq("id", parsed.data.id);
   revalidatePath("/[locale]/app", "layout");
   return error ? { ok: false as const, error: "failed" } : { ok: true as const };
+}
+
+export type FollowUpReply = {
+  reply: string;
+  clips: { dbId: number; handle: string; thumbnailUrl: string | null; views: number | null; multiplier: number | null }[];
+  /** A new search the user can start (the chat, pre-filled), when they asked for videos this research doesn't have. */
+  researchHref: string | null;
+};
+
+/** "Ask Reely" under a research: answers from its clips, or proposes a new search. One Gemini call, no credits. */
+export async function followUpAction(id: string, question: string, lang: string) {
+  const parsed = z.object({ id: runId, question: z.string().trim().min(2).max(500), lang: locale }).safeParse({ id, question, lang });
+  if (!parsed.success) return { ok: false as const };
+  const supabase = await createClient();
+  const [{ data: run }, { data: rows }] = await Promise.all([
+    supabase.from("research_runs").select("id, goal, input, brief, region, product_id").eq("id", parsed.data.id).maybeSingle(),
+    supabase
+      .from("run_results")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, videos(*)")
+      .eq("run_id", parsed.data.id)
+      .order("rank"),
+  ]);
+  if (!run) return { ok: false as const };
+  const input = (run.input ?? {}) as { productName?: string; whatItIs?: string; audience?: string };
+  const goal = isGoal(run.goal) ? (run.goal as Goal) : null;
+  const all = ((rows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null);
+  const { feedback } = await loadFeedback(supabase, run.product_id as string | null);
+  const score = withFeedback<ScoredVideo>(scoreFor(goal), feedback);
+  const clips = [...all].sort((a, b) => score(b) - score(a)).slice(0, 25);
+
+  const res = await answerFollowUp(
+    { name: input.productName ?? "", whatItIs: input.whatItIs ?? "", audience: input.audience ?? "" },
+    goal,
+    run.brief as string,
+    parsed.data.question,
+    clips.map((v) => ({
+      handle: v.creatorHandle,
+      platform: v.platform,
+      caption: v.caption,
+      views: v.views,
+      multiplier: v.usual ?? v.reach,
+      engagement: engagementRate(v),
+    })),
+    parsed.data.lang,
+  );
+  if (!res) return { ok: false as const };
+  const cited = res.clips.map((i) => clips[i]).filter((v): v is ScoredVideo => !!v?.dbId);
+  const params = new URLSearchParams({ q: res.brief, region: (run.region as string | null) ?? "th" });
+  if (run.product_id) params.set("product", run.product_id as string);
+  return {
+    ok: true as const,
+    reply: res.reply,
+    clips: cited.map((v) => ({ dbId: v.dbId!, handle: v.creatorHandle, thumbnailUrl: v.thumbnailUrl, views: v.views, multiplier: v.usual ?? v.reach })),
+    researchHref: res.kind === "research" && res.brief.trim() ? `/app?${params}` : null,
+  } satisfies FollowUpReply & { ok: true };
 }

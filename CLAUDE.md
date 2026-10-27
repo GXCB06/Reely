@@ -164,5 +164,6 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 
 - Copy Virlo's or Peekly's name, logo, wording, or assets.
 - Use Virlo's API (its terms forbid competing products).
-- Build billing, teams, an open-ended Copilot chat (the Home chat only runs the research flow),
+- Build billing, teams, an open-ended Copilot chat (the Home chat only runs the research flow; the "Ask Reely" box
+  under a research only answers from that research's clips or proposes a new search: `followUpAction`),
   bring-your-own AI keys, alerts, or anything listed in docs/SPEC.md §3.

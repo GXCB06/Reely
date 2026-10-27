@@ -7,6 +7,7 @@ import { OutlierCard } from "@/components/outlier-card";
 import { PlatformIcon } from "@/components/platform-icon";
 import { FilterBar } from "@/components/results/filter-bar";
 import { FollowTopicButton } from "@/components/results/follow-topic-button";
+import { FollowUpBox } from "@/components/results/follow-up-box";
 import { IdeasLoader } from "@/components/results/ideas-loader";
 import { InsightCard } from "@/components/results/insight-card";
 import { Patterns } from "@/components/results/patterns";
@@ -335,6 +336,8 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
           <section className="mx-auto max-w-3xl">
             <ReelyBubble>
               <p className="mb-3 text-sm font-semibold">{t("nextTitle")}</p>
+              <FollowUpBox runId={run.id as string} />
+              <p className="mt-4 mb-2 text-xs font-semibold text-muted-foreground">{t("shortcutsTitle")}</p>
               <div className="flex flex-wrap gap-2">
                 <FollowTopicButton runId={run.id as string} initialFollowed={run.followed_at !== null} />
                 {lead?.dbId && (

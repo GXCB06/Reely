@@ -101,6 +101,20 @@ export const clipIdeasSchema = z.object({
   ),
 });
 
+/**
+ * Results page follow-up: what the user typed under a research, answered from that research's clips. Reely only
+ * answers about these results or proposes a new search (it is not an open-ended chat).
+ */
+export const followUpSchema = z.object({
+  kind: z
+    .enum(["answer", "research"])
+    .describe("answer: a question about these clips or what to make from them; research: they want different or more videos"),
+  reply: z.string().describe("2-5 short sentences in the user's language; cite clips by @handle and their numbers"),
+  clips: z.array(z.number().int().min(0)).max(4).describe("Line numbers of the clips the reply is about (best first)"),
+  brief: z.string().max(400).describe("kind=research only: the new search brief in the user's language, else empty"),
+});
+export type FollowUp = z.infer<typeof followUpSchema>;
+
 /** The parts a short video can have, for the real-hook breakdown. */
 export const HOOK_BEATS = ["hook", "setup", "problem", "demo", "proof", "story", "twist", "payoff", "cta"] as const;
 

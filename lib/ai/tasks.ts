@@ -28,6 +28,8 @@ import {
   todaySchema,
   scriptSchema,
   englishKeywordsSchema,
+  type FollowUp,
+  followUpSchema,
   type PlanDraft,
   planOutputSchema,
   type Understanding,
@@ -716,6 +718,57 @@ export async function ideasForClips(
     return out;
   } catch (e) {
     console.warn("[ai] ideasForClips failed", (e as Error).message);
+    return null;
+  }
+}
+
+export type FollowUpClip = { handle: string; platform: string; caption: string; views: number | null; multiplier: number | null; engagement: number | null };
+
+/**
+ * "Ask Reely about these results": one Gemini call that either answers from this research's clips (which to make
+ * first, why they worked, how to adapt one) or turns the request into a new search brief. Null when AI fails.
+ */
+export async function answerFollowUp(
+  product: ProductBrief,
+  goal: Goal | null,
+  brief: string,
+  question: string,
+  clips: FollowUpClip[],
+  locale: string,
+): Promise<FollowUp | null> {
+  const model = getModel();
+  if (!model) return null;
+  try {
+    const { output } = await generateText({
+      ...aiCallOptions(30_000),
+      model,
+      output: Output.object({ schema: followUpSchema }),
+      prompt: [
+        `You are Reely, a short-video research assistant. Answer in ${languageName(locale)}, plainly, like a helpful colleague.`,
+        goal ? `The user ${GOAL_BRIEF[goal]}.` : "",
+        `Their product: ${product.name} — ${product.whatItIs}${product.audience ? `. Audience: ${product.audience}` : ""}`,
+        `This research looked for: ${brief}`,
+        "Below are the clips it found, best first. The user typed a follow-up. Decide:",
+        "- answer: they ask about these clips (which to make first, why they worked, what they have in common, how to adapt",
+        "  one for the product, which suits a goal or audience). Answer ONLY from the clips below and cite them by @handle with",
+        "  their views or multiplier; put their line numbers in clips.",
+        "- research: they want videos that are not here (another angle, audience, format, platform or more of something).",
+        "  Write brief: what to search for next, building on the product and their request; reply says what you will look for.",
+        "If the request is unrelated to short videos for this product, answer kindly that you can only help with these",
+        "results or a new search, with kind=answer and no clips.",
+        NO_MADE_UP_NUMBERS,
+        "Clips (line | platform | handle | views | multiplier | engagement | caption):",
+        ...clips.map(
+          (v, i) =>
+            `${i} | ${v.platform} | @${v.handle} | ${shortViews(v.views)} | ${v.multiplier !== null ? formatMultiplier(v.multiplier) + "x" : "?"} | ${v.engagement !== null ? (v.engagement * 100).toFixed(1) + "%" : "?"} | ${v.caption.slice(0, 160).replace(/\s+/g, " ")}`,
+        ),
+        "",
+        `User: ${question}`,
+      ].join("\n"),
+    });
+    return { ...output, clips: output.clips.filter((i) => i < clips.length) };
+  } catch (e) {
+    console.warn("[ai] answerFollowUp failed", (e as Error).message);
     return null;
   }
 }

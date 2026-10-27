@@ -255,7 +255,7 @@
       "engagement": "Most engaging"
     },
     "noMatch": "No videos match these filters.",
-    "nextTitle": "What next?",
+    "nextTitle": "What next? Ask Reely",
     "nextScript": "Write my version of @{handle}’s video",
     "nextTrack": "Track @{handle}",
     "nextWorldwide": "Search worldwide instead",
@@ -320,7 +320,18 @@
     "rechecking": "Checking…",
     "recheckDone": "Done: removed {n, plural, one {# off-topic clip} other {# off-topic clips}}",
     "recheckBusy": "Gemini is still busy. Try again in a little while.",
-    "recheckFailed": "Couldn't check the clips. Try again."
+    "recheckFailed": "Couldn't check the clips. Try again.",
+    "shortcutsTitle": "Or pick a shortcut",
+    "askPlaceholder": "e.g. Which clip suits working women? Or: find more review-style clips",
+    "askSend": "Send",
+    "askThinking": "Reely is looking through this research…",
+    "askFailed": "Couldn't answer right now. Try again in a moment.",
+    "askResearch": "Search for this",
+    "askStarter": {
+      "first": "Which clip should I make first, and why?",
+      "why": "What do these hits have in common?",
+      "more": "Find more clips like…"
+    }
   },
   "card": {
     "save": "Save",
