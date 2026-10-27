@@ -11,18 +11,18 @@ const SLIDE_MS = 5500;
 const THUMBS = "https://jjzpwqqtetmmwutilzfz.supabase.co/storage/v1/object/public/thumbs";
 
 /**
- * Real clips Reely found (numbers as of 2026-10-27), one per kind of user: a startup (AccOS Pro's own account),
+ * Real clips Reely found (numbers as of 2026-10-27), one per kind of user: a startup (AccOS Pro's own Instagram),
  * an affiliate selling through TikTok Shop, and a content creator. Covers are the copies in our storage bucket.
  */
 const REAL_CLIPS = [
   {
     kind: "startup",
-    platform: "tiktok" as const,
-    cover: `${THUMBS}/tiktok/7681318086913494293.jpg`,
-    handle: "accospro.app",
-    caption: "นักบัญชีจะไม่อดหลับอดนอนอีกต่อไป",
-    views: "384K",
-    x: "388×",
+    platform: "instagram" as const,
+    cover: `${THUMBS}/instagram/Dc70ZuezCBP.jpg`,
+    handle: "accos.pro",
+    caption: "คอมเมนต์ “เอไอบัญชี” เดียวผมส่งรายละเอียดไปให้ครับ",
+    views: "11.9K",
+    x: "2.8×",
     of: "usual",
   },
   {
