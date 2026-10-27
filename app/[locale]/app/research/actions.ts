@@ -14,7 +14,9 @@ import { looksThai } from "@/lib/region";
 import { engagementRate, keepRate } from "@/lib/scoring";
 import { type PlatformStats, type ScoredVideo, searchKeywords } from "@/lib/search";
 import { DEFAULT_MIN_VIEWS } from "@/lib/search-settings";
+import { findLink } from "@/components/chat/image-utils";
 import { researchesLeft } from "@/lib/limits";
+import { readLink } from "@/lib/link-preview";
 import { importClip } from "@/lib/clip-import";
 import { parseClipLink } from "@/lib/clip-link";
 import { createClient } from "@/lib/supabase/server";
@@ -44,7 +46,10 @@ const thumbDataUrl = imageDataUrl.max(60_000);
 export async function enhanceBriefAction(text: string, lang: string) {
   const parsed = z.object({ text: z.string().trim().min(3).max(1000), lang: locale }).safeParse({ text, lang });
   if (!parsed.success) return { ok: false as const };
-  const enhanced = await enhanceBrief(parsed.data.text, parsed.data.lang);
+  // Read the product link first, so the brief describes the real product instead of a guess from its name.
+  const url = findLink(parsed.data.text);
+  const link = url ? await readLink(url).catch(() => null) : null;
+  const enhanced = await enhanceBrief(parsed.data.text, parsed.data.lang, link);
   return enhanced ? { ok: true as const, ...enhanced } : { ok: false as const };
 }
 

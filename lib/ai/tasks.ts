@@ -238,6 +238,7 @@ export async function understandProduct(
         `then plan the search. Write ${known ? "reply" : "reply, productName, whatItIs and audience"} in ${languageName(locale)}.`,
         "In reply, say in a few words what you think they want the clips for and what kind of videos you will look for.",
         `Keywords: search phrases, 2-4 words each, that people actually type or use as hashtags. ${REGION_RULE[msg.region]}`,
+        `Never add a year to a phrase (it is ${new Date().getFullYear()}; old years bring old videos).`,
         "Avoid broad or ambiguous phrases that also name unrelated things (e.g. a university faculty, a",
         "celebrity, a TV show): every phrase should still clearly point at the product's topic.",
         ...goalPlan(msg.goal),
@@ -382,11 +383,10 @@ export async function rateRelevance(
   try {
     const results = await Promise.all(
       batches.map(async (batch, b) => {
-        const { output } = await generateText({
-          ...aiCallOptions(40_000),
-          model,
-          output: Output.object({ schema: relevanceSchema }),
-          prompt: [
+        // One busy batch used to throw the whole check away (a run then kept every off-topic clip): retry it once.
+        const ask = (prompt: string) =>
+          generateText({ ...aiCallOptions(40_000), model, output: Output.object({ schema: relevanceSchema }), prompt });
+        const prompt = [
             "A founder wants short videos they can learn from for their product. Rate every video below.",
             `Product: ${product.name} — ${product.whatItIs}`,
             product.audience ? `Audience: ${product.audience}` : "",
@@ -412,7 +412,10 @@ export async function rateRelevance(
             "Return score, copy and brand for every line number.",
             "",
             ...batch.map((v, i) => `${i} | @${v.creatorHandle} | ${v.caption.slice(0, 160).replace(/\s+/g, " ") || "(no caption)"}`),
-          ].join("\n"),
+          ].join("\n");
+        const { output } = await ask(prompt).catch((e) => {
+          console.warn("[ai] rateRelevance batch failed, retrying", b, (e as Error).message);
+          return ask(prompt);
         });
         const scores: number[] = Array(batch.length).fill(0);
         const copy: (number | null)[] = Array(batch.length).fill(null);
@@ -1004,7 +1007,7 @@ export async function matchFormat(
  * Chat "Enhance": rewrites a rough description into a brief that covers the topic, who it is for, the
  * angle and what to avoid (keeping the user's facts, product names and links). Null when AI is off.
  */
-export async function enhanceBrief(text: string, locale: string): Promise<Enhanced | null> {
+export async function enhanceBrief(text: string, locale: string, link: LinkPreview | null = null): Promise<Enhanced | null> {
   const model = getModel();
   if (!model) return null;
   try {
@@ -1017,10 +1020,13 @@ export async function enhanceBrief(text: string, locale: string): Promise<Enhanc
         "Cover: 1) the topic / product category, 2) who it is for, 3) the angle or kinds of videos wanted",
         "(e.g. tutorials, reviews, comparisons, quick tips), 4) what to avoid. Keep every fact, product name,",
         "competitor and link the user gave; add sensible specifics where missing, without inventing claims.",
+        "Never guess what a product does from its name: describe it only from the user's words and the product page",
+        "below. If neither says what it does, keep the user's own words for it and write the rest around them.",
         `Write the brief in ${languageName(locale)} unless the user wrote in another language. Then mark which`,
         "of the 4 parts the brief covers.",
         "",
         `Request:\n${text}`,
+        link ? `\nTheir product page (${link.url}):\nTitle: ${link.title ?? ""}\nDescription: ${link.description ?? ""}\nText: ${link.text.slice(0, 1500)}` : "",
       ].join("\n"),
     });
     return output;

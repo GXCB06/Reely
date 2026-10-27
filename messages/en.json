@@ -76,13 +76,14 @@
     "trustNoPost": "We never post for you and never sell your data.",
     "showcase": {
       "badge": "Short-video research for Thai businesses",
-      "title": "Find clips that beat their usual views, see why, make your own",
+      "title": "Find the short videos that really work in your market",
       "platform": {
         "tiktok": "TikTok",
         "youtube": "Shorts",
         "instagram": "Reels"
       },
-      "sample": "Real screens · sample numbers"
+      "sample": "Real screens · sample numbers",
+      "subtitle": "Reely shows why they worked, then helps you make your own."
     },
     "slide": {
       "find": {
@@ -382,7 +383,8 @@
       "more": "Find more clips like…",
       "like": "Find clips like this one: (paste a Reel / TikTok link)"
     },
-    "askReference": "Reference"
+    "askReference": "Reference",
+    "recheckAuto": "The AI was busy during the search, so off-topic clips weren't filtered yet. Filtering them now, for free…"
   },
   "card": {
     "save": "Save",

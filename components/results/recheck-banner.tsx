@@ -2,17 +2,29 @@
 
 import { Loader2, RefreshCw, TriangleAlert } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { recheckRelevanceAction } from "@/app/[locale]/app/research/actions";
 import { useRouter } from "@/i18n/navigation";
 
-/** Shown when Gemini was too busy to filter a research: says so, and re-checks the saved results for free. */
+/**
+ * Shown when Gemini was too busy to filter a research. The free re-check starts by itself when the page opens
+ * (off-topic clips shouldn't wait for someone to notice a banner); the button retries if that fails too.
+ */
 export function RecheckBanner({ runId }: { runId: string }) {
   const t = useTranslations("results");
   const locale = useLocale();
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    void recheck();
+    // Once, when the page opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function recheck() {
     setPending(true);
@@ -26,7 +38,7 @@ export function RecheckBanner({ runId }: { runId: string }) {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
       <TriangleAlert className="size-4 shrink-0" />
-      <p className="min-w-0 flex-1">{t("recheckNote")}</p>
+      <p className="min-w-0 flex-1">{pending ? t("recheckAuto") : t("recheckNote")}</p>
       <button
         type="button"
         onClick={recheck}

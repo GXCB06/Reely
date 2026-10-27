@@ -228,3 +228,16 @@
     background-size: 100% 2px;
   }
 }
+
+/* Sign-in showcase: the current slide's bar fills up until the next slide (duration from --slide-ms). */
+.slide-progress {
+  animation: slide-progress var(--slide-ms, 5.5s) linear forwards;
+}
+@keyframes slide-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
