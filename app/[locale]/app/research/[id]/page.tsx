@@ -102,7 +102,8 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   } | null;
   // Similar products' own accounts (an app or brand like the user's, promoting itself) and their best clips.
   const similarKeys = new Set((stats?.similarAccounts ?? []).map((a) => `${a.platform}:${a.handle}`));
-  const similarClips = all.filter((v) => similarKeys.has(`${v.platform}:${v.creatorHandle}`)).sort((a, b) => score(b) - score(a));
+  // At most 2 per account, so one account's near-identical posts don't fill the section.
+  const similarClips = diverseTop(all.filter((v) => similarKeys.has(`${v.platform}:${v.creatorHandle}`)), 8, 0, score);
   // The main reason each platform's videos were dropped, so a thin platform is explained, not hidden.
   const mainDrop = (s: PlatformStats) =>
     (Object.entries(s.dropped) as [DropReason, number][]).sort((a, b) => b[1] - a[1])[0] ?? null;
@@ -315,7 +316,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
               ))}
             </div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {similarClips.slice(0, 10).map((v) => (
+              {similarClips.map((v) => (
                 <OutlierCard
                   key={`${v.platform}:${v.platformVideoId}`}
                   video={v}
