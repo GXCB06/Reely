@@ -338,7 +338,8 @@
     "moreLikeThis": "Find more like this",
     "moreLikeThisQuery": "Short videos like this one: {caption}",
     "creatorHits": "More hits from @{handle}",
-    "creatorHitsHint": "Their posts that beat their usual views (no credits)."
+    "creatorHitsHint": "Their posts that beat their usual views (no credits).",
+    "checkingUsual": "Checking @{handle}’s usual views…"
   },
   "saved": {
     "title": "Saved",

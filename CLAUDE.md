@@ -116,9 +116,10 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     `/api/covers` (batched), which re-fetches that one video (`/v2/tiktok/video` or `/v1/instagram/post`, 1 credit),
     copies the cover to storage and updates the row. Max 150 repairs a day for everyone (`REPAIRS_PER_DAY`).
 19. A pasted Instagram Reel / TikTok link (`lib/clip-import.ts`): `/v1/instagram/post` or `/v2/tiktok/video` (1 credit,
-    skipped when the clip was fetched in the last 24 h) + the creator's usual views (rule 3, cached 24 h). Max 60 a
-    day for everyone (counted as `reely/clip-import` in `api_usage`). "More hits from @creator" on the video page only
-    reads the shared cache.
+    ~7 s; skipped when the clip was fetched in the last 24 h), then the chat opens the video page with `?lookup=1`,
+    which asks for the creator's usual views (1-2 credits, ~20 s on Instagram; skipped when any value is known).
+    Max 60 reads + lookups a day for everyone (`reely/clip-import` in `api_usage`). "More hits from @creator" on the
+    video page only reads the shared cache.
 
 ## Security rules
 

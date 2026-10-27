@@ -21,6 +21,7 @@ import type { HookBreakdown } from "@/lib/ai/schemas";
 import type { Segment } from "@/lib/transcript";
 import { HookPanel } from "./hook-panel";
 import { ScriptPanel } from "./script-panel";
+import { UsualViewsLoader } from "./usual-views-loader";
 
 type Scores = { usual: number | null; reach: number | null };
 
@@ -112,7 +113,7 @@ function moreLikeThisHref(video: VideoRow, query: (caption: string) => string, p
 
 export default async function VideoPage({ params, searchParams }: PageProps<"/[locale]/app/video/[id]">) {
   const { locale, id } = await params;
-  const { product: productParam } = await searchParams;
+  const { product: productParam, lookup } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations("video");
   const ts = await getTranslations("search");
@@ -202,6 +203,10 @@ export default async function VideoPage({ params, searchParams }: PageProps<"/[l
           </div>
 
           <div className="flex flex-wrap gap-3">
+            {/* A pasted link: the creator's usual views arrive a few seconds after the page. */}
+            {lookup === "1" && usualViews === null && video.platform !== "youtube" && (
+              <UsualViewsLoader videoId={video.id} handle={video.creator_handle} />
+            )}
             {(scores.usual ?? scores.reach) !== null && (
               <div className="rounded-2xl bg-primary px-5 py-3 text-primary-foreground">
                 <p className="flex items-center gap-1 text-2xl font-bold">

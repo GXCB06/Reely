@@ -207,7 +207,7 @@ export function ResearchChat({
       .then((res) => {
         if (!res.ok) throw new Error(res.error);
         toast.dismiss(toastId);
-        router.push(product ? `/app/video/${res.videoId}?product=${product.id}` : `/app/video/${res.videoId}`);
+        router.push(`/app/video/${res.videoId}?lookup=1${product ? `&product=${product.id}` : ""}`);
       })
       .catch((e: Error) => {
         toast.error(t(`clip.${["notFound", "limit"].includes(e.message) ? e.message : "failed"}`), { id: toastId });

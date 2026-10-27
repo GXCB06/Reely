@@ -337,7 +337,8 @@
     "moreLikeThis": "หาคลิปแนวนี้เพิ่ม",
     "moreLikeThisQuery": "คลิปสั้นแนวเดียวกับคลิปนี้: {caption}",
     "creatorHits": "คลิปปังอื่นๆ ของ @{handle}",
-    "creatorHitsHint": "โพสต์ที่ยอดวิวเกินปกติของเขา (ไม่ใช้เครดิต)"
+    "creatorHitsHint": "โพสต์ที่ยอดวิวเกินปกติของเขา (ไม่ใช้เครดิต)",
+    "checkingUsual": "กำลังดูยอดวิวปกติของ @{handle}…"
   },
   "saved": {
     "title": "ที่บันทึกไว้",

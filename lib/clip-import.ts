@@ -1,7 +1,7 @@
 import "server-only";
 import { instagramPost } from "@/lib/adapters/instagram-scrapecreators";
 import { tiktokVideo } from "@/lib/adapters/tiktok-scrapecreators";
-import type { NormalizedVideo } from "@/lib/adapters/types";
+import type { NormalizedVideo, Platform } from "@/lib/adapters/types";
 import { saveVideos } from "@/lib/cache";
 import type { ClipLink } from "@/lib/clip-link";
 import { lookUpCreator } from "@/lib/search";
@@ -16,9 +16,24 @@ export type ImportResult =
   | { ok: true; videoId: number; video: NormalizedVideo | null }
   | { ok: false; error: "notFound" | "limit" | "failed" };
 
+/** True while today's pasted-link budget (reads + creator lookups, for everyone) has room; counts this one. */
+async function takeImportSlot(admin: NonNullable<ReturnType<typeof createAdminClient>>) {
+  const { data: usage } = await admin
+    .from("api_usage")
+    .select("calls")
+    .eq("day", new Date().toISOString().slice(0, 10))
+    .eq("provider", "reely")
+    .eq("endpoint", "clip-import")
+    .maybeSingle();
+  if (((usage?.calls as number | undefined) ?? 0) >= IMPORTS_PER_DAY) return false;
+  await logApiCall("reely", "clip-import");
+  return true;
+}
+
 /**
- * "Paste a clip link": the clip (cached 24 h, otherwise 1 credit) and its creator's usual views, so the video page
- * shows the multiplier, the real-hook breakdown and "my version" like any clip found by a research.
+ * "Paste a clip link": the clip itself (cached 24 h, otherwise 1 credit, ~7 s). The video page then shows the
+ * real-hook breakdown and "my version" like any clip found by a research, and asks for the creator's usual views
+ * (`lookUpClipCreator`) while it is open: Instagram's profile feed takes ~20 s, too long to wait on in the chat.
  */
 export async function importClip(link: ClipLink): Promise<ImportResult> {
   const admin = createAdminClient();
@@ -35,15 +50,7 @@ export async function importClip(link: ClipLink): Promise<ImportResult> {
     }
   }
 
-  const { data: usage } = await admin
-    .from("api_usage")
-    .select("calls")
-    .eq("day", new Date().toISOString().slice(0, 10))
-    .eq("provider", "reely")
-    .eq("endpoint", "clip-import")
-    .maybeSingle();
-  if (((usage?.calls as number | undefined) ?? 0) >= IMPORTS_PER_DAY) return { ok: false, error: "limit" };
-  await logApiCall("reely", "clip-import");
+  if (!(await takeImportSlot(admin))) return { ok: false, error: "limit" };
 
   const video = await (link.platform === "instagram" ? instagramPost(link.url) : tiktokVideo(link.url)).catch((e) => {
     console.warn("[clip-import] lookup failed", link.url, (e as Error).message);
@@ -52,10 +59,25 @@ export async function importClip(link: ClipLink): Promise<ImportResult> {
   if (video === undefined) return { ok: false, error: "failed" };
   if (!video?.creatorHandle) return { ok: false, error: "notFound" };
 
-  await lookUpCreator(video.platform, video.creatorHandle).catch((e) => {
-    console.warn("[clip-import] usual views failed", video.creatorHandle, (e as Error).message);
-  });
-  // Saved after the creator's feed, so the post's own numbers win.
   const id = (await saveVideos([video])).get(`${video.platform}:${video.platformVideoId}`);
   return id ? { ok: true, videoId: id, video } : { ok: false, error: "failed" };
+}
+
+/**
+ * A pasted clip's creator: usual views from one page of their feed (1 credit on Instagram, 2 on TikTok). Skipped when
+ * Reely already knows them (an older value is fine for one clip's multiplier). Counts toward the pasted-link budget.
+ */
+export async function lookUpClipCreator(platform: Platform, handle: string): Promise<"done" | "known" | "limit" | "failed"> {
+  const admin = createAdminClient();
+  if (!admin || platform === "youtube") return "failed";
+  const { data } = await admin.from("creators").select("usual_views").eq("platform", platform).eq("handle", handle).maybeSingle();
+  if (data?.usual_views) return "known";
+  if (!(await takeImportSlot(admin))) return "limit";
+  return lookUpCreator(platform, handle).then(
+    () => "done" as const,
+    (e) => {
+      console.warn("[clip-import] usual views failed", handle, (e as Error).message);
+      return "failed" as const;
+    },
+  );
 }

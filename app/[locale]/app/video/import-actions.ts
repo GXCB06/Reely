@@ -2,7 +2,7 @@
 
 import { after } from "next/server";
 import { z } from "zod";
-import { importClip } from "@/lib/clip-import";
+import { importClip, lookUpClipCreator } from "@/lib/clip-import";
 import { parseClipLink } from "@/lib/clip-link";
 import { createClient } from "@/lib/supabase/server";
 import { persistThumbnails } from "@/lib/thumbs";
@@ -21,4 +21,15 @@ export async function importClipAction(text: string) {
   const video = res.video;
   if (video) after(() => persistThumbnails([video]));
   return { ok: true as const, videoId: res.videoId };
+}
+
+/** Video page, right after a pasted link: the clip creator's usual views, so the multiplier can show. */
+export async function lookUpClipCreatorAction(videoId: number) {
+  const id = z.number().int().positive().parse(videoId);
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  if (!claims?.claims) return "failed" as const;
+  const { data: video } = await supabase.from("videos").select("platform, creator_handle").eq("id", id).maybeSingle();
+  if (!video?.creator_handle) return "failed" as const;
+  return lookUpClipCreator(video.platform, video.creator_handle as string);
 }
