@@ -52,6 +52,11 @@ export function isOwnAccount(handle: string, productName: string | undefined) {
   return name.length >= 5 && squash(handle).includes(name);
 }
 
+/** True when the account is one of these brands (e.g. @myfitnesspal for "MyFitnessPal"): a similar product's own channel. */
+export function isBrandAccount(handle: string, brands: string[] | undefined) {
+  return (brands ?? []).some((b) => isOwnAccount(handle, b));
+}
+
 function presetOrNull(raw: string | string[] | undefined, allowed: readonly number[]) {
   const n = Number(Array.isArray(raw) ? raw[0] : raw);
   return allowed.includes(n) ? n : null;

@@ -75,7 +75,9 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
    in the composer. Never add another paid provider without asking.
 2. Max 5 keywords per run, 1 page per keyword per platform.
 3. Usual-views lookups only for the top 5 creators per platform in a run (8 Instagram creators when a run searches
-   Reels without TikTok), for tracked accounts, and for the creator of a pasted clip link.
+   Reels without TikTok), for tracked accounts, and for the creator of a pasted clip link. Plus up to 2 similar-product
+   accounts per platform (an app or brand like the user's promoting itself: `brand` from `rateRelevance`, or a handle
+   matching a competitor): their standout clips join the results and get their own section ("From similar products").
 4. Before any external call, check the 24-hour cache (`lib/cache.ts`).
 5. Tracked accounts refresh only when their page is opened, max once per 24 h.
 6. Transcripts only when the user presses "Read what the clip says" on the video page (`lib/hook-breakdown.ts`):

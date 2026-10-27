@@ -76,8 +76,9 @@ export type PlanEvent =
 export const englishKeywordsSchema = z.object({ english: z.array(z.string().max(80)) });
 
 /**
- * Per search result: relevance to the user's product (0 unrelated, 1 same field, 2 on topic) and how easily a small
- * business could film a similar clip with a phone (0 can't be copied, 1 needs production, 2 easy).
+ * Per search result: relevance to the user's product (0 unrelated, 1 same field, 2 on topic), how easily a small
+ * business could film a similar clip with a phone (0 can't be copied, 1 needs production, 2 easy), and whether the
+ * account is itself a similar product promoting itself.
  */
 export const relevanceSchema = z.object({
   scores: z.array(
@@ -85,6 +86,7 @@ export const relevanceSchema = z.object({
       i: z.number().int().min(0),
       score: z.number().int().min(0).max(2),
       copy: z.number().int().min(0).max(2),
+      brand: z.boolean().describe("The account itself is a product, app or brand like the user's (or a named competitor) promoting itself"),
     }),
   ),
 });

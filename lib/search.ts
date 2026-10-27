@@ -8,7 +8,7 @@ import { getCreatorVideos, getFreshCreator, saveCreator, saveVideos } from "@/li
 import { clipKey, type Feedback, withFeedback } from "@/lib/feedback";
 import { type Goal, goalScore } from "@/lib/goals";
 import { captionLanguage } from "@/lib/region";
-import { isExcluded, isOwnAccount, relevanceKeep, STRICT_RELEVANCE_AT } from "@/lib/results";
+import { isBrandAccount, isExcluded, isOwnAccount, relevanceKeep, STRICT_RELEVANCE_AT } from "@/lib/results";
 import {
   labelFor,
   type OutlierLabel,
@@ -29,6 +29,14 @@ const BASELINE_CREATORS_REELS_ONLY = 8;
  * already paid for) also add their own standout reels: at least 2x their usual views, after the same relevance check.
  */
 const FEED_EXTRA_PLATFORMS: Platform[] = ["instagram"];
+/**
+ * Accounts that are themselves a product like the user's (an app or brand promoting itself, flagged by the relevance
+ * check or matching a competitor's name): up to 2 per platform get a usual-views lookup even outside the top creators,
+ * and their own standout clips join the results on every platform. Max +2 credits on Instagram, +4 on TikTok.
+ */
+const SIMILAR_ACCOUNTS = 2;
+
+export type SimilarAccount = { platform: Platform; handle: string; usualViews: number | null };
 const FEED_EXTRA_MIN_USUAL = 2;
 const FEED_EXTRAS_PER_CREATOR = 3;
 
@@ -55,6 +63,8 @@ export type SearchResult = {
   errors: string[];
   /** The AI relevance check could not run (Gemini busy), so nothing was filtered out: the page offers a re-check. */
   relevanceFailed: boolean;
+  /** Similar products' own accounts found in this run (shown in their own section). */
+  similarAccounts: SimilarAccount[];
 };
 
 export type DropReason = "views" | "old" | "language" | "excluded" | "offTopic";
@@ -194,6 +204,7 @@ export async function searchKeywords(
   const rated = opts.product ? await rateRelevance(opts.product, clean, opts.goal, opts.feedback?.examples) : null;
   const relevance = rated?.scores ?? null;
   const copyOf = new Map(clean.map((v, i) => [v, rated?.copy[i] ?? null]));
+  const brandOf = new Map(clean.map((v, i) => [v, !!rated?.brand[i] || isBrandAccount(v.creatorHandle, opts.product?.competitors)]));
   const keep = relevance ? relevanceKeep(relevance) : null;
   const kept = keep ? clean.filter((_, i) => keep[i]) : clean;
   clean.forEach((v, i) => {
@@ -202,34 +213,42 @@ export async function searchKeywords(
   kept.forEach((v) => statOf(v.platform).kept++);
   const dbIds = await saveVideos(kept);
 
-  // Usual-views baselines for the top creators (by reach, or by views where followers are unknown, as on Instagram).
+  // Usual-views baselines for the top creators (by reach, or by views where followers are unknown, as on Instagram),
+  // plus up to 2 similar-product accounts per platform. All platforms at once: Instagram feeds can take ~20 s.
   const baselines = new Map<string, Baseline>();
+  const similar = new Set<string>();
   const reelsOnly = !platforms.includes("tiktok");
-  for (const p of platforms) {
-    const top = [
-      ...new Set(
-        kept
-          .filter((v) => v.platform === p)
-          .sort(
-            (a, b) =>
-              (reachScore(b.views, b.creatorFollowers) ?? 0) - (reachScore(a.views, a.creatorFollowers) ?? 0) ||
-              (b.views ?? 0) - (a.views ?? 0),
-          )
-          .map((v) => v.creatorHandle),
-      ),
-    ].slice(0, p === "instagram" && reelsOnly ? BASELINE_CREATORS_REELS_ONLY : BASELINE_CREATORS);
-    await Promise.all(
-      top.map(async (handle) => {
-        try {
-          baselines.set(`${p}:${handle}`, await creatorBaseline(p, handle));
-        } catch (e) {
-          errors.push(`${p} @${handle}: ${(e as Error).message}`);
-        }
-      }),
-    );
-  }
+  await Promise.all(
+    platforms.map(async (p) => {
+      const ranked = kept
+        .filter((v) => v.platform === p)
+        .sort(
+          (a, b) =>
+            (reachScore(b.views, b.creatorFollowers) ?? 0) - (reachScore(a.views, a.creatorFollowers) ?? 0) ||
+            (b.views ?? 0) - (a.views ?? 0),
+        );
+      const brands = [...new Set(ranked.filter((v) => brandOf.get(v)).map((v) => v.creatorHandle))].slice(0, SIMILAR_ACCOUNTS);
+      brands.forEach((h) => similar.add(`${p}:${h}`));
+      const top = [
+        ...new Set([
+          ...[...new Set(ranked.map((v) => v.creatorHandle))].slice(0, p === "instagram" && reelsOnly ? BASELINE_CREATORS_REELS_ONLY : BASELINE_CREATORS),
+          ...brands,
+        ]),
+      ];
+      await Promise.all(
+        top.map(async (handle) => {
+          try {
+            baselines.set(`${p}:${handle}`, await creatorBaseline(p, handle));
+          } catch (e) {
+            errors.push(`${p} @${handle}: ${(e as Error).message}`);
+          }
+        }),
+      );
+    }),
+  );
 
-  // More Reels from the creators just looked up. Needs the relevance check (a product), and drops nothing when it fails.
+  // More clips from the creators just looked up (Instagram creators, and similar-product accounts everywhere).
+  // Needs the relevance check (a product), and drops nothing when it fails.
   const extras: (NormalizedVideo & { keyword: string })[] = [];
   if (opts.product && relevance) {
     const skip = (v: NormalizedVideo) =>
@@ -246,7 +265,7 @@ export async function searchKeywords(
     const picks = await Promise.all(
       [...baselines].map(async ([key, base]) => {
         const [p, handle] = [key.slice(0, key.indexOf(":")) as Platform, key.slice(key.indexOf(":") + 1)];
-        if (!FEED_EXTRA_PLATFORMS.includes(p)) return [];
+        if (!FEED_EXTRA_PLATFORMS.includes(p) && !similar.has(key)) return [];
         // Labelled with the keyword that found this creator.
         const keyword = kept.find((v) => v.platform === p && v.creatorHandle === handle)?.keyword ?? "";
         return (await feedPicks(p, handle, base, skip).catch(() => [])).map((v) => ({ ...v, keyword }));
@@ -300,6 +319,10 @@ export async function searchKeywords(
     platforms: stats,
     errors,
     relevanceFailed: !!opts.product && clean.length > 0 && rated === null,
+    similarAccounts: [...similar].map((key) => {
+      const [p, handle] = [key.slice(0, key.indexOf(":")) as Platform, key.slice(key.indexOf(":") + 1)];
+      return { platform: p, handle, usualViews: baselines.get(key)?.usualViews ?? null };
+    }),
   };
 }
 

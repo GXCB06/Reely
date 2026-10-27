@@ -108,12 +108,14 @@ const GOAL_KEYWORDS: Record<Goal, string[]> = {
     "- 2 phrases customers search: reviews of places like it, menu or service reveals, 'POV ลูกค้า', promotions, the area if given.",
   ],
   startup: [
-    "- 2 phrases for the everyday work pain or situation the product solves, as the audience says it (for accounting",
-    "  software: 'ปิดงบสิ้นเดือน', 'ทำบัญชีเอง', 'month end close'). People watch the pain, not the software.",
-    "- 1 phrase naming a real competitor or well-known similar tool the way people search it ('<brand> รีวิว', 'สอนใช้ <brand>',",
-    "  '<brand> review'). Full real names only (never guess); list them in competitors.",
-    "- 1 phrase for tools or AI that do this job ('AI ทำบัญชี', 'AI tool for <job>').",
-    "- 1 how-to topic this audience searches all the time inside the product's field (for accounting: 'ยื่นภาษีออนไลน์').",
+    "- 2 phrases the way apps and tools in this category caption or hashtag their OWN promo videos, so the search finds",
+    "  similar products marketing themselves: '<category> app', 'แอป<category>', 'app that <does the job>', 'best <category> apps'",
+    "  (for a fitness app: 'fitness app', 'workout tracker app'; for accounting software: 'แอปทำบัญชี', 'accounting app').",
+    "- 1 phrase naming a real similar product that markets a lot on short video, the way people search or tag it",
+    "  ('<brand>', '<brand> app', '<brand> รีวิว'). Full real names only (never guess); list them in competitors.",
+    "- 1 phrase for the everyday pain or situation the product solves, as the audience says it (for accounting software:",
+    "  'ปิดงบสิ้นเดือน', 'month end close').",
+    "- 1 phrase for AI or tools that do this job ('AI ทำบัญชี', 'AI tool for <job>').",
   ],
   brand: [
     "- 3 phrases for the hottest topics in the niche, as viewers search them.",
@@ -126,7 +128,7 @@ const GOAL_KEYWORDS: Record<Goal, string[]> = {
 const GOAL_RELEVANCE: Record<Goal, string> = {
   sell: "The user sells this kind of product: 2 also covers videos that review, demo, unbox, compare or sell a similar product (any brand).",
   shop: "The user runs this kind of business: 2 also covers videos where a similar business promotes itself, shows behind the scenes, or customers show their visit.",
-  startup: "The user wants to promote a product feature: 2 also covers videos about the exact work pain or situation the product solves (skits, rants, how-tos), even when no product is shown.",
+  startup: "The user wants to promote a product feature: 2 also covers a similar app or tool's own promo or demo video (the clearest model to learn from), and videos about the exact pain or situation the product solves (skits, rants, how-tos), even when no product is shown.",
   brand: "The user is a creator in this niche: 2 covers videos on the niche's topics; 1 covers adjacent topics the same viewers watch.",
 };
 
@@ -237,7 +239,7 @@ export async function understandProduct(
         "Avoid broad or ambiguous phrases that also name unrelated things (e.g. a university faculty, a",
         "celebrity, a TV show): every phrase should still clearly point at the product's topic.",
         ...goalPlan(msg.goal),
-        knownCompetitors ? "" : "competitors: real brand names only (never guess).",
+        knownCompetitors ? "" : "competitors: real brand names only (never guess); prefer similar products that are big on TikTok, Reels or Shorts.",
         "Exclusions: single words that would bring off-topic videos. Never exclude a word that is part of the",
         "product's own topic or its audience's everyday work (e.g. for accounting software never exclude tax,",
         "finance, ภาษี or การเงิน); exclude only clearly different subjects (e.g. stocks, crypto, gaming).",
@@ -344,7 +346,8 @@ export async function englishKeywords(phrases: string[]): Promise<string[] | nul
   }
 }
 
-export type ProductBrief = { name: string; whatItIs: string; audience: string };
+/** `competitors`: brand names from the plan; an account whose handle matches one is a similar product. */
+export type ProductBrief = { name: string; whatItIs: string; audience: string; competitors?: string[] };
 
 const RELEVANCE_BATCH = 80;
 
@@ -358,7 +361,7 @@ export async function rateRelevance(
   videos: { caption: string; creatorHandle: string }[],
   goal?: Goal | null,
   examples?: Feedback["examples"] | null,
-): Promise<{ scores: number[]; copy: (number | null)[] } | null> {
+): Promise<{ scores: number[]; copy: (number | null)[]; brand: boolean[] } | null> {
   // The user's own 👍/👎 for this product: the clearest signal of what "relevant" means to them.
   const example = (c: { creatorHandle: string; caption: string }) => `- @${c.creatorHandle} | ${c.caption.slice(0, 120).replace(/\s+/g, " ")}`;
   const taught = [
@@ -401,23 +404,28 @@ export async function rateRelevance(
             "2: easy (talking head, screen recording or demo, simple skit, product in hand, voiceover on photos or text).",
             "1: needs some production (studio set, actors, many locations, heavy editing).",
             "0: can't be copied (celebrity, TV/movie/news footage, re-uploads or compilations of others' clips, big-budget ads).",
-            "Return score and copy for every line number.",
+            "Also mark brand: true when the ACCOUNT itself is a product, app, tool or brand of the same kind as the user's product",
+            "(or a named competitor) posting its own promo, demo or tips (e.g. @liftoff_app for a fitness app). Creators who",
+            "only review, use or talk about products are false.",
+            "Return score, copy and brand for every line number.",
             "",
             ...batch.map((v, i) => `${i} | @${v.creatorHandle} | ${v.caption.slice(0, 160).replace(/\s+/g, " ") || "(no caption)"}`),
           ].join("\n"),
         });
         const scores: number[] = Array(batch.length).fill(0);
         const copy: (number | null)[] = Array(batch.length).fill(null);
+        const brand: boolean[] = Array(batch.length).fill(false);
         for (const s of output.scores) {
           if (s.i >= batch.length) continue;
           scores[s.i] = s.score;
           copy[s.i] = s.copy;
+          brand[s.i] = s.brand;
         }
-        return { b, scores, copy };
+        return { b, scores, copy, brand };
       }),
     );
     const ordered = results.sort((x, y) => x.b - y.b);
-    return { scores: ordered.flatMap((r) => r.scores), copy: ordered.flatMap((r) => r.copy) };
+    return { scores: ordered.flatMap((r) => r.scores), copy: ordered.flatMap((r) => r.copy), brand: ordered.flatMap((r) => r.brand) };
   } catch (e) {
     console.warn("[ai] rateRelevance failed, keeping all results", (e as Error).message);
     return null;

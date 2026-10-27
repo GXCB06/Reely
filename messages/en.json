@@ -282,6 +282,9 @@
     "platformKept": "{kept} of {found} kept",
     "mostlyDropped": "most dropped: {reason} ({n})",
     "fromFeeds": "+{n} more from these creators' own feeds",
+    "similarTitle": "From similar products",
+    "similarHint": "Apps and brands like yours promoting themselves: their clips that beat their usual views are the closest models to copy.",
+    "similarUsual": "usually {views}",
     "dropReason": {
       "views": "below the minimum views",
       "old": "older than the time window",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyFilters, diverseTop, isExcluded, isOwnAccount, parseFilters, relevanceKeep } from "./results";
+import { applyFilters, diverseTop, isBrandAccount, isExcluded, isOwnAccount, parseFilters, relevanceKeep } from "./results";
 
 describe("isExcluded", () => {
   it("matches Thai and English words inside captions", () => {
@@ -14,6 +14,16 @@ describe("relevanceKeep", () => {
   it("keeps score 1 while clear matches are few, and only score 2 once there are enough", () => {
     expect(relevanceKeep([2, 1, 0])).toEqual([true, true, false]);
     expect(relevanceKeep([2, 2, 1, 0], 2)).toEqual([true, true, false, false]);
+  });
+});
+
+describe("isBrandAccount", () => {
+  it("matches a competitor's own channel, not creators who mention it", () => {
+    expect(isBrandAccount("myfitnesspal", ["MyFitnessPal", "Nike Training Club"])).toBe(true);
+    expect(isBrandAccount("nike.training.club", ["MyFitnessPal", "Nike Training Club"])).toBe(true);
+    expect(isBrandAccount("jacked_eats", ["MyFitnessPal"])).toBe(false);
+    expect(isBrandAccount("fitbit", ["Fitbit"])).toBe(true);
+    expect(isBrandAccount("anyone", undefined)).toBe(false);
   });
 });
 

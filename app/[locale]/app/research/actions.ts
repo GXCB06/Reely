@@ -164,7 +164,12 @@ export async function runResearchAction(input: RunInput) {
   if (runError || !run) return { ok: false as const, error: "save" };
 
   try {
-    const product = { name: understanding.productName, whatItIs: understanding.whatItIs, audience: understanding.audience };
+    const product = {
+      name: understanding.productName,
+      whatItIs: understanding.whatItIs,
+      audience: understanding.audience,
+      competitors: understanding.competitors,
+    };
     // What the user taught Reely about this product (👍/👎 on earlier researches).
     const { feedback } = await loadFeedback(supabase, productRowId);
     const result = await searchKeywords(keywords, platforms, exclusions, { product, goal, feedback, ...settings });
@@ -187,6 +192,7 @@ export async function runResearchAction(input: RunInput) {
           platforms: result.platforms,
           feedback: feedback ? { liked: feedback.liked.size, disliked: feedback.disliked.size } : undefined,
           relevanceFailed: result.relevanceFailed || undefined,
+          similarAccounts: result.similarAccounts.length ? result.similarAccounts : undefined,
         },
         finished_at: new Date().toISOString(),
       })
@@ -378,7 +384,7 @@ export async function refreshRunAction(id: string) {
   const sinceDays = (Date.now() - lastAt) / 864e5;
   const days = sinceDays <= 7 ? 7 : sinceDays <= 30 ? 30 : 90;
   const settings = (run.settings as { minViews?: number; language?: "any" | "th" | "en" } | null) ?? {};
-  const input = (run.input ?? {}) as { productName?: string; whatItIs?: string; audience?: string };
+  const input = (run.input ?? {}) as { productName?: string; whatItIs?: string; audience?: string; competitors?: string[] };
   const regions = (run.keyword_regions as ("th" | "global")[] | null) ?? [];
   const english = (run.keyword_english as string[] | null) ?? [];
   const keywords = (run.keywords as string[]).map((text, i) => ({
@@ -387,7 +393,7 @@ export async function refreshRunAction(id: string) {
     english: english[i],
   }));
   const product = input.productName
-    ? { name: input.productName, whatItIs: input.whatItIs ?? "", audience: input.audience ?? "" }
+    ? { name: input.productName, whatItIs: input.whatItIs ?? "", audience: input.audience ?? "", competitors: input.competitors }
     : undefined;
 
   const result = await searchKeywords(

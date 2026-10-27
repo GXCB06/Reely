@@ -22,7 +22,7 @@ import { loadFeedback } from "@/lib/feedback-store";
 import { isGoal, scoreFor } from "@/lib/goals";
 import type { RegionChoice } from "@/lib/region";
 import { runTotals } from "@/lib/run-stats";
-import type { DropReason, PlatformStats, ScoredVideo } from "@/lib/search";
+import type { DropReason, PlatformStats, ScoredVideo, SimilarAccount } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
 
 /** Matches the server action: a research can pull in new videos about once a day. */
@@ -31,6 +31,13 @@ const olderThan = (iso: string, ms: number) => Date.now() - new Date(iso).getTim
 
 /** Searches run as server actions on this page and can take 30-60 s (Vercel's default limit is lower). */
 export const maxDuration = 120;
+
+/** A creator's profile on their platform (YouTube handles without a custom URL are channel ids). */
+function profileUrl(a: SimilarAccount) {
+  if (a.platform === "tiktok") return `https://www.tiktok.com/@${a.handle}`;
+  if (a.platform === "instagram") return `https://www.instagram.com/${a.handle}/`;
+  return /^UC[\w-]{22}$/.test(a.handle) ? `https://www.youtube.com/channel/${a.handle}` : `https://www.youtube.com/@${a.handle}`;
+}
 
 export default async function ResearchResultsPage({ params, searchParams }: PageProps<"/[locale]/app/research/[id]">) {
   const { locale, id } = await params;
@@ -91,7 +98,11 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
     platforms?: Partial<Record<"tiktok" | "youtube" | "instagram", PlatformStats>>;
     feedback?: { liked: number; disliked: number };
     relevanceFailed?: boolean;
+    similarAccounts?: SimilarAccount[];
   } | null;
+  // Similar products' own accounts (an app or brand like the user's, promoting itself) and their best clips.
+  const similarKeys = new Set((stats?.similarAccounts ?? []).map((a) => `${a.platform}:${a.handle}`));
+  const similarClips = all.filter((v) => similarKeys.has(`${v.platform}:${v.creatorHandle}`)).sort((a, b) => score(b) - score(a));
   // The main reason each platform's videos were dropped, so a thin platform is explained, not hidden.
   const mainDrop = (s: PlatformStats) =>
     (Object.entries(s.dropped) as [DropReason, number][]).sort((a, b) => b[1] - a[1])[0] ?? null;
@@ -283,6 +294,38 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
               )}
             </section>
           )
+        )}
+
+        {!showAll && similarClips.length > 0 && (
+          <section className="space-y-4">
+            <div>
+              <h3 className="font-heading text-lg font-bold">{t("similarTitle")}</h3>
+              <p className="text-xs text-muted-foreground">{t("similarHint")}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {stats!.similarAccounts!.map((a) => (
+                <a key={`${a.platform}:${a.handle}`} href={profileUrl(a)} target="_blank" rel="noreferrer" className="chip">
+                  <PlatformIcon platform={a.platform} className="size-3.5" /> @{a.handle}
+                  {a.usualViews !== null && (
+                    <span className="text-muted-foreground">
+                      · {t("similarUsual", { views: format.number(a.usualViews, { notation: "compact", maximumFractionDigits: 1 }) })}
+                    </span>
+                  )}
+                </a>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {similarClips.slice(0, 10).map((v) => (
+                <OutlierCard
+                  key={`${v.platform}:${v.platformVideoId}`}
+                  video={v}
+                  saved={v.dbId ? saved.has(v.dbId) : false}
+                  idea={v.dbId ? ideaOf.get(v.dbId) : null}
+                  feedback={feedbackFor(v)}
+                />
+              ))}
+            </div>
+          </section>
         )}
 
         {run.status !== "running" && (
