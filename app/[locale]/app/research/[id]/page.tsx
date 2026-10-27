@@ -8,6 +8,7 @@ import { PlatformIcon } from "@/components/platform-icon";
 import { FilterBar } from "@/components/results/filter-bar";
 import { FollowTopicButton } from "@/components/results/follow-topic-button";
 import { FollowUpBox } from "@/components/results/follow-up-box";
+import { TrackButton } from "@/components/tracking/track-button";
 import { IdeasLoader } from "@/components/results/ideas-loader";
 import { InsightCard } from "@/components/results/insight-card";
 import { Patterns } from "@/components/results/patterns";
@@ -104,6 +105,10 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   // Similar products' own accounts (an app or brand like the user's, promoting itself) and their best clips.
   const similarKeys = new Set((stats?.similarAccounts ?? []).map((a) => `${a.platform}:${a.handle}`));
   // At most 2 per account, so one account's near-identical posts don't fill the section.
+  const { data: trackedRows } = similarKeys.size
+    ? await supabase.from("tracked_accounts").select("platform, handle")
+    : { data: [] };
+  const trackedKeys = new Set((trackedRows ?? []).map((r) => `${r.platform}:${r.handle}`));
   const similarClips = diverseTop(all.filter((v) => similarKeys.has(`${v.platform}:${v.creatorHandle}`)), 8, 0, score);
   // The main reason each platform's videos were dropped, so a thin platform is explained, not hidden.
   const mainDrop = (s: PlatformStats) =>
@@ -303,14 +308,17 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
             </div>
             <div className="flex flex-wrap gap-2">
               {stats!.similarAccounts!.map((a) => (
-                <a key={`${a.platform}:${a.handle}`} href={profileUrl(a)} target="_blank" rel="noreferrer" className="chip">
-                  <PlatformIcon platform={a.platform} className="size-3.5" /> @{a.handle}
-                  {a.usualViews !== null && (
-                    <span className="text-muted-foreground">
-                      · {t("similarUsual", { views: format.number(a.usualViews, { notation: "compact", maximumFractionDigits: 1 }) })}
-                    </span>
-                  )}
-                </a>
+                <span key={`${a.platform}:${a.handle}`} className="inline-flex items-center gap-1 rounded-full border bg-card py-0.5 pr-1 pl-3">
+                  <a href={profileUrl(a)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm hover:underline">
+                    <PlatformIcon platform={a.platform} className="size-3.5" /> @{a.handle}
+                    {a.usualViews !== null && (
+                      <span className="text-muted-foreground">
+                        · {t("similarUsual", { views: format.number(a.usualViews, { notation: "compact", maximumFractionDigits: 1 }) })}
+                      </span>
+                    )}
+                  </a>
+                  <TrackButton platform={a.platform} handle={a.handle} initialTracked={trackedKeys.has(`${a.platform}:${a.handle}`)} />
+                </span>
               ))}
             </div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
