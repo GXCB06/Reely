@@ -92,13 +92,13 @@ export default async function TrackingPage({ params, searchParams }: PageProps<"
           >
             <FindAccounts query={query} tracked={tracked} />
           </Suspense>
-          <details className="rounded-2xl border bg-card px-4 py-3">
-            <summary className="cursor-pointer text-sm font-medium">{t("pasteTitle")}</summary>
+          <div className="rounded-2xl border bg-card px-4 py-3">
+            <p className="text-sm font-medium">{t("pasteTitle")}</p>
             <div className="mt-3">
               <AddAccountForm />
               <p className="mt-2 text-xs text-muted-foreground">{t("costNote")}</p>
             </div>
-          </details>
+          </div>
         </section>
 
         <section className="space-y-4">

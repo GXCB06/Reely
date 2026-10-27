@@ -340,7 +340,8 @@
     "upTip": "Useful: the next research for this product looks for more clips like this",
     "downTip": "Not useful: the next research leaves this clip out and looks for fewer like it",
     "learned": "Reely will remember: the next research for this product uses it as an example",
-    "voteFailed": "Couldn't save that. Try again."
+    "voteFailed": "Couldn't save that. Try again.",
+    "play": "Play clip"
   },
   "video": {
     "back": "Home",
@@ -525,7 +526,8 @@
     "trackedTitle": "Tracked accounts ({n})",
     "similarProduct": "Similar product",
     "usualViews": "usually {views}",
-    "hits": "{n} standout clips"
+    "hits": "{n} standout clips",
+    "foundIn": "Found in your research: {products}"
   },
   "score": {
     "question": "What does the 🔥 number mean?",
@@ -749,6 +751,9 @@
     "planTitle": "7-day plan for {product}",
     "outdated": "This plan's week is over. Tap \"Make a new plan\" for this week, from your latest clips.",
     "week": "The week at a glance",
-    "today": "Today"
+    "today": "Today",
+    "prevDay": "Previous day",
+    "nextDay": "Next day",
+    "openOriginal": "Open in the app"
   }
 }

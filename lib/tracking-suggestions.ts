@@ -14,13 +14,24 @@ export type SuggestedAccount = {
   hits: number;
   /** A product like the user's, promoting itself (from a research's "From similar products"). */
   similar: boolean;
+  /** The user's researches (product names) this account turned up in, newest first. */
+  from: string[];
+  /** The first line of its best clip's caption: what the account posts about. */
+  sample: string | null;
 };
+
+/** A caption's first line with text, without hashtags, max 90 characters: what the account posts about. */
+function captionLine(caption: string | null | undefined) {
+  const line = (caption ?? "").split("\n").map((l) => l.replace(/#[^\s#]+/g, "").trim()).find(Boolean) ?? "";
+  return line ? (line.length > 90 ? `${line.slice(0, 89)}…` : line) : null;
+}
 
 const MAX_SUGGESTIONS = 12;
 
 type Row = {
+  run_id: string;
   usual_score: number | null;
-  videos: { id: number; platform: Platform; creator_handle: string; thumbnail_url: string | null; views: number | null } | null;
+  videos: { id: number; platform: Platform; creator_handle: string; thumbnail_url: string | null; views: number | null; caption: string } | null;
 };
 
 /**
@@ -28,14 +39,15 @@ type Row = {
  * first, then creators whose clips beat their usual views most often. Accounts already tracked are left out.
  */
 export async function suggestedAccounts(supabase: Supabase, tracked: Set<string>): Promise<SuggestedAccount[]> {
-  const { data: runs } = await supabase.from("research_runs").select("id, stats").order("created_at", { ascending: false }).limit(15);
+  const { data: runs } = await supabase.from("research_runs").select("id, title, stats").order("created_at", { ascending: false }).limit(15);
   if (!runs?.length) return [];
+  const titleOf = new Map(runs.map((r) => [r.id as string, (r.title as string | null) ?? ""]));
   const similar = new Set(
     runs.flatMap((r) => ((r.stats as { similarAccounts?: SimilarAccount[] } | null)?.similarAccounts ?? []).map((a) => `${a.platform}:${a.handle}`)),
   );
   const { data } = await supabase
     .from("run_results")
-    .select("usual_score, videos(id, platform, creator_handle, thumbnail_url, views)")
+    .select("run_id, usual_score, videos(id, platform, creator_handle, thumbnail_url, views, caption)")
     .in("run_id", runs.map((r) => r.id))
     .or(`usual_score.gte.3,label.eq.breakout`)
     .order("usual_score", { ascending: false, nullsFirst: false })
@@ -49,8 +61,10 @@ export async function suggestedAccounts(supabase: Supabase, tracked: Set<string>
     if (tracked.has(key)) continue;
     const a = byAccount.get(key);
     const usual = r.usual_score === null ? null : Number(r.usual_score);
+    const title = titleOf.get(r.run_id) ?? "";
     if (a) {
       a.hits++;
+      if (title && !a.from.includes(title)) a.from.push(title);
       continue;
     }
     byAccount.set(key, {
@@ -60,6 +74,8 @@ export async function suggestedAccounts(supabase: Supabase, tracked: Set<string>
       best: { id: v.id, thumbnailUrl: v.thumbnail_url, views: v.views, usual },
       hits: 1,
       similar: similar.has(key),
+      from: title ? [title] : [],
+      sample: captionLine(v.caption),
     });
   }
   const picked = [...byAccount.values()]
@@ -78,7 +94,7 @@ export async function searchKnownAccounts(supabase: Supabase, query: string, tra
     .ilike("handle", `%${q}%`)
     .order("usual_views", { ascending: false, nullsFirst: false })
     .limit(MAX_SUGGESTIONS);
-  const accounts = (data ?? [])
+  const accounts: SuggestedAccount[] = (data ?? [])
     .filter((c) => !tracked.has(`${c.platform}:${c.handle}`))
     .map((c) => ({
       platform: c.platform as Platform,
@@ -87,19 +103,23 @@ export async function searchKnownAccounts(supabase: Supabase, query: string, tra
       best: null,
       hits: 0,
       similar: false,
+      from: [],
+      sample: null,
     }));
   // Each match's most-viewed stored clip, for a cover.
   await Promise.all(
     accounts.map(async (a) => {
       const { data: v } = await supabase
         .from("videos")
-        .select("id, thumbnail_url, views")
+        .select("id, thumbnail_url, views, caption")
         .eq("platform", a.platform)
         .eq("creator_handle", a.handle)
         .order("views", { ascending: false, nullsFirst: false })
         .limit(1)
         .maybeSingle();
-      if (v) (a as SuggestedAccount).best = { id: v.id as number, thumbnailUrl: v.thumbnail_url as string | null, views: v.views as number | null, usual: null };
+      if (!v) return;
+      a.best = { id: v.id as number, thumbnailUrl: v.thumbnail_url as string | null, views: v.views as number | null, usual: null };
+      a.sample = captionLine(v.caption as string);
     }),
   );
   return accounts;

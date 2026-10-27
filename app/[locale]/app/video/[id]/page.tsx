@@ -4,7 +4,7 @@ import { getFormatter, getTranslations, setRequestLocale } from "next-intl/serve
 import { Suspense } from "react";
 import { OutlierCard } from "@/components/outlier-card";
 import { SaveButton } from "@/components/save-button";
-import { Thumb } from "@/components/thumb";
+import { ClipPlayer } from "@/components/clip-player";
 import { TrackButton } from "@/components/tracking/track-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/navigation";
@@ -168,7 +168,8 @@ export default async function VideoPage({ params, searchParams }: PageProps<"/[l
           {/* On a phone the cover would fill the whole first screen; keep it small there. */}
           <div className="mx-auto w-full max-w-60 overflow-hidden rounded-2xl border bg-muted lg:max-w-none">
             <div className="aspect-[9/14] w-full">
-              <Thumb src={video.thumbnail_url} videoId={video.id} />
+              {/* Plays here with sound; "Open original" is only needed for comments and the creator's profile. */}
+              <ClipPlayer platform={video.platform} platformVideoId={video.platform_video_id} thumbnailUrl={video.thumbnail_url} videoId={video.id} />
             </div>
           </div>
           <div className="flex items-center justify-between">

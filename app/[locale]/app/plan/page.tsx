@@ -1,11 +1,11 @@
-import { CalendarDays, Package, PenLine, Quote } from "lucide-react";
+import { CalendarDays, Package } from "lucide-react";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
-import { Thumb } from "@/components/thumb";
 import { Link } from "@/i18n/navigation";
 import { isGoal } from "@/lib/goals";
 import { getPlan } from "@/lib/plan";
 import { createClient } from "@/lib/supabase/server";
 import { PlanBuilder } from "./plan-builder";
+import { type PlanDay, PlanDays } from "./plan-days";
 
 /** Building a plan is one AI call that can take ~20-40 s. */
 export const maxDuration = 60;
@@ -27,7 +27,10 @@ export default async function PlanPage({ params, searchParams }: PageProps<"/[lo
   const product = (products ?? []).find((p) => p.id === sp.product) ?? products?.[0] ?? null;
   const plan = product ? await getPlan(supabase, product.id as string) : null;
   const { data: videos } = plan?.items.length
-    ? await supabase.from("videos").select("id, thumbnail_url, creator_handle, platform").in("id", plan.items.map((i) => i.videoId))
+    ? await supabase
+        .from("videos")
+        .select("id, thumbnail_url, creator_handle, platform, platform_video_id, url")
+        .in("id", plan.items.map((i) => i.videoId))
     : { data: [] };
   const videoOf = new Map((videos ?? []).map((v) => [v.id as number, v]));
   const dayDate = (day: number) => new Date(new Date(`${plan!.startDay}T00:00:00+07:00`).getTime() + (day - 1) * 864e5);
@@ -40,9 +43,9 @@ export default async function PlanPage({ params, searchParams }: PageProps<"/[lo
 
   return (
     <div>
-      <header className="page-wash px-4 pt-10 pb-8 md:px-10">
+      <header className="page-wash px-4 pt-8 pb-6 md:px-10">
         <h1 className="font-heading text-3xl font-bold">{t("title")}</h1>
-        <p className="mt-1 max-w-2xl text-muted-foreground">{t("subtitle")}</p>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("subtitle")}</p>
         {(products?.length ?? 0) > 0 && (
           <div className="mt-4 flex flex-wrap items-center gap-1.5">
             <span className="mr-1 text-sm text-muted-foreground">{t("planFor")}</span>
@@ -89,65 +92,30 @@ export default async function PlanPage({ params, searchParams }: PageProps<"/[lo
               <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">{t("outdated")}</p>
             )}
 
-            {/* The week at a glance: tap a day to jump to it. */}
-            <nav className="grid grid-cols-4 gap-2 sm:grid-cols-7" aria-label={t("week")}>
-              {plan.items.map((item) => (
-                <a
-                  key={item.day}
-                  href={`#day-${item.day}`}
-                  className={`rounded-2xl border px-2 py-2 text-center transition hover:border-primary/40 ${item.day === todayDay ? "border-primary bg-primary text-primary-foreground" : "bg-card"}`}
-                >
-                  <p className="text-[11px] font-semibold tracking-wide uppercase opacity-80">
-                    {item.day === todayDay ? t("today") : format.dateTime(dayDate(item.day), { weekday: "short" })}
-                  </p>
-                  <p className="font-heading text-lg leading-tight font-bold">{format.dateTime(dayDate(item.day), { day: "numeric" })}</p>
-                  <p className="truncate text-[11px] opacity-80">{item.format}</p>
-                </a>
-              ))}
-            </nav>
-
-            {plan.items.map((item) => {
-              const v = videoOf.get(item.videoId);
-              const isToday = item.day === todayDay;
-              return (
-                <article
-                  // Keyed by product too, so switching products never reuses another product's card.
-                  key={`${product.id}:${item.day}`}
-                  id={`day-${item.day}`}
-                  className={`flex scroll-mt-6 gap-4 rounded-3xl border bg-card p-4 shadow-sm md:p-5 ${isToday ? "ring-2 ring-primary" : ""}`}
-                >
-                  <Link
-                    href={`/app/video/${item.videoId}`}
-                    className="relative aspect-[9/14] w-16 shrink-0 self-start overflow-hidden rounded-xl bg-muted sm:w-24 sm:rounded-2xl"
-                  >
-                    <Thumb src={(v?.thumbnail_url as string | null) ?? null} videoId={item.videoId} />
-                  </Link>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold tracking-widest text-primary uppercase">
-                      {t("day", { n: item.day })} · {format.dateTime(dayDate(item.day), { weekday: "long", day: "numeric", month: "short" })}
-                      {isToday && <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground normal-case">{t("today")}</span>}
-                    </p>
-                    <h3 className="mt-1 font-heading text-lg leading-snug font-bold sm:text-xl">{item.title}</h3>
-                    <p className="mt-2 flex gap-2 rounded-2xl bg-accent px-3 py-2 text-sm text-accent-foreground">
-                      <Quote className="mt-0.5 size-4 shrink-0" /> {item.hook}
-                    </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      <span className="mr-1.5 rounded-full bg-muted px-2 py-0.5 text-xs text-foreground">{item.format}</span>
-                      {item.why}
-                    </p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Link
-                        href={`/app/video/${item.videoId}?product=${product.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                      >
-                        <PenLine className="size-4" /> {t("writeScript")}
-                      </Link>
-                      {v && <span className="text-xs text-muted-foreground">{t("from", { handle: v.creator_handle as string })}</span>}
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+            <PlanDays
+              key={product.id as string}
+              productId={product.id as string}
+              days={plan.items.map((item) => {
+                const v = videoOf.get(item.videoId);
+                return {
+                  day: item.day,
+                  weekday: format.dateTime(dayDate(item.day), { weekday: "short" }),
+                  dayNum: format.dateTime(dayDate(item.day), { day: "numeric" }),
+                  longDate: format.dateTime(dayDate(item.day), { weekday: "long", day: "numeric", month: "short" }),
+                  isToday: item.day === todayDay,
+                  title: item.title,
+                  hook: item.hook,
+                  format: item.format,
+                  why: item.why,
+                  videoId: item.videoId,
+                  thumbnailUrl: (v?.thumbnail_url as string | null) ?? null,
+                  handle: (v?.creator_handle as string | null) ?? null,
+                  platform: (v?.platform as PlanDay["platform"]) ?? null,
+                  platformVideoId: (v?.platform_video_id as string | null) ?? null,
+                  url: (v?.url as string | null) ?? null,
+                };
+              })}
+            />
           </>
         )}
       </div>

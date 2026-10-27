@@ -43,6 +43,12 @@ export async function SuggestedAccounts({ accounts }: { accounts: SuggestedAccou
               )}
               {a.hits > 1 && <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{t("hits", { n: a.hits })}</span>}
             </div>
+            {a.sample && <p className="line-clamp-2 text-xs text-muted-foreground">“{a.sample}”</p>}
+            {a.from.length > 0 && (
+              <p className="truncate text-[11px] text-muted-foreground">
+                {t("foundIn", { products: a.from.slice(0, 2).join(", ") })}
+              </p>
+            )}
             <div className="mt-auto">
               <TrackButton platform={a.platform} handle={a.handle} initialTracked={false} refresh />
             </div>

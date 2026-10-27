@@ -2,6 +2,7 @@ import { Bookmark, Clapperboard, Eye, Flame, Heart, Layers, Lightbulb, MessageCi
 import { getFormatter, getTranslations } from "next-intl/server";
 import { PlatformIcon } from "@/components/platform-icon";
 import { SaveButton } from "@/components/save-button";
+import { HoverPreview } from "@/components/clip-player";
 import { Thumb } from "@/components/thumb";
 import { Link } from "@/i18n/navigation";
 import { CountryFlag } from "@/components/country-flag";
@@ -57,7 +58,10 @@ export async function OutlierCard({
 
   const thumb = (
     <div className="relative aspect-[9/14] overflow-hidden bg-muted">
-      <Thumb src={video.thumbnailUrl} videoId={video.dbId} className="transition group-hover:scale-[1.02]" />
+      {/* Rest the mouse on the cover and the clip plays (muted) right here. */}
+      <HoverPreview platform={video.platform} platformVideoId={video.platformVideoId}>
+        <Thumb src={video.thumbnailUrl} videoId={video.dbId} className="transition group-hover:scale-[1.02]" />
+      </HoverPreview>
       {/* Where it is from (top left), plus a TikTok Shop tag for affiliates. */}
       <div className="absolute top-2 left-2 flex items-center gap-1">
         <span className="inline-flex h-5 items-center rounded-full bg-black/70 px-1.5">
