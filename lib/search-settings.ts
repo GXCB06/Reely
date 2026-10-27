@@ -12,7 +12,11 @@ export const WINDOW_CHOICES: SearchWindow[] = [7, 30, 90];
 export const MIN_VIEWS_CHOICES = [10_000, 50_000, 100_000] as const;
 export const DEFAULT_MIN_VIEWS = 10_000;
 
-/** Credits for one run: TikTok 1 per keyword + 5 creators x 2 pages; Instagram 1 per keyword + 5 creators x 1. */
+/**
+ * Credits for one run: TikTok 1 per keyword + 5 creators x 2 pages; Instagram 1 per keyword + 5 creators x 1
+ * (8 creators when Reels are searched without TikTok).
+ */
 export function creditEstimate(platforms: string[], keywords: number) {
-  return (platforms.includes("tiktok") ? keywords + 10 : 0) + (platforms.includes("instagram") ? keywords + 5 : 0);
+  const tiktok = platforms.includes("tiktok");
+  return (tiktok ? keywords + 10 : 0) + (platforms.includes("instagram") ? keywords + (tiktok ? 5 : 8) : 0);
 }

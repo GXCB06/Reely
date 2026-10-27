@@ -25,11 +25,13 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { enhanceBriefAction, runResearchAction } from "@/app/[locale]/app/research/actions";
+import { importClipAction } from "@/app/[locale]/app/video/import-actions";
 import { PlatformIcon } from "@/components/platform-icon";
 import { Mascot } from "@/components/mascot";
 import { useRouter } from "@/i18n/navigation";
 import type { PlanDraft, Understanding } from "@/lib/ai/schemas";
 import type { SearchWindow } from "@/lib/adapters/types";
+import { parseClipLink } from "@/lib/clip-link";
 import { GOALS, type Goal } from "@/lib/goals";
 import { REGION_CHOICES, type RegionChoice } from "@/lib/region";
 import {
@@ -47,7 +49,19 @@ import { ResearchStory } from "./research-story";
 
 const MAX_KEYWORDS = 5;
 const PLATFORMS = ["tiktok", "youtube", "instagram"] as const;
-type PlatformId = (typeof PLATFORMS)[number];
+export type PlatformId = (typeof PLATFORMS)[number];
+/** The platforms a user last searched, remembered per browser (someone who works from Reels keeps Reels on). */
+const PLATFORMS_KEY = "reely.platforms";
+
+function rememberedPlatforms(): PlatformId[] | null {
+  try {
+    const list = JSON.parse(localStorage.getItem(PLATFORMS_KEY) ?? "null");
+    const valid = Array.isArray(list) ? PLATFORMS.filter((p) => list.includes(p)) : [];
+    return valid.length ? valid : null;
+  } catch {
+    return null;
+  }
+}
 type Keyword = Understanding["keywords"][number];
 export type SavedProduct = { id: string; name: string; goal?: Goal | null };
 /** Where the goal came from: the user picked it, the saved product remembers it, or (null) the AI will guess. */
@@ -63,6 +77,7 @@ export function ResearchChat({
   autoSend = false,
   products = [],
   initialProductId = null,
+  initialPlatforms = null,
   dashboard = null,
 }: {
   initialText?: string;
@@ -70,6 +85,8 @@ export function ResearchChat({
   autoSend?: boolean;
   products?: SavedProduct[];
   initialProductId?: string | null;
+  /** Platforms set by the link (e.g. "find more like this Reel"); otherwise the last ones this browser used. */
+  initialPlatforms?: PlatformId[] | null;
   /** Home dashboard shown under the composer until a message is sent (server-rendered, streamed). */
   dashboard?: React.ReactNode;
 }) {
@@ -81,8 +98,8 @@ export function ResearchChat({
   const [image, setImage] = useState<{ full: string; thumb: string } | null>(null);
   const [region, setRegion] = useState<RegionChoice>(initialRegion);
   // TikTok + Shorts by default (Shorts costs no credits). Reels stay optional: they cost credits and
-  // Instagram's search only works in English.
-  const [platforms, setPlatforms] = useState<PlatformId[]>(["tiktok", "youtube"]);
+  // Instagram's search only works in English. A user who turned Reels on keeps them on (remembered per browser).
+  const [platforms, setPlatforms] = useState<PlatformId[]>(initialPlatforms ?? ["tiktok", "youtube"]);
   const [product, setProduct] = useState<SavedProduct | null>(products.find((p) => p.id === initialProductId) ?? null);
   // What the clips are for: steers keywords, filtering, ranking and the idea under each clip.
   const [goal, setGoal] = useState<Goal | null>(product?.goal ?? null);
@@ -106,12 +123,15 @@ export function ResearchChat({
   // "Enhance": which of the 4 parts of a good brief the text covers (set by the AI after enhancing).
   const [covered, setCovered] = useState<Record<"topic" | "audience" | "angle" | "avoid", boolean> | null>(null);
   const [enhancing, setEnhancing] = useState(false);
+  // A pasted Reel / TikTok link opens that clip's page instead of planning a research.
+  const [opening, setOpening] = useState(false);
   const [, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const autoSent = useRef(false);
 
   const link = findLink(text);
+  const clip = parseClipLink(text);
   const selected = keywords.filter((k) => k.on);
   const credits = creditEstimate(platforms, selected.length);
   // While the plan streams in, show the draft with everything disabled; then the finished plan.
@@ -180,14 +200,47 @@ export function ResearchChat({
       });
   }
 
+  function openClip(body: string) {
+    setOpening(true);
+    const toastId = toast.loading(t("clip.reading"));
+    importClipAction(body)
+      .then((res) => {
+        if (!res.ok) throw new Error(res.error);
+        toast.dismiss(toastId);
+        router.push(product ? `/app/video/${res.videoId}?product=${product.id}` : `/app/video/${res.videoId}`);
+      })
+      .catch((e: Error) => {
+        toast.error(t(`clip.${["notFound", "limit"].includes(e.message) ? e.message : "failed"}`), { id: toastId });
+        setOpening(false);
+      });
+  }
+
   function send(overrideText?: string) {
     const body = (overrideText ?? text).trim();
+    if (parseClipLink(body)) return openClip(body);
     const message: Sent = { text: body, link: findLink(body), image: image?.full ?? null, thumb: image?.thumb ?? null, product };
     if (body.length < 3 && !message.link && !message.image && !product) return void toast.error(t("errorEmpty"));
     setSent(message);
     setText("");
     setImage(null);
     understand(message, region);
+  }
+
+  useEffect(() => {
+    const remembered = initialPlatforms ? null : rememberedPlatforms();
+    // Read after mount: the server has no browser storage, so the first render must match the default.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (remembered) setPlatforms(remembered);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function choosePlatforms(next: PlatformId[]) {
+    setPlatforms(next);
+    try {
+      localStorage.setItem(PLATFORMS_KEY, JSON.stringify(next));
+    } catch {
+      // Private window or blocked storage: the choice just isn't remembered.
+    }
   }
 
   useEffect(() => {
@@ -364,7 +417,7 @@ export function ResearchChat({
       )}
       {link && (
         <p className="mb-2 ml-2 inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">
-          <Link2 className="size-3" /> {t("linkDetected", { host: hostOf(link) })}
+          <Link2 className="size-3" /> {clip ? t("clip.detected") : t("linkDetected", { host: hostOf(link) })}
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">
@@ -396,13 +449,13 @@ export function ResearchChat({
           {t("brief.enhance")}
         </button>
         <RegionPicker value={region} onChange={setRegion} />
-        <PlatformPicker value={platforms} onChange={setPlatforms} />
+        <PlatformPicker value={platforms} onChange={choosePlatforms} />
         <button
           type="button"
           onClick={() => send()}
           aria-label={t("send")}
           className="ml-auto grid size-9 place-items-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
-          disabled={phase === "thinking" || phase === "running"}
+          disabled={phase === "thinking" || phase === "running" || opening}
         >
           <ArrowUp className="size-4" />
         </button>
@@ -583,7 +636,7 @@ export function ResearchChat({
               {phase === "plan" && (
                 <div className="flex flex-wrap items-center gap-2 border-t pt-4">
                   <RegionPicker value={region} onChange={switchRegion} />
-                  <PlatformPicker value={platforms} onChange={setPlatforms} />
+                  <PlatformPicker value={platforms} onChange={choosePlatforms} />
                   <SettingsPicker
                     days={days}
                     minViews={minViews}

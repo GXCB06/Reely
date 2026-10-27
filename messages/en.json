@@ -73,7 +73,7 @@
   },
   "chat": {
     "greeting": "What are you building?",
-    "subtitle": "Describe your product, paste its link or add a screenshot. Reely finds short videos that went viral for products like yours.",
+    "subtitle": "Describe your product, paste its link or add a screenshot. Reely finds short videos that went viral for products like yours. Saw a great Reel or TikTok? Paste its link to break it down.",
     "placeholder": "e.g. AI accounting app for Thai SMEs — or paste your website",
     "attach": "Add a product image",
     "removeImage": "Remove image",
@@ -94,7 +94,7 @@
       "youtube": "Shorts",
       "instagram": "Reels"
     },
-    "instagramHint": "Reels are searched in English and look back at least 6 months (Instagram has less searchable data). Costs credits.",
+    "instagramHint": "Reels are searched in English and look back up to a year (Instagram has less searchable data); the creators found also add their own standout Reels. Costs credits.",
     "suggestions": {
       "s1": "AI accounting app for Thai SMEs and accounting offices",
       "s2": "Windows AI agent that automates tasks for developers",
@@ -172,6 +172,13 @@
     "goalGuessed": "Reely guessed this from your message. Change it if it's wrong (keywords follow).",
     "goalRemembered": "Remembered from last time. You can change it.",
     "goalReplanning": "Re-planning the keywords for this goal…",
+    "clip": {
+      "detected": "Clip link: Reely opens this clip with its hook, why it worked and your version (1-3 credits)",
+      "reading": "Reading this clip…",
+      "notFound": "Couldn't find a video at that link. Is the post public?",
+      "limit": "Reely has read enough clip links for today. Try again tomorrow.",
+      "failed": "Couldn't read that clip. Try again in a minute."
+    },
     "drafting": "Reely is writing the plan…"
   },
   "search": {
@@ -274,6 +281,7 @@
     "nextFormat": "See who else made this kind of clip",
     "platformKept": "{kept} of {found} kept",
     "mostlyDropped": "most dropped: {reason} ({n})",
+    "fromFeeds": "+{n} more from these creators' own feeds",
     "dropReason": {
       "views": "below the minimum views",
       "old": "older than the time window",
@@ -326,7 +334,11 @@
     "whyItWorked": "Likely reason",
     "hypothesisNote": "AI explanation based on the caption and numbers — a hypothesis, not a fact.",
     "sampleNote": "Sample breakdown — add a Gemini API key to analyse this video.",
-    "makeMyVersion": "Make my version"
+    "makeMyVersion": "Make my version",
+    "moreLikeThis": "Find more like this",
+    "moreLikeThisQuery": "Short videos like this one: {caption}",
+    "creatorHits": "More hits from @{handle}",
+    "creatorHitsHint": "Their posts that beat their usual views (no credits)."
   },
   "saved": {
     "title": "Saved",

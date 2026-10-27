@@ -1,6 +1,6 @@
 import { setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
-import { ResearchChat, type SavedProduct } from "@/components/chat/research-chat";
+import { type PlatformId, ResearchChat, type SavedProduct } from "@/components/chat/research-chat";
 import { HomeDashboard, HomeDashboardSkeleton } from "@/components/home/dashboard";
 import { isSupabaseConfigured } from "@/lib/env";
 import { isGoal } from "@/lib/goals";
@@ -8,6 +8,7 @@ import type { RegionChoice } from "@/lib/region";
 import { createClient } from "@/lib/supabase/server";
 
 const REGIONS = new Set<RegionChoice>(["th", "global", "both"]);
+const PLATFORM_IDS: PlatformId[] = ["tiktok", "youtube", "instagram"];
 
 /** Searches run as server actions on this page and can take 30-60 s (Vercel's default limit is lower). */
 export const maxDuration = 120;
@@ -23,6 +24,9 @@ export default async function HomePage({ params, searchParams }: PageProps<"/[lo
   const q = typeof sp.q === "string" ? sp.q.slice(0, 1000) : "";
   const region = typeof sp.region === "string" && REGIONS.has(sp.region as RegionChoice) ? (sp.region as RegionChoice) : "th";
   const productId = typeof sp.product === "string" ? sp.product : null;
+  // `?p=instagram` (or "tiktok,instagram"): which platforms to search, e.g. from "find more like this Reel".
+  const asked = typeof sp.p === "string" ? sp.p.split(",") : [];
+  const linkPlatforms = PLATFORM_IDS.filter((p) => asked.includes(p));
   // Dashboard filter (outliers and hashtags of one product's researches).
   const dashProduct = typeof sp.dash === "string" ? sp.dash.slice(0, 64) : null;
 
@@ -36,12 +40,13 @@ export default async function HomePage({ params, searchParams }: PageProps<"/[lo
   // key: a fresh chat each time the link changes (e.g. "New research" while a chat is open).
   return (
     <ResearchChat
-      key={`${q}|${region}|${productId}|${String(sp.n ?? "")}`}
+      key={`${q}|${region}|${productId}|${linkPlatforms.join(",")}|${String(sp.n ?? "")}`}
       initialText={q}
       initialRegion={region}
       autoSend={sp.go === "1" && !!q}
       products={products}
       initialProductId={productId}
+      initialPlatforms={linkPlatforms.length ? linkPlatforms : null}
       dashboard={
         isSupabaseConfigured() ? (
           <Suspense fallback={<HomeDashboardSkeleton />}>

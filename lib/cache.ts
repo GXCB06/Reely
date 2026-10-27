@@ -1,5 +1,6 @@
 import "server-only";
 import type { NormalizedVideo, Platform } from "@/lib/adapters/types";
+import { normalizedFromRow, type VideoRow } from "@/lib/db-mappers";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Shared 24-hour cache (CLAUDE.md cost rule 4). All functions are no-ops until Supabase is configured.
@@ -18,6 +19,20 @@ export async function getFreshCreator(platform: Platform, handle: string): Promi
     .maybeSingle();
   if (!data || Date.now() - new Date(data.fetched_at).getTime() > TTL_MS) return null;
   return { followers: data.followers, usualViews: data.usual_views, sampleSize: data.sample_size };
+}
+
+/** A creator's stored videos, newest first (saved when their usual views were last looked up). */
+export async function getCreatorVideos(platform: Platform, handle: string, limit = 30): Promise<NormalizedVideo[]> {
+  const admin = createAdminClient();
+  if (!admin) return [];
+  const { data } = await admin
+    .from("videos")
+    .select("*")
+    .eq("platform", platform)
+    .eq("creator_handle", handle)
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .limit(limit);
+  return ((data ?? []) as VideoRow[]).map(normalizedFromRow);
 }
 
 export async function saveCreator(

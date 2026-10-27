@@ -44,6 +44,7 @@ lib/region.ts                 # Thailand / Worldwide / Both → keyword regions;
 lib/feedback.ts               # 👍/👎 per product (clip_feedback): examples for the relevance check, 👎 clips dropped, ranking nudged
 lib/goals.ts                  # what the clips are for (sell / shop / startup / brand) → goal-aware ranking; prompts in lib/ai/tasks.ts
 lib/link-preview.ts           # reads a pasted product link (blocks private addresses — keep that check)
+lib/clip-link.ts              # pasted Instagram Reel / TikTok links (client + server); lib/clip-import.ts reads one
 lib/plan.ts                   # 7-day plan per product (content_plans): 👍 + saved + latest research's best clips → one AI call
 lib/today.ts                  # Today page: new breakouts (7 days) from tracked accounts + followed topics → 3-5 ideas
 lib/formats.ts                # format explorer: same sound + format search → topics, sounds, stage (lib/format-stats.ts)
@@ -73,7 +74,8 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 1. Only the TikTok and Instagram adapters (ScrapeCreators) make paid calls. Instagram is off by default
    in the composer. Never add another paid provider without asking.
 2. Max 5 keywords per run, 1 page per keyword per platform.
-3. Usual-views lookups only for the top 5 creators per platform in a run, and for tracked accounts.
+3. Usual-views lookups only for the top 5 creators per platform in a run (8 Instagram creators when a run searches
+   Reels without TikTok), for tracked accounts, and for the creator of a pasted clip link.
 4. Before any external call, check the 24-hour cache (`lib/cache.ts`).
 5. Tracked accounts refresh only when their page is opened, max once per 24 h.
 6. Transcripts only when the user presses "Read what the clip says" on the video page (`lib/hook-breakdown.ts`):
@@ -93,6 +95,9 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     test: median 44.6K views vs ~9K from reels search), falling back to `/v2/instagram/reels/search` only when
     popular is empty. Reels look back at least 365 days (popular is mostly older posts; dates come from the
     media id). Baseline = one page of `/v1/instagram/user/reels` (`trim=true`). No profile calls.
+    Popular has no next page (~12 reels per keyword), so the looked-up creators' feeds also add their own standout
+    reels (2x+ their usual views, max 3 per creator) after a second `rateRelevance` call: no extra credits
+    (`feedPicks` in lib/search.ts, counted as `fromFeeds`).
 12. Run the AI relevance check (`rateRelevance`) BEFORE baseline lookups, so off-topic creators cost nothing.
     Score 1 means "inside the product's field", not just "same audience"; with 15+ clear matches, only score 2 stays.
 16. Covers are copied to storage with `after()` (`persistThumbnails`), never inside the search itself:
@@ -110,6 +115,10 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 18. Expired covers repair themselves only when someone is looking at them: a cover that fails to load asks
     `/api/covers` (batched), which re-fetches that one video (`/v2/tiktok/video` or `/v1/instagram/post`, 1 credit),
     copies the cover to storage and updates the row. Max 150 repairs a day for everyone (`REPAIRS_PER_DAY`).
+19. A pasted Instagram Reel / TikTok link (`lib/clip-import.ts`): `/v1/instagram/post` or `/v2/tiktok/video` (1 credit,
+    skipped when the clip was fetched in the last 24 h) + the creator's usual views (rule 3, cached 24 h). Max 60 a
+    day for everyone (counted as `reely/clip-import` in `api_usage`). "More hits from @creator" on the video page only
+    reads the shared cache.
 
 ## Security rules
 

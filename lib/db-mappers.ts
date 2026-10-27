@@ -1,4 +1,4 @@
-import type { Platform } from "@/lib/adapters/types";
+import type { NormalizedVideo, Platform } from "@/lib/adapters/types";
 import type { OutlierLabel } from "@/lib/scoring";
 import type { ScoredVideo } from "@/lib/search";
 
@@ -37,10 +37,8 @@ export type ResultRow = {
   videos: VideoRow | null;
 };
 
-export function videoFromRow(
-  v: VideoRow,
-  scores: { reach: number | null; usual: number | null; usualViews: number | null; label: OutlierLabel; keyword?: string },
-): ScoredVideo {
+/** A stored video as the adapters return it (no scores). */
+export function normalizedFromRow(v: VideoRow): NormalizedVideo {
   return {
     platform: v.platform,
     platformVideoId: v.platform_video_id,
@@ -62,6 +60,15 @@ export function videoFromRow(
     sound: v.sound_id
       ? { id: v.sound_id, title: v.sound_title ?? "", author: v.sound_author, original: Boolean(v.sound_original) }
       : null,
+  };
+}
+
+export function videoFromRow(
+  v: VideoRow,
+  scores: { reach: number | null; usual: number | null; usualViews: number | null; label: OutlierLabel; keyword?: string },
+): ScoredVideo {
+  return {
+    ...normalizedFromRow(v),
     reach: scores.reach,
     usual: scores.usual,
     usualViews: scores.usualViews,

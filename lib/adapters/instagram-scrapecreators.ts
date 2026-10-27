@@ -186,6 +186,51 @@ export const instagramAdapter: PlatformAdapter = {
   },
 };
 
+/** /v1/instagram/post (checked live 2026-10-27): plays match the profile feed's play_count; no follower count. */
+type PostMedia = {
+  shortcode?: string;
+  thumbnail_src?: string;
+  display_url?: string;
+  video_play_count?: number | null;
+  video_view_count?: number | null;
+  video_duration?: number | null;
+  is_video?: boolean;
+  created_at?: string | null;
+  taken_at_timestamp?: number | null;
+  comment_count?: number | null;
+  owner?: { username?: string; full_name?: string };
+  edge_media_to_caption?: { edges?: { node?: { text?: string } }[] };
+  edge_media_preview_like?: { count?: number | null };
+};
+
+/** One reel from its link (1 credit), for "paste a Reel link". Null when the post is not a video. */
+export async function instagramPost(url: string): Promise<NormalizedVideo | null> {
+  type Res = { data?: { xdt_shortcode_media?: PostMedia | null } };
+  const data = fixturesEnabled() ? await readFixture<Res>("instagram-post") : await call<Res>("/v1/instagram/post", { url });
+  const m = data?.data?.xdt_shortcode_media;
+  if (!m?.shortcode || m.is_video === false) return null;
+  return {
+    platform: "instagram",
+    platformVideoId: m.shortcode,
+    url: `https://www.instagram.com/reel/${m.shortcode}/`,
+    thumbnailUrl: m.thumbnail_src ?? m.display_url ?? null,
+    caption: m.edge_media_to_caption?.edges?.[0]?.node?.text ?? "",
+    creatorHandle: m.owner?.username ?? "",
+    creatorName: m.owner?.full_name || null,
+    creatorFollowers: null,
+    views: m.video_play_count ?? m.video_view_count ?? null,
+    likes: m.edge_media_preview_like?.count ?? null,
+    comments: m.comment_count ?? null,
+    shares: null,
+    saves: null,
+    durationSeconds: m.video_duration ? Math.round(m.video_duration) : null,
+    publishedAt: m.created_at ?? (m.taken_at_timestamp ? new Date(m.taken_at_timestamp * 1000).toISOString() : null),
+    country: null,
+    hasShop: false,
+    sound: null,
+  };
+}
+
 /** A fresh cover link for one reel (1 credit). Only for repairing a cover that expired before it was copied. */
 export async function instagramPostCover(url: string): Promise<string | null> {
   if (fixturesEnabled()) return null;

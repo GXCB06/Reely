@@ -4,11 +4,11 @@ import { INSTAGRAM_MIN_DAYS } from "@/lib/adapters/instagram-scrapecreators";
 import { DEFAULT_WINDOW, type NormalizedVideo, type Platform, type SearchRegion } from "@/lib/adapters/types";
 import type { SearchSettings } from "@/lib/search-settings";
 import { type ProductBrief, rateRelevance } from "@/lib/ai/tasks";
-import { getFreshCreator, saveCreator, saveVideos } from "@/lib/cache";
+import { getCreatorVideos, getFreshCreator, saveCreator, saveVideos } from "@/lib/cache";
 import { clipKey, type Feedback, withFeedback } from "@/lib/feedback";
 import { type Goal, goalScore } from "@/lib/goals";
 import { captionLanguage } from "@/lib/region";
-import { isExcluded, isOwnAccount, relevanceKeep } from "@/lib/results";
+import { isExcluded, isOwnAccount, relevanceKeep, STRICT_RELEVANCE_AT } from "@/lib/results";
 import {
   labelFor,
   type OutlierLabel,
@@ -21,6 +21,16 @@ import {
 
 /** Max creators per platform that get a usual-views lookup (CLAUDE.md cost rule 3). */
 const BASELINE_CREATORS = 5;
+/** A Reels-only research (no TikTok credits spent) looks up more Instagram creators: 1 credit each. */
+const BASELINE_CREATORS_REELS_ONLY = 8;
+
+/**
+ * Instagram search returns only ~12 reels per keyword, so the creators looked up for usual views (their feed is
+ * already paid for) also add their own standout reels: at least 2x their usual views, after the same relevance check.
+ */
+const FEED_EXTRA_PLATFORMS: Platform[] = ["instagram"];
+const FEED_EXTRA_MIN_USUAL = 2;
+const FEED_EXTRAS_PER_CREATOR = 3;
 
 export type ScoredVideo = NormalizedVideo & {
   reach: number | null;
@@ -48,7 +58,13 @@ export type SearchResult = {
 };
 
 export type DropReason = "views" | "old" | "language" | "excluded" | "offTopic";
-export type PlatformStats = { found: number; kept: number; dropped: Partial<Record<DropReason, number>> };
+export type PlatformStats = {
+  found: number;
+  kept: number;
+  dropped: Partial<Record<DropReason, number>>;
+  /** Extra clips from the looked-up creators' own feeds (counted apart from `kept`). */
+  fromFeeds?: number;
+};
 
 /** Why a video did not make it, checked in this order (the first failing rule is the reason). */
 function dropReason(
@@ -69,7 +85,7 @@ export type KeywordQuery = { text: string; region: SearchRegion; english?: strin
 
 async function creatorBaseline(platform: Platform, handle: string) {
   const cached = await getFreshCreator(platform, handle);
-  if (cached?.usualViews) return { usualViews: cached.usualViews, recent: null };
+  if (cached?.usualViews) return { usualViews: cached.usualViews, recent: null, feed: null };
 
   const recent = await adapters[platform].getCreatorVideos(handle);
   const posts = recent.map((v) => ({ id: v.platformVideoId, views: v.views }));
@@ -84,7 +100,27 @@ async function creatorBaseline(platform: Platform, handle: string) {
       displayName: recent[0].creatorName,
     });
   }
-  return { usualViews, recent: posts };
+  return { usualViews, recent: posts, feed: recent };
+}
+
+type Baseline = Awaited<ReturnType<typeof creatorBaseline>>;
+
+/** One looked-up creator's standout clips that the keyword search missed (no paid calls: the feed is already here). */
+async function feedPicks(
+  platform: Platform,
+  handle: string,
+  base: Baseline,
+  skip: (v: NormalizedVideo) => boolean,
+): Promise<NormalizedVideo[]> {
+  const feed = base.feed ?? (await getCreatorVideos(platform, handle));
+  const posts = base.recent ?? feed.map((v) => ({ id: v.platformVideoId, views: v.views }));
+  return feed
+    .filter((v) => !skip(v))
+    .map((v) => ({ v, usual: usualScore(v.views, usualViewsExcluding(posts, v.platformVideoId)) ?? 0 }))
+    .filter((x) => x.usual >= FEED_EXTRA_MIN_USUAL)
+    .sort((a, b) => b.usual - a.usual)
+    .slice(0, FEED_EXTRAS_PER_CREATOR)
+    .map((x) => x.v);
 }
 
 /**
@@ -167,7 +203,8 @@ export async function searchKeywords(
   const dbIds = await saveVideos(kept);
 
   // Usual-views baselines for the top creators (by reach, or by views where followers are unknown, as on Instagram).
-  const baselines = new Map<string, { usualViews: number | null; recent: { id: string; views: number | null }[] | null }>();
+  const baselines = new Map<string, Baseline>();
+  const reelsOnly = !platforms.includes("tiktok");
   for (const p of platforms) {
     const top = [
       ...new Set(
@@ -180,7 +217,7 @@ export async function searchKeywords(
           )
           .map((v) => v.creatorHandle),
       ),
-    ].slice(0, BASELINE_CREATORS);
+    ].slice(0, p === "instagram" && reelsOnly ? BASELINE_CREATORS_REELS_ONLY : BASELINE_CREATORS);
     await Promise.all(
       top.map(async (handle) => {
         try {
@@ -192,8 +229,47 @@ export async function searchKeywords(
     );
   }
 
+  // More Reels from the creators just looked up. Needs the relevance check (a product), and drops nothing when it fails.
+  const extras: (NormalizedVideo & { keyword: string })[] = [];
+  if (opts.product && relevance) {
+    const skip = (v: NormalizedVideo) =>
+      seen.has(`${v.platform}:${v.platformVideoId}`) ||
+      !!disliked?.has(clipKey(v)) ||
+      isOwnAccount(v.creatorHandle, opts.product!.name) ||
+      !!dropReason(v, {
+        minViews: opts.minViews ?? 0,
+        sinceMs: v.platform === "instagram" ? igSince : since,
+        language: opts.language,
+        exclusions,
+        thaiSearch: false,
+      });
+    const picks = await Promise.all(
+      [...baselines].map(async ([key, base]) => {
+        const [p, handle] = [key.slice(0, key.indexOf(":")) as Platform, key.slice(key.indexOf(":") + 1)];
+        if (!FEED_EXTRA_PLATFORMS.includes(p)) return [];
+        // Labelled with the keyword that found this creator.
+        const keyword = kept.find((v) => v.platform === p && v.creatorHandle === handle)?.keyword ?? "";
+        return (await feedPicks(p, handle, base, skip).catch(() => [])).map((v) => ({ ...v, keyword }));
+      }),
+    );
+    const candidates = picks.flat();
+    const extraRated = candidates.length
+      ? await rateRelevance(opts.product, candidates, opts.goal, opts.feedback?.examples)
+      : null;
+    // Same bar as the search results: score 2 only when there were plenty of clear matches.
+    const minScore = relevance.filter((s) => s === 2).length >= STRICT_RELEVANCE_AT ? 2 : 1;
+    candidates.forEach((v, i) => {
+      if ((extraRated?.scores[i] ?? 0) < minScore) return;
+      extras.push(v);
+      copyOf.set(v, extraRated?.copy[i] ?? null);
+      const s = statOf(v.platform);
+      s.fromFeeds = (s.fromFeeds ?? 0) + 1;
+    });
+    (await saveVideos(extras)).forEach((id, key) => dbIds.set(key, id));
+  }
+
   const rank = withFeedback((v: ScoredVideo) => goalScore(v, opts.goal), opts.feedback ?? null);
-  const videos = kept
+  const videos = [...kept, ...extras]
     .map((v): ScoredVideo => {
       const base = baselines.get(`${v.platform}:${v.creatorHandle}`);
       // Recompute the median without this video when we have the raw posts.
@@ -225,6 +301,11 @@ export async function searchKeywords(
     errors,
     relevanceFailed: !!opts.product && clean.length > 0 && rated === null,
   };
+}
+
+/** One creator's usual views (cached 24 h; otherwise 1 credit on Instagram, 2 on TikTok). Used by "paste a clip link". */
+export function lookUpCreator(platform: Platform, handle: string) {
+  return creatorBaseline(platform, handle);
 }
 
 /** Single-keyword search used by the test page. */

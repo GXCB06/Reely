@@ -1,0 +1,40 @@
+{
+  "data": {
+    "xdt_shortcode_media": {
+      "__typename": "XDTGraphVideo",
+      "id": "3820783578180073945",
+      "shortcode": "DUGJmvFEbnZ",
+      "thumbnail_src": "https://scontent-mia3-1.cdninstagram.com/v/t51.82787-15/623655502_18041212406739176_6732804270754500163_n.jpg?stp=dst-jpg_e15_tt6&_nc_cat=111&ig_cache_key=MzgyMDc4MzU3ODE4MDA3Mzk0NTE4MDQxMjEyNDAzNzM5MTc2.3-ccb7-5&ccb=7-5&_nc_sid=58cdad&efg=eyJ2ZW5jb2RlX3RhZyI6IkNMSVBTLnhwaWRzLjU0MC5zZHIudmlkZW9fZGVmYXVsdF9jb3Zlcl9mcmFtZS5DMyJ9&_nc_ohc=NBU1QSqTdY4Q7kNvwH08ICJ&_nc_oc=Adolb8OX3b33QjfUy3RjjS6p6BosGN91_jWlI8GpLocoLbyEbSjLbkd-KuW-BNIE290&_nc_zt=23&_nc_ht=scontent-mia3-1.cdninstagram.com&_nc_gid=Ii0sGQCQcMMRsof6cFN09g&_nc_ss=78a8c&oh=00_AQNdZmG4ObuxhcOQjJgkQrFd7tLCyCq_Ve-iArF-8uLbdw&oe=6AE5EAD4",
+      "display_url": "https://scontent-mia3-1.cdninstagram.com/v/t51.82787-15/623655502_18041212406739176_6732804270754500163_n.jpg?stp=dst-jpg_e15_tt6&_nc_cat=111&ig_cache_key=MzgyMDc4MzU3ODE4MDA3Mzk0NTE4MDQxMjEyNDAzNzM5MTc2.3-ccb7-5&ccb=7-5&_nc_sid=58cdad&efg=eyJ2ZW5jb2RlX3RhZyI6IkNMSVBTLnhwaWRzLjU0MC5zZHIudmlkZW9fZGVmYXVsdF9jb3Zlcl9mcmFtZS5DMyJ9&_nc_ohc=NBU1QSqTdY4Q7kNvwH08ICJ&_nc_oc=Adolb8OX3b33QjfUy3RjjS6p6BosGN91_jWlI8GpLocoLbyEbSjLbkd-KuW-BNIE290&_nc_zt=23&_nc_ht=scontent-mia3-1.cdninstagram.com&_nc_gid=Ii0sGQCQcMMRsof6cFN09g&_nc_ss=78a8c&oh=00_AQNdZmG4ObuxhcOQjJgkQrFd7tLCyCq_Ve-iArF-8uLbdw&oe=6AE5EAD4",
+      "video_play_count": 1239071,
+      "video_duration": 5.038,
+      "is_video": true,
+      "product_type": "clips",
+      "created_at": "2026-01-29T13:24:00.000Z",
+      "taken_at_timestamp": 1769693040,
+      "comment_count": 12,
+      "owner": {
+        "username": "nipt.academy",
+        "full_name": "Ayush Goyal"
+      },
+      "edge_media_to_caption": {
+        "edges": [
+          {
+            "node": {
+              "text": "All important tally prime shortcut keys\n#viral #tallyprime #instagram #ShortcutKeys #viralreels"
+            }
+          }
+        ]
+      },
+      "edge_media_preview_like": {
+        "count": 15873
+      },
+      "clips_music_attribution_info": {
+        "artist_name": "Rahgir",
+        "song_name": "Kachha Ghada",
+        "uses_original_audio": false,
+        "audio_id": "384038410022209"
+      }
+    }
+  }
+}

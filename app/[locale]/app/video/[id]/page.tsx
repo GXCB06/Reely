@@ -1,7 +1,8 @@
-import { ArrowLeft, ExternalLink, Flame } from "lucide-react";
+import { ArrowLeft, ExternalLink, Flame, Search } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
+import { OutlierCard } from "@/components/outlier-card";
 import { SaveButton } from "@/components/save-button";
 import { Thumb } from "@/components/thumb";
 import { TrackButton } from "@/components/tracking/track-button";
@@ -14,6 +15,7 @@ import type { VideoRow } from "@/lib/db-mappers";
 import { formatMultiplier, labelFor, reachScore, usualScore } from "@/lib/scoring";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { loadAccount } from "@/lib/tracking";
 import type { SavedScript } from "./actions";
 import type { HookBreakdown } from "@/lib/ai/schemas";
 import type { Segment } from "@/lib/transcript";
@@ -77,6 +79,35 @@ async function Breakdown({ video, scores, locale }: { video: VideoRow; scores: S
       {sample && <p className="text-xs text-muted-foreground">{t("sampleNote")}</p>}
     </div>
   );
+}
+
+/** "More hits from @creator": their other posts that beat their usual views, from the shared cache (no credits). */
+async function CreatorHits({ video }: { video: VideoRow }) {
+  const t = await getTranslations("video");
+  const account = await loadAccount(video.platform, video.creator_handle);
+  const hits = account.videos.filter((v) => v.dbId !== video.id && (v.usual ?? 0) >= 2).slice(0, 4);
+  if (!hits.length) return null;
+  return (
+    <section>
+      <h2 className="font-heading text-xl font-bold">{t("creatorHits", { handle: video.creator_handle })}</h2>
+      <p className="mb-3 text-sm text-muted-foreground">{t("creatorHitsHint")}</p>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+        {hits.map((v) => (
+          <OutlierCard key={v.platformVideoId} video={v} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** "Find more like this": the chat, pre-filled with what the clip is about, on the clip's platform. */
+function moreLikeThisHref(video: VideoRow, query: (caption: string) => string, productId: string | null) {
+  const words = video.caption.replace(/https?:\/\/\S+|[#@][\p{L}\p{N}_.]+/gu, " ").replace(/\s+/g, " ").trim();
+  const tags = video.caption.match(/#[\p{L}\p{N}_]+/gu)?.slice(0, 5).join(" ") ?? "";
+  const about = (words || tags || `@${video.creator_handle}`).slice(0, 160);
+  const params = new URLSearchParams({ q: query(about), p: video.platform === "instagram" ? "instagram" : "tiktok,youtube" });
+  if (productId) params.set("product", productId);
+  return `/app?${params}`;
 }
 
 export default async function VideoPage({ params, searchParams }: PageProps<"/[locale]/app/video/[id]">) {
@@ -153,6 +184,12 @@ export default async function VideoPage({ params, searchParams }: PageProps<"/[l
           {video.platform !== "instagram" && (
             <TrackButton platform={video.platform} handle={video.creator_handle} initialTracked={Boolean(trackedRow)} />
           )}
+          <Link
+            href={moreLikeThisHref(video, (caption) => t("moreLikeThisQuery", { caption }), typeof productParam === "string" ? productParam : null)}
+            className="flex w-full items-center justify-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium hover:bg-muted"
+          >
+            <Search className="size-4" /> {t("moreLikeThis")}
+          </Link>
         </aside>
 
         <div className="space-y-6">
@@ -218,6 +255,10 @@ export default async function VideoPage({ params, searchParams }: PageProps<"/[l
               initialProductId={typeof productParam === "string" ? productParam : null}
             />
           </section>
+
+          <Suspense fallback={null}>
+            <CreatorHits video={video} />
+          </Suspense>
         </div>
       </div>
     </div>

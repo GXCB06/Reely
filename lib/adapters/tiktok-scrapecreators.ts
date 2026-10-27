@@ -174,6 +174,16 @@ export async function tiktokSoundVideos(soundId: string): Promise<NormalizedVide
   return (data?.aweme_list ?? []).map(toVideo);
 }
 
+/** One video from its link (1 credit), for "paste a clip link". Short vm.tiktok.com links work too. */
+export async function tiktokVideo(url: string): Promise<NormalizedVideo | null> {
+  if (fixturesEnabled()) {
+    const data = await readFixture<{ items?: Aweme[] }>("tiktok-search-top");
+    return data?.items?.[0] ? toVideo(data.items[0]) : null;
+  }
+  const data = await call<{ aweme_detail?: Aweme }>("/v2/tiktok/video", { url });
+  return data?.aweme_detail ? toVideo(data.aweme_detail) : null;
+}
+
 /** A fresh cover link for one video (1 credit). Only for repairing a cover that expired before it was copied. */
 export async function tiktokVideoCover(url: string): Promise<string | null> {
   if (fixturesEnabled()) return null;
