@@ -10,6 +10,19 @@ const handleI18n = createIntlMiddleware(routing);
 const PROTECTED = /^\/(th|en)\/app(\/|$)/;
 
 export default async function proxy(request: NextRequest) {
+  // When a sign-in's return address isn't on Supabase's allowed list, Supabase sends the user to its Site URL with
+  // ?code=… instead. If that is this site, finish the sign-in here rather than dropping the code (the PKCE proof is
+  // in this site's cookies, so it only works on the same address the sign-in started from).
+  const code = request.nextUrl.searchParams.get("code");
+  if (code) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    url.search = "";
+    url.searchParams.set("code", code);
+    url.searchParams.set("next", "/th/app");
+    return NextResponse.redirect(url);
+  }
+
   const response = handleI18n(request);
   if (!isSupabaseConfigured()) return response;
 

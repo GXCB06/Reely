@@ -40,7 +40,8 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [pasted, setPasted] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Back from /auth/callback when the sign-in could not be finished (e.g. started on another address of the site).
+  const [error, setError] = useState<string | null>(params.get("error") === "auth" ? t("authFailed") : null);
 
   const switchTo = (m: Mode) => {
     setMode(m);
