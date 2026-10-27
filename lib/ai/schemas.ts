@@ -123,6 +123,24 @@ export const hookBreakdownSchema = z.object({
 });
 export type HookBreakdown = z.infer<typeof hookBreakdownSchema>;
 
+/** Plan page: 7 days of posts, each borrowing from one reference clip. */
+export const weekPlanSchema = z.object({
+  days: z
+    .array(
+      z.object({
+        day: z.number().int().min(1).max(7),
+        i: z.number().int().min(0).describe("Line number of the reference clip"),
+        title: z.string().describe("Max 10 words: what to post that day, as an action"),
+        hook: z.string().describe("The opening line to say, max 14 words, new words (not copied)"),
+        format: z.string().describe("Max 4 words, e.g. talking head, screen demo, skit, before/after"),
+        why: z.string().describe("One sentence: why this works now, citing the reference clip's numbers"),
+      }),
+    )
+    .min(5)
+    .max(7),
+});
+export type WeekPlan = z.infer<typeof weekPlanSchema>;
+
 export const videoAnalysisSchema = z.object({
   hook: z.string().describe("The opening line or on-screen hook, quoted or closely paraphrased from the caption"),
   hookType: z.string().describe("Short label, e.g. question, bold claim, POV, problem callout, list, story, how-to"),

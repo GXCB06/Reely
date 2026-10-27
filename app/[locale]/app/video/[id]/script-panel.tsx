@@ -24,17 +24,20 @@ export function ScriptPanel({
   videoId,
   products,
   initialScripts,
+  initialProductId = null,
 }: {
   videoId: number;
   products: { id: string; name: string; goal: Goal | null }[];
   initialScripts: SavedScript[];
+  /** From the plan page: write for this product. */
+  initialProductId?: string | null;
 }) {
   const t = useTranslations("script");
   const tg = useTranslations("goals");
   const locale = useLocale();
   const [scripts, setScripts] = useState(initialScripts);
   const [pending, startTransition] = useTransition();
-  const [productId, setProductId] = useState(products[0]?.id ?? null);
+  const [productId, setProductId] = useState(products.find((p) => p.id === initialProductId)?.id ?? products[0]?.id ?? null);
   const productName = products.find((p) => p.id === productId)?.name ?? null;
   const goal = products.find((p) => p.id === productId)?.goal ?? null;
 

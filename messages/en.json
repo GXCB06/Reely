@@ -27,7 +27,8 @@
     "formats": "Formats",
     "products": "My products",
     "openMenu": "Open menu",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "plan": "7-day plan"
   },
   "login": {
     "title": "Sign in to Reely",
@@ -632,5 +633,22 @@
       "payoff": "Payoff",
       "cta": "CTA"
     }
+  },
+  "plan": {
+    "title": "7-day posting plan",
+    "subtitle": "Reely turns the clips you 👍, the clips you saved and the best of your latest research into 7 days of posts, one a day, each with a hook and a script button.",
+    "noProduct": "Add a product first, and Reely will plan for it.",
+    "addProduct": "Add a product",
+    "emptyTitle": "No plan for {product} this week yet",
+    "emptyHint": "One AI call, no credits. The more clips you 👍 or save, the closer the plan is to what you want to make.",
+    "build": "Make a 7-day plan (free)",
+    "again": "Make a new plan",
+    "building": "Planning… about 10-40 seconds",
+    "failed": "Couldn't make the plan. Try again.",
+    "noClips": "No clips to plan from yet: research this product first, or 👍/save clips you like.",
+    "madeAt": "Made {when}",
+    "day": "Day {n}",
+    "writeScript": "Write the script",
+    "from": "Based on @{handle}"
   }
 }

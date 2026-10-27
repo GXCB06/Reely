@@ -44,6 +44,7 @@ lib/region.ts                 # Thailand / Worldwide / Both → keyword regions;
 lib/feedback.ts               # 👍/👎 per product (clip_feedback): examples for the relevance check, 👎 clips dropped, ranking nudged
 lib/goals.ts                  # what the clips are for (sell / shop / startup / brand) → goal-aware ranking; prompts in lib/ai/tasks.ts
 lib/link-preview.ts           # reads a pasted product link (blocks private addresses — keep that check)
+lib/plan.ts                   # 7-day plan per product (content_plans): 👍 + saved + latest research's best clips → one AI call
 lib/today.ts                  # Today page: new breakouts (7 days) from tracked accounts + followed topics → 3-5 ideas
 lib/formats.ts                # format explorer: same sound + format search → topics, sounds, stage (lib/format-stats.ts)
 lib/search-settings.ts        # time window, minimum views, caption language (shared by client and server)

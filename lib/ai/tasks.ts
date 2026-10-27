@@ -22,6 +22,8 @@ import {
   type Script,
   type HookBreakdown,
   hookBreakdownSchema,
+  type WeekPlan,
+  weekPlanSchema,
   clipIdeasSchema,
   todaySchema,
   scriptSchema,
@@ -706,6 +708,58 @@ export async function ideasForClips(
     return out;
   } catch (e) {
     console.warn("[ai] ideasForClips failed", (e as Error).message);
+    return null;
+  }
+}
+
+export type PlanClip = {
+  handle: string;
+  caption: string;
+  views: number | null;
+  multiplier: number | null;
+  platform: string;
+  source: "liked" | "saved" | "research";
+  /** The real opening line, when the clip's transcript was read. */
+  spokenHook?: string | null;
+};
+
+/** Plan page: a 7-day posting plan for the product, one reference clip per day (one AI call, no credits). */
+export async function planWeek(
+  product: ProductBrief,
+  goal: Goal | null,
+  clips: PlanClip[],
+  locale: string,
+): Promise<WeekPlan["days"] | null> {
+  const model = getModel();
+  if (!model || !clips.length) return null;
+  try {
+    const { output } = await generateText({
+      ...aiCallOptions(40_000),
+      model,
+      output: Output.object({ schema: weekPlanSchema }),
+      prompt: [
+        `You are a content strategist. Plan 7 days of short videos for the product below. Answer in ${languageName(locale)}.`,
+        `Product: ${product.name} — ${product.whatItIs}${product.audience ? `. Audience: ${product.audience}` : ""}`,
+        goal ? `The user ${GOAL_BRIEF[goal]}. Every day must serve that; ${GOAL_ACTION[goal]}.` : "",
+        "Reference clips (line | source | platform | handle | views | multiplier | caption | real opening line):",
+        ...clips.map(
+          (c, i) =>
+            `${i} | ${c.source} | ${c.platform} | @${c.handle} | ${c.views ?? "?"} | ${c.multiplier !== null ? formatMultiplier(c.multiplier) + "x" : "?"} | ${c.caption.slice(0, 160).replace(/\s+/g, " ")} | ${c.spokenHook ?? ""}`,
+        ),
+        "Pick one reference clip per day; prefer 'liked' clips (the user marked them useful), then 'saved', then 'research'.",
+        "Use 7 different clips when there are enough, and mix formats across the week (not 7 talking heads).",
+        "Each day borrows the clip's hook pattern and format for THIS product; never copy its words or footage.",
+        "Only claim what the product description says it does.",
+        NO_MADE_UP_NUMBERS,
+      ].join("\n"),
+    });
+    const seen = new Set<number>();
+    return output.days
+      .filter((d) => d.i < clips.length)
+      .sort((a, b) => a.day - b.day)
+      .filter((d) => !seen.has(d.day) && seen.add(d.day));
+  } catch (e) {
+    console.warn("[ai] planWeek failed", (e as Error).message);
     return null;
   }
 }

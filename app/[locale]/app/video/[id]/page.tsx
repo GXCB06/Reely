@@ -79,8 +79,9 @@ async function Breakdown({ video, scores, locale }: { video: VideoRow; scores: S
   );
 }
 
-export default async function VideoPage({ params }: PageProps<"/[locale]/app/video/[id]">) {
+export default async function VideoPage({ params, searchParams }: PageProps<"/[locale]/app/video/[id]">) {
   const { locale, id } = await params;
+  const { product: productParam } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations("video");
   const ts = await getTranslations("search");
@@ -213,6 +214,7 @@ export default async function VideoPage({ params }: PageProps<"/[locale]/app/vid
               videoId={video.id}
               products={(product ?? []).map((p) => ({ id: p.id as string, name: p.name as string, goal: isGoal(p.goal) ? p.goal : null }))}
               initialScripts={(scripts ?? []) as SavedScript[]}
+              initialProductId={typeof productParam === "string" ? productParam : null}
             />
           </section>
         </div>

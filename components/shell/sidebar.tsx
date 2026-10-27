@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, ChevronUp, Languages, Layers, LogOut, Menu, Package, Radar, Sun, UserRound, X } from "lucide-react";
+import { Bookmark, CalendarDays, ChevronUp, Languages, Layers, LogOut, Menu, Package, Radar, Sun, UserRound, X } from "lucide-react";
 import { useState } from "react";
 import { Mascot } from "@/components/mascot";
 import { useLocale, useTranslations } from "next-intl";
@@ -12,6 +12,7 @@ export type { RecentRun };
 
 const NAV = [
   { href: "/app/today", key: "today", icon: Sun },
+  { href: "/app/plan", key: "plan", icon: CalendarDays },
   { href: "/app/formats", key: "formats", icon: Layers },
   { href: "/app/tracking", key: "tracking", icon: Radar },
   { href: "/app/saved", key: "saved", icon: Bookmark },
