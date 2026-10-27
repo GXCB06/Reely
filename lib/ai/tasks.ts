@@ -194,9 +194,9 @@ function goalPlan(goal: Goal | null | undefined): string[] {
 }
 
 const REGION_RULE: Record<RegionChoice, string> = {
-  th: `All ${MAX_KEYWORDS} phrases in Thai (region "th"), as Thai creators would type them; English product terms are fine inside.`,
+  th: `All ${MAX_KEYWORDS} phrases in Thai script (region "th"), as Thai people type them: write 'แอปฟิตเนส', not 'fitness app'. Only brand names stay in English (e.g. 'MyFitnessPal รีวิว'). The examples below may be in English: translate them.`,
   global: `All ${MAX_KEYWORDS} phrases in English (region "global"), as creators worldwide would type them.`,
-  both: `3 phrases in Thai (region "th") then 2 in English (region "global").`,
+  both: `3 phrases in Thai script (region "th", as Thai people type them; only brand names in English) then 2 in English (region "global").`,
 };
 
 /**

@@ -27,7 +27,9 @@ function highlight(text: string, keywords: string[]) {
 
 /**
  * What plays while a research runs (30-60 s): how Reely works, told with the user's own brief, keywords and
- * filters: read the brief → search every platform → keep what fits → score every keeper. Loops until done.
+ * filters: read the brief → search every platform → keep what fits → score every keeper. It never loops back to step
+ * 1 (that looked like the work starting over): after the last step it stays there and the bar keeps creeping towards
+ * the end until the results open.
  */
 export function ResearchStory({
   brief,
@@ -49,17 +51,20 @@ export function ResearchStory({
   }, []);
 
   const elapsed = tick * 1000;
-  const sceneIndex = Math.floor(elapsed / SCENE_MS) % SCENES.length;
+  const sceneIndex = Math.min(Math.floor(elapsed / SCENE_MS), SCENES.length - 1);
+  const finishing = elapsed >= SCENE_MS * SCENES.length;
+  // ~60% by the last step, then slower and slower: it never reaches the end on its own.
+  const progress = 1 - Math.exp(-elapsed / 28_000);
   const scene = SCENES[sceneIndex];
   const inScene = Math.floor((elapsed % SCENE_MS) / 1000);
   const ring: Record<Platform, string> = { tiktok: "left-1/2 top-0 -translate-x-1/2 -translate-y-1/2", instagram: "left-[8%] bottom-[14%]", youtube: "right-[8%] bottom-[14%]" };
 
   return (
     <div className="overflow-hidden rounded-3xl border bg-card shadow-sm">
-      <div className="flex gap-1 px-5 pt-4">
-        {SCENES.map((s, i) => (
-          <span key={s} className={`h-1 flex-1 rounded-full transition-colors ${i <= sceneIndex ? "bg-primary" : "bg-muted"}`} />
-        ))}
+      <div className="px-5 pt-4">
+        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+          <div className="h-full rounded-full bg-primary transition-[width] duration-1000 ease-linear" style={{ width: `${Math.round(progress * 100)}%` }} />
+        </div>
       </div>
       <div key={scene} className="story-in px-6 pt-4 pb-6">
         <p className="text-xs font-semibold tracking-widest text-primary uppercase">{t("step", { n: sceneIndex + 1, of: SCENES.length })}</p>
@@ -138,7 +143,7 @@ export function ResearchStory({
             </div>
           )}
         </div>
-        <p className="mt-3 text-center text-xs text-muted-foreground">{t("wait")}</p>
+        <p className="mt-3 text-center text-xs text-muted-foreground">{finishing ? t("finishing") : t("wait")}</p>
       </div>
     </div>
   );

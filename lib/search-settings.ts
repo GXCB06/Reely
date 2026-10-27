@@ -13,7 +13,7 @@ export const MIN_VIEWS_CHOICES = [10_000, 50_000, 100_000] as const;
 export const DEFAULT_MIN_VIEWS = 10_000;
 
 /** Researches per person per Thai day (owners have no cap; lib/limits.ts). */
-export const RESEARCHES_PER_DAY = 3;
+export const RESEARCHES_PER_DAY = 5;
 
 /**
  * Credits for one run: TikTok 1 per keyword + 5 creators x 2 pages; Instagram 1 per keyword + 5 creators x 1

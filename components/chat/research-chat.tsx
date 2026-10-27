@@ -123,6 +123,8 @@ export function ResearchChat({
   const [keywords, setKeywords] = useState<(Keyword & { on: boolean })[]>([]);
   const [exclusions, setExclusions] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState("");
+  // Where an added keyword is searched: Thailand or worldwide (the user can flip it; "both" starts on Thailand).
+  const [newKeywordRegion, setNewKeywordRegion] = useState<"th" | "global">(initialRegion === "global" ? "global" : "th");
   const [newExclusion, setNewExclusion] = useState("");
   // "Enhance": which of the 4 parts of a good brief the text covers (set by the AI after enhancing).
   const [covered, setCovered] = useState<Record<"topic" | "audience" | "angle" | "avoid", boolean> | null>(null);
@@ -282,6 +284,7 @@ export function ResearchChat({
 
   function switchRegion(next: RegionChoice) {
     setRegion(next);
+    setNewKeywordRegion(next === "global" ? "global" : "th");
     if (sent) understand(sent, next);
   }
 
@@ -289,7 +292,8 @@ export function ResearchChat({
     const k = newKeyword.trim();
     if (k.length < 2 || keywords.some((x) => x.text === k)) return;
     const on = selected.length < MAX_KEYWORDS;
-    setKeywords((ks) => [...ks, { text: k, region: region === "global" ? "global" : "th", english: region === "global" ? k : undefined, on }]);
+    const global = newKeywordRegion === "global";
+    setKeywords((ks) => [...ks, { text: k, region: newKeywordRegion, english: global ? k : undefined, on }]);
     setNewKeyword("");
   }
 
@@ -589,6 +593,15 @@ export function ResearchChat({
                   ))}
                   {phase === "plan" && (
                     <span className="inline-flex items-center gap-1 rounded-full border border-dashed px-2">
+                      <button
+                        type="button"
+                        onClick={() => setNewKeywordRegion((r) => (r === "th" ? "global" : "th"))}
+                        title={t(newKeywordRegion === "th" ? "keywordRegion.th" : "keywordRegion.global")}
+                        aria-label={t(newKeywordRegion === "th" ? "keywordRegion.th" : "keywordRegion.global")}
+                        className="rounded-full p-0.5 hover:bg-muted"
+                      >
+                        <RegionIcon region={newKeywordRegion} />
+                      </button>
                       <input
                         value={newKeyword}
                         onChange={(e) => setNewKeyword(e.target.value)}

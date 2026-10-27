@@ -181,7 +181,11 @@
       "limit": "Reely has read enough clip links for today. Try again tomorrow.",
       "failed": "Couldn't read that clip. Try again in a minute."
     },
-    "drafting": "Reely is writing the plan…"
+    "drafting": "Reely is writing the plan…",
+    "keywordRegion": {
+      "th": "Searched in Thailand (tap for worldwide)",
+      "global": "Searched worldwide (tap for Thailand)"
+    }
   },
   "search": {
     "title": "Test search",
@@ -595,7 +599,8 @@
       "got": "gets",
       "breakout": "Breakout",
       "note": "A clip that blows past its own account’s normal is one worth learning from, no matter how big the creator is."
-    }
+    },
+    "finishing": "Almost there: checking creators' usual views and ranking the clips…"
   },
   "goals": {
     "sell": {
