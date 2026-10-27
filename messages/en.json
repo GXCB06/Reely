@@ -31,7 +31,7 @@
     "plan": "7-day plan"
   },
   "login": {
-    "title": "Sign in to Reely",
+    "title": "Welcome to Reely",
     "subtitle": "We'll email you a sign-in link. No password needed.",
     "email": "Email",
     "send": "Email me a sign-in link",
@@ -47,7 +47,7 @@
     "continue": "Continue",
     "badLink": "That isn't a Reely sign-in link. Copy the whole link from the email, or request a new one.",
     "rateLimited": "Too many sign-in emails were sent in the last hour. Use the last email you received, or try again later.",
-    "passwordSubtitle": "Sign in with your email and password.",
+    "passwordSubtitle": "Sign in to find short videos that really worked for products like yours.",
     "signupTitle": "Create your Reely account",
     "signupSubtitle": "Use your email and a password of your choice.",
     "linkModeTitle": "Sign in with an email link",
@@ -69,7 +69,56 @@
     "google": "Continue with Google",
     "or": "or",
     "googleError": "Google sign-in isn't set up yet, or was cancelled. Try again or use email.",
-    "authFailed": "Sign-in didn't finish. Try again. If it keeps happening, open Reely at reely-azure.vercel.app and sign in there."
+    "authFailed": "Sign-in didn't finish. Try again. If it keeps happening, open Reely at reely-azure.vercel.app and sign in there.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "trustPublic": "Reely only looks at public clips on TikTok, YouTube Shorts and Instagram Reels. It never asks for your social accounts.",
+    "trustNoPost": "We never post for you and never sell your data.",
+    "showcase": {
+      "badge": "Short-video research for Thai businesses",
+      "title": "Find clips that beat their usual views, see why, make your own",
+      "platform": {
+        "tiktok": "TikTok",
+        "youtube": "Shorts",
+        "instagram": "Reels"
+      },
+      "sample": "Real screens · sample numbers"
+    },
+    "slide": {
+      "find": {
+        "step": "Find",
+        "title": "Clips that beat the creator's usual views",
+        "brief": "AI accounting app for Thai SMEs",
+        "clip1": "POV: closing the month alone",
+        "clip2": "3 apps every shop owner needs",
+        "clip3": "Do your books in 5 minutes",
+        "engaged": "High engagement",
+        "caption": "Describe your product. Reely plans keywords, searches every platform and ranks the clips that beat that creator's usual views, not just big view counts."
+      },
+      "why": {
+        "step": "Learn",
+        "title": "Why this clip worked",
+        "hook": "“Who's still typing in receipts one by one?”",
+        "beat1": "Hook",
+        "beat2": "Pain",
+        "beat3": "Demo",
+        "beat4": "CTA",
+        "label": "Why it works:",
+        "body": "Opens on a pain everyone knows in the first 3 seconds, then shows the fix on screen right away.",
+        "caption": "See the real first 3 seconds, the structure with timing, and the formulas the winners repeat."
+      },
+      "make": {
+        "step": "Make",
+        "title": "Scripts and a 7-day plan",
+        "day": "Day {n}",
+        "post": "A “month-end paper pile” skit, then the receipt-scan feature",
+        "script": "Hook · shots to film · call to action, borrowed from a winning clip, made for your product",
+        "write": "Write the script",
+        "plan": "7-day plan",
+        "save": "Save to a folder",
+        "caption": "Turn winning clips into your scripts, plan the week's posts and follow competitors, all in one place."
+      }
+    }
   },
   "chat": {
     "greeting": "What are you building?",

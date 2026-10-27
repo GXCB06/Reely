@@ -1,11 +1,10 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SUPABASE_URL } from "@/lib/env";
 import { createClient } from "@/lib/supabase/client";
@@ -40,6 +39,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [pasted, setPasted] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   // Back from /auth/callback when the sign-in could not be finished (e.g. started on another address of the site).
   const [error, setError] = useState<string | null>(params.get("error") === "auth" ? t("authFailed") : null);
 
@@ -116,18 +116,16 @@ export function LoginForm() {
   }[mode];
 
   return (
-    <Card className="rounded-3xl shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-xl">{title}</CardTitle>
-        <CardDescription>{subtitle}</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div>
+      <h1 className="font-heading text-3xl font-bold tracking-tight">{title}</h1>
+      <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
+      <div className="mt-7">
         {(mode === "signin" || mode === "signup") && (
           <>
-            <Button type="button" variant="outline" onClick={signInWithGoogle} disabled={busy} className="h-11 w-full rounded-full bg-white">
+            <Button type="button" variant="outline" onClick={signInWithGoogle} disabled={busy} className="h-12 w-full rounded-full bg-white text-base shadow-sm">
               <GoogleIcon /> {t("google")}
             </Button>
-            <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
               <span className="h-px flex-1 bg-border" />
               {t("or")}
               <span className="h-px flex-1 bg-border" />
@@ -135,25 +133,42 @@ export function LoginForm() {
           </>
         )}
         {(mode === "signin" || mode === "signup") && (
-          <form onSubmit={submitPassword} className="space-y-3">
-            <Input
-              type="email"
-              required
-              autoComplete="email"
-              placeholder={t("email")}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <Input
-              type="password"
-              required
-              minLength={MIN_PASSWORD}
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
-              placeholder={mode === "signup" ? t("newPassword", { n: MIN_PASSWORD }) : t("password")}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <Button type="submit" className="w-full rounded-full" disabled={busy}>
+          <form onSubmit={submitPassword} className="space-y-4">
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium">{t("email")}</span>
+              <Input
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="h-11 rounded-xl"
+              />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium">{mode === "signup" ? t("newPassword", { n: MIN_PASSWORD }) : t("password")}</span>
+              <span className="relative block">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={MIN_PASSWORD}
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-11 rounded-xl pr-11"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? t("hidePassword") : t("showPassword")}
+                  className="absolute top-1/2 right-2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-muted"
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </span>
+            </label>
+            <Button type="submit" className="h-12 w-full rounded-full text-base" disabled={busy}>
               {busy ? t("verifying") : mode === "signup" ? t("createAccount") : t("signIn")}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
@@ -200,9 +215,9 @@ export function LoginForm() {
           </form>
         )}
 
-        {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-      </CardContent>
-    </Card>
+        {error && <p className="mt-4 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+      </div>
+    </div>
   );
 }
 
