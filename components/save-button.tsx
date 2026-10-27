@@ -21,6 +21,8 @@ export function SaveButton({ videoId, initialSaved = false }: { videoId: number;
   const [picking, setPicking] = useState(false);
   const [name, setName] = useState("");
   const [pending, startTransition] = useTransition();
+  // Filing has its own pending state: a quick tap right after saving must not hit buttons still disabled by the save.
+  const [filing, startFiling] = useTransition();
   const box = useRef<HTMLDivElement>(null);
 
   // Close the picker on a click outside it.
@@ -44,7 +46,7 @@ export function SaveButton({ videoId, initialSaved = false }: { videoId: number;
   }
 
   function file(folder: FolderItem) {
-    startTransition(async () => {
+    startFiling(async () => {
       const res = await moveToCollectionAction(videoId, folder.id);
       if (!res.ok) return void toast.error(ts("folderFailed"));
       toast.success(ts("filedIn", { name: folder.name }));
@@ -55,7 +57,7 @@ export function SaveButton({ videoId, initialSaved = false }: { videoId: number;
   function createAndFile() {
     const clean = name.trim();
     if (!clean) return;
-    startTransition(async () => {
+    startFiling(async () => {
       const res = await createCollectionAction(clean);
       if (!res.ok) return void toast.error(ts(res.error === "limit" ? "folderLimit" : "folderFailed"));
       setName("");
@@ -93,7 +95,7 @@ export function SaveButton({ videoId, initialSaved = false }: { videoId: number;
                 <button
                   key={f.id}
                   type="button"
-                  disabled={pending}
+                  disabled={filing}
                   onClick={() => file(f)}
                   className="inline-flex max-w-full items-center gap-1 truncate rounded-full border px-2.5 py-1 text-xs hover:border-primary/40 hover:bg-primary/5"
                 >
