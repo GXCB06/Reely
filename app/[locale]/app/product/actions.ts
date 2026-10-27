@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { understandProduct } from "@/lib/ai/tasks";
 import { GOALS } from "@/lib/goals";
+import { readLink } from "@/lib/link-preview";
 import { createClient } from "@/lib/supabase/server";
 
 /** Products Reely remembers ("agent memory"); kept small so the chat chips stay readable. */
@@ -65,4 +67,31 @@ export async function deleteProductAction(id: string) {
   const { error } = await supabase.from("products").delete().eq("id", parsed.data);
   revalidatePath("/[locale]/app", "layout");
   return { ok: !error };
+}
+
+/**
+ * "Fill in from a link": reads the product page and lets the AI draft the form (name, what it does, audience,
+ * competitors, goal). One Gemini call, no credits; nothing is saved until the user presses Add.
+ */
+export async function draftProductAction(url: string, lang: string) {
+  const parsed = z.object({ url: z.string().trim().url().max(300), lang: z.enum(["th", "en"]) }).safeParse({ url, lang });
+  if (!parsed.success) return { ok: false as const, error: "badUrl" as const };
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  if (!claims?.claims) return { ok: false as const, error: "failed" as const };
+  const link = await readLink(parsed.data.url);
+  if (!link) return { ok: false as const, error: "unreadable" as const };
+  const u = await understandProduct({ text: "", link, image: null, region: "th" }, parsed.data.lang);
+  if (u.source !== "ai") return { ok: false as const, error: "failed" as const };
+  return {
+    ok: true as const,
+    draft: {
+      name: u.productName.slice(0, 80),
+      url: parsed.data.url,
+      description: u.whatItIs.slice(0, 1000),
+      audience: u.audience.slice(0, 300),
+      competitors: (u.competitors ?? []).join(", ").slice(0, 300),
+      goal: u.goal,
+    },
+  };
 }

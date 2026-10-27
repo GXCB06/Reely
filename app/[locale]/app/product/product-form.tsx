@@ -11,8 +11,11 @@ import { useRouter } from "@/i18n/navigation";
 import { GOALS } from "@/lib/goals";
 import { deleteProductAction, type ProductForm as Values, saveProductAction } from "./actions";
 
-/** Edits one saved product (with `id`), or adds a new one. */
-export function ProductForm({ initial, id = null }: { initial: Values; id?: string | null }) {
+/**
+ * Edits one saved product (with `id`), or adds a new one. The essentials come first; audience, competitors and the
+ * script language sit under "More details" (open when editing). `onDone` runs after a save or delete.
+ */
+export function ProductForm({ initial, id = null, onDone }: { initial: Values; id?: string | null; onDone?: () => void }) {
   const t = useTranslations("product");
   const tg = useTranslations("goals");
   const router = useRouter();
@@ -28,6 +31,7 @@ export function ProductForm({ initial, id = null }: { initial: Values; id?: stri
       if (!res.ok) return void toast.error(t(res.field === "url" ? "badUrl" : res.field === "limit" ? "limit" : "error"));
       toast.success(t("saved"));
       if (!id) setValues(initial);
+      onDone?.();
       router.refresh();
     });
   }
@@ -41,7 +45,7 @@ export function ProductForm({ initial, id = null }: { initial: Values; id?: stri
   );
 
   return (
-    <form onSubmit={submit} className={`space-y-5 ${id ? "" : "rounded-3xl border bg-card p-6 shadow-sm"}`}>
+    <form onSubmit={submit} className="space-y-5">
       {field("name", t("name"), t("nameHint"), <Input required maxLength={80} value={values.name} onChange={set("name")} className="bg-white" />)}
       {field("url", t("url"), t("urlHint"), <Input type="url" placeholder="https://" value={values.url} onChange={set("url")} className="bg-white" />)}
       {field(
@@ -49,13 +53,6 @@ export function ProductForm({ initial, id = null }: { initial: Values; id?: stri
         t("description"),
         t("descriptionHint"),
         <Textarea rows={4} maxLength={1000} value={values.description} onChange={set("description")} className="bg-white" />,
-      )}
-      {field("audience", t("audience"), t("audienceHint"), <Input maxLength={300} value={values.audience} onChange={set("audience")} className="bg-white" />)}
-      {field(
-        "competitors",
-        t("competitors"),
-        t("competitorsHint"),
-        <Input maxLength={300} value={values.competitors} onChange={set("competitors")} placeholder="FlowAccount, PEAK, Xero" className="bg-white" />,
       )}
       <div className="space-y-1.5">
         <span className="text-sm font-medium">{t("goal")}</span>
@@ -75,23 +72,35 @@ export function ProductForm({ initial, id = null }: { initial: Values; id?: stri
         </div>
         <span className="block text-xs text-muted-foreground">{t("goalHint")}</span>
       </div>
-      <div className="space-y-1.5">
-        <span className="text-sm font-medium">{t("language")}</span>
-        <div className="flex gap-2">
-          {(["th", "en"] as const).map((l) => (
-            <button
-              key={l}
-              type="button"
-              onClick={() => setValues((v) => ({ ...v, language: l }))}
-              className={`chip ${values.language === l ? "chip-on" : ""}`}
-            >
-              {values.language === l && <Check className="size-3.5" />}
-              {l === "th" ? "ไทย" : "English"}
-            </button>
-          ))}
+      <details open={!!id} className="group rounded-2xl border border-dashed px-4 py-3">
+        <summary className="cursor-pointer text-sm font-medium text-muted-foreground">{t("moreDetails")}</summary>
+        <div className="mt-4 space-y-5">
+          {field("audience", t("audience"), t("audienceHint"), <Input maxLength={300} value={values.audience} onChange={set("audience")} className="bg-white" />)}
+          {field(
+            "competitors",
+            t("competitors"),
+            t("competitorsHint"),
+            <Input maxLength={300} value={values.competitors} onChange={set("competitors")} placeholder="FlowAccount, PEAK, Xero" className="bg-white" />,
+          )}
+          <div className="space-y-1.5">
+            <span className="text-sm font-medium">{t("language")}</span>
+            <div className="flex gap-2">
+              {(["th", "en"] as const).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setValues((v) => ({ ...v, language: l }))}
+                  className={`chip ${values.language === l ? "chip-on" : ""}`}
+                >
+                  {values.language === l && <Check className="size-3.5" />}
+                  {l === "th" ? "ไทย" : "English"}
+                </button>
+              ))}
+            </div>
+            <span className="block text-xs text-muted-foreground">{t("languageHint")}</span>
+          </div>
         </div>
-        <span className="block text-xs text-muted-foreground">{t("languageHint")}</span>
-      </div>
+      </details>
       <div className="flex items-center justify-between gap-3">
         <Button type="submit" disabled={pending || !values.name.trim()} className="h-11 rounded-full px-6">
           {pending && <Loader2 className="size-4 animate-spin" />} {t(id ? "save" : "add")}
@@ -105,6 +114,7 @@ export function ProductForm({ initial, id = null }: { initial: Values; id?: stri
               startTransition(async () => {
                 const res = await deleteProductAction(id);
                 if (!res.ok) return void toast.error(t("error"));
+                onDone?.();
                 router.refresh();
               });
             }}
