@@ -16,7 +16,7 @@ const data: ExportData = {
   clips: [
     {
       rank: 1, platform: "tiktok", handle: "a", url: "https://www.tiktok.com/@a/video/1", caption: 'ปิดงบ "สิ้นเดือน", อีกแล้ว\nline 2',
-      views: 1_200_000, usualViews: 40_000, multiplier: 30, label: "breakout", likes: 90_000, comments: 1_200, saves: 5_000, shares: 3_000,
+      views: 1_200_000, usualViews: 40_000, multiplier: 30, multiplierOf: "usual", label: "breakout", likes: 90_000, comments: 1_200, saves: 5_000, shares: 3_000,
       engagement: 0.0827, followers: 50_000, postedAt: "2026-10-01T00:00:00Z", durationSeconds: 32, keyword: "ทำบัญชีเอง",
       spokenHook: "ใครยังปิดงบเองอยู่บ้าง", idea: null, similarProduct: false,
     },
@@ -31,6 +31,7 @@ describe("toCsv", () => {
     expect(head.split(",")[0]).toBe("rank");
     expect(row).toContain('"ปิดงบ ""สิ้นเดือน"", อีกแล้ว\nline 2"');
     expect(row).toContain(",8.3,");
+    expect(row).toContain(",30.0,usual,breakout,");
   });
 });
 

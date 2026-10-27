@@ -10,6 +10,8 @@ export type ExportClip = {
   views: number | null;
   usualViews: number | null;
   multiplier: number | null;
+  /** What the multiplier compares with: the creator's usual views, or (when unknown) their follower count. */
+  multiplierOf: "usual" | "followers" | null;
   label: string;
   likes: number | null;
   comments: number | null;
@@ -50,14 +52,14 @@ const num = (x: number | null) => (x === null ? "" : String(x));
 /** CSV with a UTF-8 BOM, so Excel shows Thai correctly. */
 export function toCsv(d: ExportData): string {
   const head = [
-    "rank", "platform", "handle", "url", "views", "usual_views", "multiplier", "label", "likes", "comments", "saves", "shares",
+    "rank", "platform", "handle", "url", "views", "usual_views", "multiplier", "multiplier_of", "label", "likes", "comments", "saves", "shares",
     "engagement_pct", "followers", "posted_at", "duration_s", "keyword", "similar_product", "caption", "spoken_hook", "idea",
   ];
   const cell = (v: string) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
   const rows = d.clips.map((c) =>
     [
       String(c.rank), c.platform, c.handle, c.url, num(c.views), num(c.usualViews), c.multiplier === null ? "" : c.multiplier.toFixed(1),
-      c.label, num(c.likes), num(c.comments), num(c.saves), num(c.shares), pct(c.engagement), num(c.followers), c.postedAt?.slice(0, 10) ?? "",
+      c.multiplierOf ?? "", c.label, num(c.likes), num(c.comments), num(c.saves), num(c.shares), pct(c.engagement), num(c.followers), c.postedAt?.slice(0, 10) ?? "",
       num(c.durationSeconds), c.keyword, c.similarProduct ? "yes" : "", c.caption, c.spokenHook ?? "", c.idea ?? "",
     ].map(cell).join(","),
   );
@@ -115,7 +117,11 @@ export function toMarkdown(d: ExportData, lang: "th" | "en"): string {
   for (const c of d.clips) {
     const stats = [
       `${compact(c.views)} ${L("วิว", "views")}`,
-      c.multiplier !== null ? `${c.multiplier.toFixed(1)}× ${L("ของวิวปกติ", "usual")} (${compact(c.usualViews)})` : null,
+      c.multiplier === null
+        ? null
+        : c.multiplierOf === "usual"
+          ? `${c.multiplier.toFixed(1)}× ${L("ของวิวปกติ", "usual")} (${compact(c.usualViews)})`
+          : `${c.multiplier.toFixed(1)}× ${L("ของผู้ติดตาม", "followers")} (${compact(c.followers)})`,
       c.label !== "normal" ? c.label : null,
       c.engagement !== null ? `${L("เอนเกจ", "engagement")} ${pct(c.engagement)}%` : null,
     ].filter(Boolean);

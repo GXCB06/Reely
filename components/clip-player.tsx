@@ -38,8 +38,9 @@ export function ClipPlayer({
             src={src}
             title={t("play")}
             scrolling="no"
-            className="absolute left-0 w-full border-0"
-            style={{ top: -IG_HEADER_PX, height: `calc(100% + ${IG_HEADER_PX + 400}px)` }}
+            className="absolute border-0"
+            // 1 px more on each side hides the embed's own white border.
+            style={{ top: -IG_HEADER_PX - 1, left: -1, width: "calc(100% + 2px)", height: `calc(100% + ${IG_HEADER_PX + 400}px)` }}
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
           />
         </div>

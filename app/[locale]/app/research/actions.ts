@@ -561,7 +561,8 @@ export async function followUpAction(id: string, question: string, lang: string)
     reference,
   );
   if (!res) return { ok: false as const };
-  const cited = res.clips.map((i) => clips[i]).filter((v): v is ScoredVideo => !!v?.dbId);
+  // The reference clip shows on its own card, so it isn't repeated among the similar ones.
+  const cited = res.clips.map((i) => clips[i]).filter((v): v is ScoredVideo => !!v?.dbId && v.dbId !== referenceCard?.dbId);
   const params = new URLSearchParams({ q: res.brief, region: (run.region as string | null) ?? "th" });
   if (run.product_id) params.set("product", run.product_id as string);
   return {

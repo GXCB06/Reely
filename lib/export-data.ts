@@ -82,6 +82,7 @@ export async function researchExport(supabase: Supabase, id: string, scope: "top
         views: v.views,
         usualViews: v.usualViews,
         multiplier: v.usual ?? v.reach,
+        multiplierOf: v.usual !== null ? "usual" : v.reach !== null ? "followers" : null,
         label: v.label,
         likes: v.likes,
         comments: v.comments,
