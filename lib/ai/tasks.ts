@@ -712,6 +712,10 @@ export async function ideasForClips(
   }
 }
 
+/** 1877328 → "1.9M", 57284 → "57K": numbers the AI can quote as they are. */
+const shortViews = (n: number | null) =>
+  n === null ? "?" : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}K` : String(n);
+
 export type PlanClip = {
   handle: string;
   caption: string;
@@ -744,12 +748,12 @@ export async function planWeek(
         "Reference clips (line | source | platform | handle | views | multiplier | caption | real opening line):",
         ...clips.map(
           (c, i) =>
-            `${i} | ${c.source} | ${c.platform} | @${c.handle} | ${c.views ?? "?"} | ${c.multiplier !== null ? formatMultiplier(c.multiplier) + "x" : "?"} | ${c.caption.slice(0, 160).replace(/\s+/g, " ")} | ${c.spokenHook ?? ""}`,
+            `${i} | ${c.source} | ${c.platform} | @${c.handle} | ${shortViews(c.views)} | ${c.multiplier !== null ? formatMultiplier(c.multiplier) + "x" : "?"} | ${c.caption.slice(0, 160).replace(/\s+/g, " ")} | ${c.spokenHook ?? ""}`,
         ),
         "Pick one reference clip per day; prefer 'liked' clips (the user marked them useful), then 'saved', then 'research'.",
         "Use 7 different clips when there are enough, and mix formats across the week (not 7 talking heads).",
         "Each day borrows the clip's hook pattern and format for THIS product; never copy its words or footage.",
-        "Only claim what the product description says it does.",
+        "Only claim what the product description says it does. Quote view counts as written above (e.g. 1.9M).",
         NO_MADE_UP_NUMBERS,
       ].join("\n"),
     });
