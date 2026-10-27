@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
 import { MAX_KEYWORDS, type RunSummary } from "@/lib/ai/schemas";
-import { answerFollowUp, englishKeywords, enhanceBrief, ideasForClips, type ProductBrief, rateRelevance, summarizeRun } from "@/lib/ai/tasks";
+import { answerFollowUp, englishKeywords, type ReferenceClip, enhanceBrief, ideasForClips, type ProductBrief, rateRelevance, summarizeRun } from "@/lib/ai/tasks";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
 import { type Feedback, withFeedback } from "@/lib/feedback";
 import { loadFeedback } from "@/lib/feedback-store";
@@ -15,6 +15,8 @@ import { engagementRate, keepRate } from "@/lib/scoring";
 import { type PlatformStats, type ScoredVideo, searchKeywords } from "@/lib/search";
 import { DEFAULT_MIN_VIEWS } from "@/lib/search-settings";
 import { researchesLeft } from "@/lib/limits";
+import { importClip } from "@/lib/clip-import";
+import { parseClipLink } from "@/lib/clip-link";
 import { createClient } from "@/lib/supabase/server";
 import { persistThumbnails } from "@/lib/thumbs";
 
@@ -493,11 +495,13 @@ export type FollowUpReply = {
   clips: { dbId: number; handle: string; thumbnailUrl: string | null; views: number | null; multiplier: number | null }[];
   /** A new search the user can start (the chat, pre-filled), when they asked for videos this research doesn't have. */
   researchHref: string | null;
+  /** The clip the user pasted a link to, when they asked for clips like it. */
+  reference: { dbId: number; handle: string; thumbnailUrl: string | null; views: number | null; multiplier: number | null } | null;
 };
 
 /** "Ask Reely" under a research: answers from its clips, or proposes a new search. One Gemini call, no credits. */
 export async function followUpAction(id: string, question: string, lang: string) {
-  const parsed = z.object({ id: runId, question: z.string().trim().min(2).max(500), lang: locale }).safeParse({ id, question, lang });
+  const parsed = z.object({ id: runId, question: z.string().trim().min(2).max(800), lang: locale }).safeParse({ id, question, lang });
   if (!parsed.success) return { ok: false as const };
   const supabase = await createClient();
   const [{ data: run }, { data: rows }] = await Promise.all([
@@ -516,6 +520,30 @@ export async function followUpAction(id: string, question: string, lang: string)
   const score = withFeedback<ScoredVideo>(scoreFor(goal), feedback);
   const clips = [...all].sort((a, b) => score(b) - score(a)).slice(0, 25);
 
+  // A pasted Reel / TikTok link is a reference clip: read it (cached 24 h, otherwise 1 credit) and its breakdown if any.
+  const link = parseClipLink(parsed.data.question);
+  const imported = link ? await importClip(link) : null;
+  let reference: ReferenceClip | null = null;
+  let referenceCard: FollowUpReply["clips"][number] | null = null;
+  if (imported?.ok) {
+    const [{ data: v }, { data: analysis }] = await Promise.all([
+      supabase.from("videos").select("id, platform, creator_handle, caption, views, thumbnail_url").eq("id", imported.videoId).maybeSingle(),
+      supabase.from("video_analyses").select("format, hook_type, angle").eq("video_id", imported.videoId).maybeSingle(),
+    ]);
+    if (v) {
+      reference = {
+        handle: v.creator_handle as string,
+        platform: v.platform as string,
+        caption: (v.caption as string) ?? "",
+        views: v.views as number | null,
+        format: (analysis?.format as string | null) ?? null,
+        hookType: (analysis?.hook_type as string | null) ?? null,
+        angle: (analysis?.angle as string | null) ?? null,
+      };
+      referenceCard = { dbId: v.id as number, handle: v.creator_handle as string, thumbnailUrl: v.thumbnail_url as string | null, views: v.views as number | null, multiplier: null };
+    }
+  }
+
   const res = await answerFollowUp(
     { name: input.productName ?? "", whatItIs: input.whatItIs ?? "", audience: input.audience ?? "" },
     goal,
@@ -530,6 +558,7 @@ export async function followUpAction(id: string, question: string, lang: string)
       engagement: engagementRate(v),
     })),
     parsed.data.lang,
+    reference,
   );
   if (!res) return { ok: false as const };
   const cited = res.clips.map((i) => clips[i]).filter((v): v is ScoredVideo => !!v?.dbId);
@@ -538,7 +567,8 @@ export async function followUpAction(id: string, question: string, lang: string)
   return {
     ok: true as const,
     reply: res.reply,
+    reference: referenceCard,
     clips: cited.map((v) => ({ dbId: v.dbId!, handle: v.creatorHandle, thumbnailUrl: v.thumbnailUrl, views: v.views, multiplier: v.usual ?? v.reach })),
-    researchHref: res.kind === "research" && res.brief.trim() ? `/app?${params}` : null,
+    researchHref: (res.kind === "research" || reference) && res.brief.trim() ? `/app?${params}` : null,
   } satisfies FollowUpReply & { ok: true };
 }

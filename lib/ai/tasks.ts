@@ -723,6 +723,8 @@ export async function ideasForClips(
 }
 
 export type FollowUpClip = { handle: string; platform: string; caption: string; views: number | null; multiplier: number | null; engagement: number | null };
+/** A clip the user pasted a link to: "find clips like this one". */
+export type ReferenceClip = { handle: string; platform: string; caption: string; views: number | null; format?: string | null; hookType?: string | null; angle?: string | null };
 
 /**
  * "Ask Reely about these results": one Gemini call that either answers from this research's clips (which to make
@@ -735,6 +737,7 @@ export async function answerFollowUp(
   question: string,
   clips: FollowUpClip[],
   locale: string,
+  reference: ReferenceClip | null = null,
 ): Promise<FollowUp | null> {
   const model = getModel();
   if (!model) return null;
@@ -758,6 +761,15 @@ export async function answerFollowUp(
         "Never mention line numbers in reply; name clips by @handle only.",
         "If the request is unrelated to short videos for this product, answer kindly that you can only help with these",
         "results or a new search, with kind=answer and no clips.",
+        ...(reference
+          ? [
+              "The user shared a REFERENCE clip (link) and wants clips like it:",
+              `@${reference.handle} | ${reference.platform} | ${shortViews(reference.views)} views${reference.format ? ` | format: ${reference.format}` : ""}${reference.hookType ? ` | hook: ${reference.hookType}` : ""}${reference.angle ? ` | angle: ${reference.angle}` : ""} | ${reference.caption.slice(0, 300).replace(/\s+/g, " ")}`,
+              "Point out the clips below that share its format, hook style or angle (cite them, put their line numbers in clips),",
+              "and ALWAYS write brief: a search for more clips like the reference (same format and hook style, on the product's",
+              "topic). Use kind=research when they ask to find more; kind=answer when they only ask which clips here are like it.",
+            ]
+          : []),
         NO_MADE_UP_NUMBERS,
         "Clips (line | platform | handle | views | multiplier | engagement | caption):",
         ...clips.map(

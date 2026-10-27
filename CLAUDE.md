@@ -45,6 +45,8 @@ lib/feedback.ts               # 👍/👎 per product (clip_feedback): examples 
 lib/goals.ts                  # what the clips are for (sell / shop / startup / brand) → goal-aware ranking; prompts in lib/ai/tasks.ts
 lib/link-preview.ts           # reads a pasted product link (blocks private addresses — keep that check)
 lib/clip-link.ts              # pasted Instagram Reel / TikTok links (client + server); lib/clip-import.ts reads one
+lib/export.ts                 # research export: CSV (Excel), Markdown (for Claude / ChatGPT), JSON; data from lib/export-data.ts, served by app/api/research/[id]/export
+lib/embed.ts                  # official TikTok / YouTube / Instagram embed players (components/clip-player.tsx: hover preview + in-app player)
 lib/plan.ts                   # 7-day plan per product (content_plans): 👍 + saved + latest research's best clips → one AI call
 lib/today.ts                  # Today page: new breakouts (7 days) from tracked accounts + followed topics → 3-5 ideas
 lib/formats.ts                # format explorer: same sound + format search → topics, sounds, stage (lib/format-stats.ts)
@@ -124,7 +126,8 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     ~7 s; skipped when the clip was fetched in the last 24 h), then the chat opens the video page with `?lookup=1`,
     which asks for the creator's usual views (1-2 credits, ~20 s on Instagram; skipped when any value is known).
     Max 60 reads + lookups a day for everyone (`reely/clip-import` in `api_usage`). "More hits from @creator" on the
-    video page only reads the shared cache.
+    video page only reads the shared cache. A link pasted into "Ask Reely" under a research is read the same way
+    (`followUpAction`, reference clip).
 
 ## Security rules
 

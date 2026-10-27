@@ -7,6 +7,7 @@ import { OutlierCard } from "@/components/outlier-card";
 import { PlatformIcon } from "@/components/platform-icon";
 import { FilterBar } from "@/components/results/filter-bar";
 import { FollowTopicButton } from "@/components/results/follow-topic-button";
+import { ExportDialog } from "@/components/results/export-dialog";
 import { FollowUpBox } from "@/components/results/follow-up-box";
 import { TrackButton } from "@/components/tracking/track-button";
 import { IdeasLoader } from "@/components/results/ideas-loader";
@@ -178,6 +179,11 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
                 ? t("refreshedAt", { when: format.relativeTime(new Date(run.last_refreshed_at as string)) })
                 : t("refreshExplain")}
             </span>
+            {run.status === "done" && all.length > 0 && (
+              <span className="ml-auto">
+                <ExportDialog runId={run.id as string} total={all.length} />
+              </span>
+            )}
           </div>
         </ReelyBubble>
       </div>

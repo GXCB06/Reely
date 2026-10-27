@@ -46,10 +46,19 @@ export function FollowUpBox({ runId }: { runId: string }) {
           ) : (
             <div className="space-y-2">
               <p className="text-sm leading-relaxed whitespace-pre-line">{turn.answer.reply}</p>
-              {turn.answer.clips.length > 0 && (
+              {(turn.answer.clips.length > 0 || turn.answer.reference) && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
-                  {turn.answer.clips.map((c) => (
-                    <Link key={c.dbId} href={`/app/video/${c.dbId}`} className="w-24 shrink-0 overflow-hidden rounded-xl border bg-card hover:shadow">
+                  {[...(turn.answer.reference ? [{ ...turn.answer.reference, isReference: true }] : []), ...turn.answer.clips.map((c) => ({ ...c, isReference: false }))].map((c) => (
+                    <Link
+                      key={`${c.isReference ? "ref" : "clip"}:${c.dbId}`}
+                      href={`/app/video/${c.dbId}`}
+                      className={`relative w-24 shrink-0 overflow-hidden rounded-xl border bg-card hover:shadow ${c.isReference ? "ring-2 ring-primary" : ""}`}
+                    >
+                      {c.isReference && (
+                        <span className="absolute top-1 left-1 z-10 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                          {t("askReference")}
+                        </span>
+                      )}
                       <div className="aspect-[9/14] bg-muted">
                         <Thumb src={c.thumbnailUrl} videoId={c.dbId} />
                       </div>
@@ -108,7 +117,7 @@ export function FollowUpBox({ runId }: { runId: string }) {
         </button>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        {(["first", "why", "more"] as const).map((k) => (
+        {(["first", "why", "more", "like"] as const).map((k) => (
           <button
             key={k}
             type="button"

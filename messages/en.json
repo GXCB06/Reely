@@ -322,7 +322,7 @@
     "recheckBusy": "Gemini is still busy. Try again in a little while.",
     "recheckFailed": "Couldn't check the clips. Try again.",
     "shortcutsTitle": "Or pick a shortcut",
-    "askPlaceholder": "e.g. Which clip suits working women? Or: find more review-style clips",
+    "askPlaceholder": "e.g. Which clip suits working women? Or paste a Reel / TikTok link and write \"find clips like this\"",
     "askSend": "Send",
     "askThinking": "Reely is looking through this research…",
     "askFailed": "Couldn't answer right now. Try again in a moment.",
@@ -330,8 +330,10 @@
     "askStarter": {
       "first": "Which clip should I make first, and why?",
       "why": "What do these hits have in common?",
-      "more": "Find more clips like…"
-    }
+      "more": "Find more clips like…",
+      "like": "Find clips like this one: (paste a Reel / TikTok link)"
+    },
+    "askReference": "Reference"
   },
   "card": {
     "save": "Save",
@@ -364,7 +366,8 @@
     "moreLikeThisQuery": "Short videos like this one: {caption}",
     "creatorHits": "More hits from @{handle}",
     "creatorHitsHint": "Their posts that beat their usual views (no credits).",
-    "checkingUsual": "Checking @{handle}’s usual views…"
+    "checkingUsual": "Checking @{handle}’s usual views…",
+    "moreLikeThisStyle": "Short videos in the same style as this one: {format}, {hook} hook, about: {caption}"
   },
   "saved": {
     "title": "Saved",
@@ -755,5 +758,35 @@
     "prevDay": "Previous day",
     "nextDay": "Next day",
     "openOriginal": "Open in the app"
+  },
+  "export": {
+    "button": "Export",
+    "title": "Export this research",
+    "subtitle": "Take the clips and their real numbers with you, e.g. so Claude or ChatGPT writes scripts from data, not guesses.",
+    "close": "Close",
+    "what": "What to export",
+    "all": "All clips ({n})",
+    "top": "The 10 best clips",
+    "includes": "with the product, keywords, summary and formulas",
+    "as": "As",
+    "format": {
+      "md": {
+        "name": "Markdown",
+        "hint": "for Claude / ChatGPT"
+      },
+      "csv": {
+        "name": "Excel (CSV)",
+        "hint": "opens in Excel / Sheets"
+      },
+      "json": {
+        "name": "JSON",
+        "hint": "for developers"
+      }
+    },
+    "copy": "Copy for an AI",
+    "download": "Download",
+    "copied": "Copied. Paste it into Claude or ChatGPT.",
+    "failed": "Couldn't export. Try again.",
+    "aiTip": "The Markdown file ends with a starter prompt that asks the AI to write scripts only from the real clips and say which clip each borrows from."
   }
 }

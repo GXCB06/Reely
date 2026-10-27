@@ -125,13 +125,15 @@ export default async function VideoPage({ params, searchParams }: PageProps<"/[l
   const { data: video } = await supabase.from("videos").select("*").eq("id", videoId).maybeSingle<VideoRow>();
   if (!video) notFound();
 
-  const [{ data: creator }, { data: savedRow }, { data: product }, { data: scripts }, { data: trackedRow }, { data: transcript }] = await Promise.all([
+  const [{ data: creator }, { data: savedRow }, { data: product }, { data: scripts }, { data: trackedRow }, { data: transcript }, { data: analysis }] = await Promise.all([
     supabase.from("creators").select("usual_views").eq("platform", video.platform).eq("handle", video.creator_handle).maybeSingle(),
     supabase.from("saved_videos").select("video_id").eq("video_id", videoId).maybeSingle(),
     supabase.from("products").select("id, name, goal").order("created_at"),
     supabase.from("scripts").select("id, content, created_at").eq("video_id", videoId).order("created_at", { ascending: false }),
     supabase.from("tracked_accounts").select("id").eq("platform", video.platform).eq("handle", video.creator_handle).maybeSingle(),
     supabase.from("video_transcripts").select("status, segments, breakdowns").eq("video_id", videoId).maybeSingle(),
+    // The clip's breakdown (when already made): "find more like this" then searches by its format and hook, not just its words.
+    supabase.from("video_analyses").select("format, hook_type").eq("video_id", videoId).maybeSingle(),
   ]);
   // The real hook, when anyone has read this clip's transcript before (shared, so it shows at once).
   const hookInitial =
@@ -185,7 +187,14 @@ export default async function VideoPage({ params, searchParams }: PageProps<"/[l
           </div>
           <TrackButton platform={video.platform} handle={video.creator_handle} initialTracked={Boolean(trackedRow)} />
           <Link
-            href={moreLikeThisHref(video, (caption) => t("moreLikeThisQuery", { caption }), typeof productParam === "string" ? productParam : null)}
+            href={moreLikeThisHref(
+              video,
+              (caption) =>
+                analysis?.format
+                  ? t("moreLikeThisStyle", { format: analysis.format as string, hook: (analysis.hook_type as string | null) ?? "", caption })
+                  : t("moreLikeThisQuery", { caption }),
+              typeof productParam === "string" ? productParam : null,
+            )}
             className="flex w-full items-center justify-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium hover:bg-muted"
           >
             <Search className="size-4" /> {t("moreLikeThis")}

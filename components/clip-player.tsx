@@ -6,6 +6,9 @@ import { useState } from "react";
 import { embedUrl, type EmbedPlatform } from "@/lib/embed";
 import { Thumb } from "./thumb";
 
+/** Height of the profile bar at the top of Instagram's post embed. */
+const IG_HEADER_PX = 54;
+
 /**
  * A clip that plays inside Reely: the cover with a play button; pressing it swaps in the platform's own player
  * (with sound). Falls back to the cover when the clip can't be embedded.
@@ -25,6 +28,24 @@ export function ClipPlayer({
   const [playing, setPlaying] = useState(false);
   const src = platform && platformVideoId ? embedUrl(platform, platformVideoId) : null;
 
+  if (playing && src && platform === "instagram") {
+    // Instagram's embed is a whole post (profile header, likes, comments). Show only its video: the media is a 4:5
+    // box right under a 54 px header (measured 2026-10-27), so shift the frame up and clip everything else.
+    return (
+      <div className="flex size-full items-center bg-black">
+        <div className="relative aspect-[4/5] w-full overflow-hidden">
+          <iframe
+            src={src}
+            title={t("play")}
+            scrolling="no"
+            className="absolute left-0 w-full border-0"
+            style={{ top: -IG_HEADER_PX, height: `calc(100% + ${IG_HEADER_PX + 400}px)` }}
+            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+          />
+        </div>
+      </div>
+    );
+  }
   if (playing && src) {
     return (
       <iframe
