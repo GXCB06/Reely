@@ -10,6 +10,9 @@ import { PlanBuilder } from "./plan-builder";
 /** Building a plan is one AI call that can take ~20-40 s. */
 export const maxDuration = 60;
 
+/** Today's date in Thailand, as YYYY-MM-DD. */
+const thaiToday = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+
 /** "This week's plan": 7 days of posts per product, each from a clip the user liked, saved or researched. */
 export default async function PlanPage({ params, searchParams }: PageProps<"/[locale]/app/plan">) {
   const { locale } = await params;
@@ -28,6 +31,11 @@ export default async function PlanPage({ params, searchParams }: PageProps<"/[lo
     : { data: [] };
   const videoOf = new Map((videos ?? []).map((v) => [v.id as number, v]));
   const dayDate = (day: number) => new Date(new Date(`${plan!.startDay}T00:00:00+07:00`).getTime() + (day - 1) * 864e5);
+  const dayKey = (day: number) => new Date(dayDate(day).getTime() + 7 * 3600e3).toISOString().slice(0, 10);
+  const today = thaiToday();
+  const todayDay = plan?.items.find((i) => dayKey(i.day) === today)?.day ?? null;
+  // The plan's week is over: offer a fresh one first.
+  const outdated = !!plan?.items.length && dayKey(Math.max(...plan.items.map((i) => i.day))) < today;
   const goal = product && isGoal(product.goal) ? product.goal : null;
 
   return (
@@ -35,8 +43,9 @@ export default async function PlanPage({ params, searchParams }: PageProps<"/[lo
       <header className="page-wash px-4 pt-10 pb-8 md:px-10">
         <h1 className="font-heading text-3xl font-bold">{t("title")}</h1>
         <p className="mt-1 max-w-2xl text-muted-foreground">{t("subtitle")}</p>
-        {(products?.length ?? 0) > 1 && (
-          <div className="mt-4 flex flex-wrap gap-1.5">
+        {(products?.length ?? 0) > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-sm text-muted-foreground">{t("planFor")}</span>
             {products!.map((p) => (
               <Link key={p.id} href={`/app/plan?product=${p.id}`} className={`chip ${p.id === product?.id ? "chip-on" : ""}`}>
                 <Package className="size-3.5" /> {p.name}
@@ -65,25 +74,60 @@ export default async function PlanPage({ params, searchParams }: PageProps<"/[lo
           </section>
         ) : (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-muted-foreground">
-                {t("madeAt", { when: format.relativeTime(new Date(plan.updatedAt)) })}
-                {goal && <> · {tg(`${goal}.short`)}</>}
-              </p>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="font-heading text-2xl font-bold">{t("planTitle", { product: product.name as string })}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {t("madeAt", { when: format.relativeTime(new Date(plan.updatedAt)) })}
+                  {goal && <> · {tg(`${goal}.short`)}</>}
+                </p>
+              </div>
               <PlanBuilder productId={product.id as string} again />
             </div>
+
+            {outdated && (
+              <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">{t("outdated")}</p>
+            )}
+
+            {/* The week at a glance: tap a day to jump to it. */}
+            <nav className="grid grid-cols-4 gap-2 sm:grid-cols-7" aria-label={t("week")}>
+              {plan.items.map((item) => (
+                <a
+                  key={item.day}
+                  href={`#day-${item.day}`}
+                  className={`rounded-2xl border px-2 py-2 text-center transition hover:border-primary/40 ${item.day === todayDay ? "border-primary bg-primary text-primary-foreground" : "bg-card"}`}
+                >
+                  <p className="text-[11px] font-semibold tracking-wide uppercase opacity-80">
+                    {item.day === todayDay ? t("today") : format.dateTime(dayDate(item.day), { weekday: "short" })}
+                  </p>
+                  <p className="font-heading text-lg leading-tight font-bold">{format.dateTime(dayDate(item.day), { day: "numeric" })}</p>
+                  <p className="truncate text-[11px] opacity-80">{item.format}</p>
+                </a>
+              ))}
+            </nav>
+
             {plan.items.map((item) => {
               const v = videoOf.get(item.videoId);
+              const isToday = item.day === todayDay;
               return (
-                <article key={item.day} className="grid gap-4 rounded-3xl border bg-card p-4 shadow-sm sm:grid-cols-[96px_1fr] md:p-5">
-                  <Link href={`/app/video/${item.videoId}`} className="relative hidden aspect-[9/14] overflow-hidden rounded-2xl bg-muted sm:block">
+                <article
+                  // Keyed by product too, so switching products never reuses another product's card.
+                  key={`${product.id}:${item.day}`}
+                  id={`day-${item.day}`}
+                  className={`flex scroll-mt-6 gap-4 rounded-3xl border bg-card p-4 shadow-sm md:p-5 ${isToday ? "ring-2 ring-primary" : ""}`}
+                >
+                  <Link
+                    href={`/app/video/${item.videoId}`}
+                    className="relative aspect-[9/14] w-16 shrink-0 self-start overflow-hidden rounded-xl bg-muted sm:w-24 sm:rounded-2xl"
+                  >
                     <Thumb src={(v?.thumbnail_url as string | null) ?? null} videoId={item.videoId} />
                   </Link>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold tracking-widest text-primary uppercase">
                       {t("day", { n: item.day })} · {format.dateTime(dayDate(item.day), { weekday: "long", day: "numeric", month: "short" })}
+                      {isToday && <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground normal-case">{t("today")}</span>}
                     </p>
-                    <h2 className="mt-1 font-heading text-xl leading-snug font-bold">{item.title}</h2>
+                    <h3 className="mt-1 font-heading text-lg leading-snug font-bold sm:text-xl">{item.title}</h3>
                     <p className="mt-2 flex gap-2 rounded-2xl bg-accent px-3 py-2 text-sm text-accent-foreground">
                       <Quote className="mt-0.5 size-4 shrink-0" /> {item.hook}
                     </p>

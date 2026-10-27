@@ -695,6 +695,11 @@
     "madeAt": "Made {when}",
     "day": "Day {n}",
     "writeScript": "Write the script",
-    "from": "Based on @{handle}"
+    "from": "Based on @{handle}",
+    "planFor": "Plan for",
+    "planTitle": "7-day plan for {product}",
+    "outdated": "This plan's week is over. Tap \"Make a new plan\" for this week, from your latest clips.",
+    "week": "The week at a glance",
+    "today": "Today"
   }
 }

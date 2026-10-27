@@ -9,7 +9,15 @@ import { repairCover } from "./cover-repair";
  * expired (TikTok/Instagram sign them for a few hours). With `videoId`, a cover that fails asks the server to
  * repair it once (fresh link, copied to storage); until then, and if that fails, a branded placeholder shows.
  */
-export function Thumb({ src, videoId, className = "" }: { src: string | null; videoId?: number; className?: string }) {
+type ThumbProps = { src: string | null; videoId?: number; className?: string };
+
+export function Thumb(props: ThumbProps) {
+  // A new clip in the same spot (switching products on the 7-day plan) starts fresh: the image state below is
+  // seeded from the first src and would otherwise keep showing the old clip's cover.
+  return <ThumbImage key={`${props.videoId ?? ""}:${props.src ?? ""}`} {...props} />;
+}
+
+function ThumbImage({ src, videoId, className = "" }: ThumbProps) {
   const [current, setCurrent] = useState(src);
   const [failed, setFailed] = useState(!src);
   const ref = useRef<HTMLImageElement>(null);
