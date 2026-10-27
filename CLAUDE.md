@@ -95,7 +95,7 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
    window (7/30/90 days, default 90);
    profile videos always `trim=true&include_pinned=false`, max 2 pages for a baseline.
 10. Never call `/v1/tiktok/user/audience` (26 credits) or transcripts with `use_ai_as_fallback`.
-20. Researches per person per Thai day: `RESEARCHES_PER_DAY` (5, lib/search-settings.ts), enforced in
+20. Researches per person per Thai day: `RESEARCHES_PER_DAY` (null = no cap while collecting feedback; was 5), enforced in
     `runResearchAction` (lib/limits.ts). Owners listed in the `REELY_OWNER_EMAILS` env var (comma-separated) have no cap
     and see everyone's researches on the account page (lib/usage-report.ts).
 11. Instagram: `/v1/instagram/search/popular` with the keyword's English version (Thai returns nothing;

@@ -15,7 +15,7 @@ export async function UsageSection() {
   return (
     <section className="max-w-2xl space-y-3">
       <h2 className="font-heading text-xl font-bold">{t("usageTitle")}</h2>
-      <p className="text-sm text-muted-foreground">{u.cap === null ? t("usageOwner") : t("usageHint", { n: u.cap })}</p>
+      <p className="text-sm text-muted-foreground">{u.owner ? t("usageOwner") : u.cap === null ? t("usageUnlimited") : t("usageHint", { n: u.cap })}</p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {tiles.map((x) => (
           <div key={x.label} className="rounded-2xl bg-muted px-4 py-3">

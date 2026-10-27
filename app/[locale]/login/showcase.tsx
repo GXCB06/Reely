@@ -8,11 +8,43 @@ import { PlatformIcon } from "@/components/platform-icon";
 const SLIDES = ["find", "why", "make"] as const;
 const SLIDE_MS = 5500;
 
-/** Example clips for the "find" slide: illustrative numbers, drawn as cards (no real creators). */
-const SAMPLE_CLIPS = [
-  { tone: "from-violet-500 to-fuchsia-400", platform: "tiktok" as const, views: "1.9M", x: "47×", text: "slide.find.clip1" },
-  { tone: "from-sky-500 to-indigo-400", platform: "instagram" as const, views: "640K", x: "21×", text: "slide.find.clip2" },
-  { tone: "from-amber-400 to-rose-400", platform: "youtube" as const, views: "312K", x: "9.4×", text: "slide.find.clip3" },
+const THUMBS = "https://jjzpwqqtetmmwutilzfz.supabase.co/storage/v1/object/public/thumbs";
+
+/**
+ * Real clips Reely found (numbers as of 2026-10-27), one per kind of user: a startup (AccOS Pro's own account),
+ * an affiliate selling through TikTok Shop, and a content creator. Covers are the copies in our storage bucket.
+ */
+const REAL_CLIPS = [
+  {
+    kind: "startup",
+    platform: "tiktok" as const,
+    cover: `${THUMBS}/tiktok/7681318086913494293.jpg`,
+    handle: "accospro.app",
+    caption: "นักบัญชีจะไม่อดหลับอดนอนอีกต่อไป",
+    views: "384K",
+    x: "388×",
+    of: "usual",
+  },
+  {
+    kind: "affiliate",
+    platform: "tiktok" as const,
+    cover: `${THUMBS}/tiktok/7676146953482374420.jpg`,
+    handle: "pangxnstory",
+    caption: "สิ่งที่ซื้อมาแล้วไม่เสียดายเงิน",
+    views: "870K",
+    x: "15×",
+    of: "followers",
+  },
+  {
+    kind: "creator",
+    platform: "instagram" as const,
+    cover: `${THUMBS}/instagram/DViNtk3EUvL.jpg`,
+    handle: "ai.reviewbyamit",
+    caption: "Steps to Create Viral AI Videos",
+    views: "1.6M",
+    x: "53×",
+    of: "usual",
+  },
 ];
 
 /**
@@ -123,22 +155,32 @@ function SlideBody({ slide, index }: { slide: (typeof SLIDES)[number]; index: nu
             <Search className="size-4 text-primary" /> {t("slide.find.brief")}
           </div>
           <div className="grid grid-cols-3 gap-2.5">
-            {SAMPLE_CLIPS.map((c) => (
-              <div key={c.text} className="overflow-hidden rounded-xl border bg-card shadow-sm">
-                <div className={`relative aspect-[9/13] bg-gradient-to-br ${c.tone}`}>
+            {REAL_CLIPS.map((c) => (
+              <div key={c.handle} className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                <div className="relative aspect-[9/13] bg-muted">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={c.cover} alt="" className="size-full object-cover" referrerPolicy="no-referrer" />
+                  <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+                  <span className="absolute top-1.5 left-1.5 rounded-full bg-white/90 px-1.5 py-0.5 text-[9px] font-semibold text-foreground">
+                    {t(`slide.find.kind.${c.kind}`)}
+                  </span>
                   <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-0.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                     <Eye className="size-2.5" /> {c.views}
                   </span>
-                  <span className="absolute top-6 right-1.5 inline-flex items-center gap-0.5 rounded-full bg-[var(--breakout)] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {/* Purple, not red: a high multiplier is good news (red reads as a warning). */}
+                  <span
+                    title={t(`slide.find.of.${c.of}`)}
+                    className="absolute top-6 right-1.5 inline-flex items-center gap-0.5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-white"
+                  >
                     <Flame className="size-2.5" /> {c.x}
                   </span>
-                  <span className="absolute bottom-1.5 left-1.5">
-                    <PlatformIcon platform={c.platform} className="size-4" />
+                  <p className="absolute inset-x-2 bottom-7 line-clamp-2 text-[11px] leading-tight font-semibold text-white drop-shadow">{c.caption}</p>
+                  <span className="absolute bottom-1.5 left-1.5 flex max-w-[90%] items-center gap-1 text-[10px] text-white/90">
+                    <PlatformIcon platform={c.platform} className="size-4" /> <span className="truncate">@{c.handle}</span>
                   </span>
-                  <p className="absolute inset-x-2 bottom-7 text-[11px] leading-tight font-semibold text-white drop-shadow">{t(c.text)}</p>
                 </div>
                 <p className="flex items-center gap-1 px-2 py-1.5 text-[10px] text-emerald-700">
-                  <Heart className="size-2.5" /> {t("slide.find.engaged")}
+                  <Heart className="size-2.5" /> {t(`slide.find.of.${c.of}`)}
                 </p>
               </div>
             ))}

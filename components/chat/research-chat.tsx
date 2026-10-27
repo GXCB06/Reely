@@ -335,7 +335,7 @@ export function ResearchChat({
       }).catch(() => null);
       if (res?.ok) return router.push(`/app/research/${res.runId}`);
       if (res?.runId) return router.push(`/app/research/${res.runId}`);
-      toast.error(res?.error === "limit" ? t("errorLimit", { n: RESEARCHES_PER_DAY }) : t("errorRun"));
+      toast.error(res?.error === "limit" ? t("errorLimit", { n: RESEARCHES_PER_DAY ?? 0 }) : t("errorRun"));
       setPhase("plan");
     });
   }
@@ -664,7 +664,7 @@ export function ResearchChat({
                   />
                   <span className="text-xs text-muted-foreground">
                     {credits ? t("credits", { credits }) : t("free")}
-                    {researchesLeft !== null && <> · {t("researchesLeft", { n: researchesLeft, max: RESEARCHES_PER_DAY })}</>}
+                    {researchesLeft !== null && RESEARCHES_PER_DAY !== null && <> · {t("researchesLeft", { n: researchesLeft, max: RESEARCHES_PER_DAY })}</>}
                   </span>
                   <button
                     type="button"

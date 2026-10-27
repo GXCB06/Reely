@@ -75,26 +75,35 @@
     "trustPublic": "Reely only looks at public clips on TikTok, YouTube Shorts and Instagram Reels. It never asks for your social accounts.",
     "trustNoPost": "We never post for you and never sell your data.",
     "showcase": {
-      "badge": "Short-video research for Thai businesses",
-      "title": "Find the short videos that really work in your market",
+      "badge": "Stop scrolling all day for ideas",
+      "title": "Find the viral clips in your market",
       "platform": {
         "tiktok": "TikTok",
         "youtube": "Shorts",
         "instagram": "Reels"
       },
-      "sample": "Real screens · sample numbers",
-      "subtitle": "Reely shows why they worked, then helps you make your own."
+      "sample": "Real clips Reely found · numbers as of Oct 27, 2026",
+      "subtitle": "with the winning formula worked out, so you can post your own right away."
     },
     "slide": {
       "find": {
         "step": "Find",
         "title": "Clips that beat the creator's usual views",
-        "brief": "AI accounting app for Thai SMEs",
+        "brief": "Tell Reely what you sell: an app, a shop, affiliate products or content",
         "clip1": "POV: closing the month alone",
         "clip2": "3 apps every shop owner needs",
         "clip3": "Do your books in 5 minutes",
         "engaged": "High engagement",
-        "caption": "Describe your product. Reely plans keywords, searches every platform and ranks the clips that beat that creator's usual views, not just big view counts."
+        "caption": "Whether you build an app, sell as an affiliate or create content, Reely searches every platform and ranks the clips that beat that creator's usual views, not just big view counts.",
+        "kind": {
+          "startup": "Startup / app",
+          "affiliate": "Affiliate",
+          "creator": "Creator"
+        },
+        "of": {
+          "usual": "above their usual views",
+          "followers": "above their follower count"
+        }
       },
       "why": {
         "step": "Learn",
@@ -540,7 +549,8 @@
     "saved": "Password saved. You can now sign in with it anywhere.",
     "mismatch": "The two passwords don't match.",
     "weak": "Use at least {n} characters.",
-    "error": "Couldn't save the password. Try again."
+    "error": "Couldn't save the password. Try again.",
+    "usageUnlimited": "No daily limit while we collect feedback: research as much as you like, and tell us what to improve."
   },
   "tracking": {
     "title": "Competitor tracking",

@@ -9,8 +9,9 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 export type UsageReport = {
   today: number;
   month: number;
-  /** Null for owners (no cap). */
+  /** Null when there is no cap (owners, or no cap for anyone). */
   cap: number | null;
+  owner: boolean;
   /** ScrapeCreators calls logged in api_usage (1 credit each), for everyone. */
   credits: { today: number; month: number };
   /** Owners only: researches per person. */
@@ -59,5 +60,5 @@ export async function usageReport(supabase: Supabase): Promise<UsageReport> {
       people = [...byUser].map(([id, u]) => ({ email: emailOf.get(id) ?? id, ...u })).sort((a, b) => b.month - a.month);
     }
   }
-  return { today: today ?? 0, month: month ?? 0, cap: owner ? null : RESEARCHES_PER_DAY, credits, people };
+  return { today: today ?? 0, month: month ?? 0, cap: owner ? null : RESEARCHES_PER_DAY, owner, credits, people };
 }

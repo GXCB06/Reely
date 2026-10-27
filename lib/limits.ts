@@ -23,6 +23,7 @@ export function isOwner(email: string | null | undefined) {
 
 /** How many researches the signed-in user has left today (null = no cap). */
 export async function researchesLeft(supabase: Supabase): Promise<number | null> {
+  if (RESEARCHES_PER_DAY === null) return null;
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims || isOwner(data.claims.email as string | undefined)) return null;
   const { count } = await supabase
