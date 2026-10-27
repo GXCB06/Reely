@@ -133,7 +133,8 @@ export default async function VideoPage({ params, searchParams }: PageProps<"/[l
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[320px_1fr]">
         <aside className="space-y-4">
-          <div className="overflow-hidden rounded-2xl border bg-muted">
+          {/* On a phone the cover would fill the whole first screen; keep it small there. */}
+          <div className="mx-auto w-full max-w-60 overflow-hidden rounded-2xl border bg-muted lg:max-w-none">
             <div className="aspect-[9/14] w-full">
               <Thumb src={video.thumbnail_url} videoId={video.id} />
             </div>
