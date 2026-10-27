@@ -48,7 +48,7 @@ export function Showcase() {
         <p className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
           <Sparkles className="size-3.5" /> {t("showcase.badge")}
         </p>
-        <h2 className="mt-4 max-w-md font-heading text-3xl leading-tight font-bold xl:text-4xl">{t("showcase.title")}</h2>
+        <h2 className="mt-4 max-w-md font-heading text-3xl leading-tight font-bold text-balance xl:text-4xl">{t("showcase.title")}</h2>
         <p className="mt-2 max-w-md text-white/85">{t("showcase.subtitle")}</p>
         <div className="mt-3 flex items-center gap-2 text-sm text-white/80">
           {(["tiktok", "youtube", "instagram"] as const).map((p) => (
