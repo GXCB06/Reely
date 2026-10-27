@@ -1,4 +1,4 @@
-import { Folder } from "lucide-react";
+import { Bookmark, Folder, FolderOpen, Inbox } from "lucide-react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { OutlierCard } from "@/components/outlier-card";
 import { Link } from "@/i18n/navigation";
@@ -35,9 +35,18 @@ export default async function SavedPage({ params, searchParams }: PageProps<"/[l
   const shown = rows.filter((r) => (open === "none" ? !r.collection_id : openFolder ? r.collection_id === openFolder.id : true));
   const countOf = (id: string | null) => rows.filter((r) => r.collection_id === id).length;
 
-  const chip = (href: string, label: string, n: number, on: boolean) => (
-    <Link key={href} href={href} scroll={false} className={`chip ${on ? "chip-on" : ""}`}>
-      {label} <span className="text-muted-foreground">{n}</span>
+  const navItem = (href: string, icon: React.ReactNode, label: string, n: number, on: boolean) => (
+    <Link
+      key={href}
+      href={href}
+      scroll={false}
+      className={`flex shrink-0 items-center gap-2 rounded-2xl px-3 py-2 text-sm transition lg:w-full ${
+        on ? "bg-primary text-primary-foreground shadow-sm" : "bg-card ring-1 ring-border hover:bg-muted lg:bg-transparent lg:ring-0"
+      }`}
+    >
+      {icon}
+      <span className="max-w-40 truncate lg:flex-1">{label}</span>
+      <span className={`text-xs ${on ? "opacity-80" : "text-muted-foreground"}`}>{n}</span>
     </Link>
   );
 
@@ -45,41 +54,51 @@ export default async function SavedPage({ params, searchParams }: PageProps<"/[l
     <div>
       <header className="page-wash px-4 md:px-10 pt-10 pb-8">
         <h1 className="font-heading text-3xl font-bold">{t("title")}</h1>
-        <p className="mt-1 text-muted-foreground">{t("subtitle")}</p>
+        <p className="mt-1 max-w-2xl text-muted-foreground">{t("subtitle")}</p>
       </header>
-      <div className="space-y-6 px-4 md:px-10 pb-16">
-        <div className="flex flex-wrap items-center gap-2">
-          {chip("/app/saved", t("all"), rows.length, !open)}
-          {collections.map((f) => chip(`/app/saved?c=${f.id}`, f.name, countOf(f.id), openFolder?.id === f.id))}
-          {collections.length > 0 && chip("/app/saved?c=none", t("noFolder"), countOf(null), open === "none")}
+      <div className="grid gap-6 px-4 pb-16 md:px-10 lg:grid-cols-[230px_1fr]">
+        {/* Folders: a sidebar on desktop, a scrolling row on phones. */}
+        <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start">
+          <p className="hidden text-xs font-semibold tracking-widest text-muted-foreground uppercase lg:block">{t("folders")}</p>
+          <nav className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:px-0">
+            {navItem("/app/saved", <Bookmark className="size-4" />, t("all"), rows.length, !open)}
+            {collections.map((f) =>
+              navItem(`/app/saved?c=${f.id}`, openFolder?.id === f.id ? <FolderOpen className="size-4" /> : <Folder className="size-4" />, f.name, countOf(f.id), openFolder?.id === f.id),
+            )}
+            {collections.length > 0 && navItem("/app/saved?c=none", <Inbox className="size-4" />, t("noFolder"), countOf(null), open === "none")}
+          </nav>
           <NewCollection />
-        </div>
-        {openFolder && (
-          <div className="flex items-center gap-2">
+          {collections.length === 0 && rows.length > 0 && <p className="text-xs text-muted-foreground">{t("foldersHint")}</p>}
+        </aside>
+
+        <section className="min-w-0 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="inline-flex items-center gap-1.5 font-heading text-xl font-bold">
-              <Folder className="size-5 text-primary" /> {openFolder.name}
+              {openFolder ? <FolderOpen className="size-5 text-primary" /> : null}
+              {openFolder ? openFolder.name : open === "none" ? t("noFolder") : t("all")}
+              <span className="text-base font-normal text-muted-foreground">({shown.length})</span>
             </h2>
-            <DeleteCollection {...openFolder} />
+            {openFolder && <DeleteCollection {...openFolder} />}
           </div>
-        )}
-        {shown.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">{openFolder ? t("emptyFolder") : t("empty")}</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {shown.map(({ videos: v, collection_id }) => {
-              const usualViews = usualOf.get(`${v.platform}:${v.creator_handle}`) ?? null;
-              const usual = usualScore(v.views, usualViews);
-              const reach = reachScore(v.views, v.creator_followers);
-              const video = videoFromRow(v, { reach, usual, usualViews, label: labelFor(usual, reach, { views: v.views, followers: v.creator_followers }) });
-              return (
-                <div key={v.id} className="space-y-2">
-                  <OutlierCard video={video} saved />
-                  {collections.length > 0 && <FolderPicker videoId={v.id} value={collection_id} collections={collections} />}
-                </div>
-              );
-            })}
-          </div>
-        )}
+          {shown.length === 0 ? (
+            <p className="rounded-2xl bg-muted/60 py-10 text-center text-sm text-muted-foreground">{openFolder ? t("emptyFolder") : t("empty")}</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+              {shown.map(({ videos: v, collection_id }) => {
+                const usualViews = usualOf.get(`${v.platform}:${v.creator_handle}`) ?? null;
+                const usual = usualScore(v.views, usualViews);
+                const reach = reachScore(v.views, v.creator_followers);
+                const video = videoFromRow(v, { reach, usual, usualViews, label: labelFor(usual, reach, { views: v.views, followers: v.creator_followers }) });
+                return (
+                  <div key={v.id} className="space-y-2">
+                    <OutlierCard video={video} saved />
+                    {collections.length > 0 && <FolderPicker videoId={v.id} value={collection_id} collections={collections} />}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

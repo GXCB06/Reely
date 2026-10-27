@@ -6,6 +6,13 @@ import { createClient } from "@/lib/supabase/server";
 
 const MAX_COLLECTIONS = 20;
 
+/** The user's folders (for the "put in a folder" picker that opens after saving a clip). */
+export async function listCollectionsAction() {
+  const supabase = await createClient();
+  const { data } = await supabase.from("collections").select("id, name").order("created_at");
+  return (data ?? []) as { id: string; name: string }[];
+}
+
 /** Saved page: a new folder for saved clips. */
 export async function createCollectionAction(name: string) {
   const parsed = z.string().trim().min(1).max(40).safeParse(name);
