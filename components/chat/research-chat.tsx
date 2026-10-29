@@ -139,7 +139,7 @@ export function ResearchChat({
   const link = findLink(text);
   const clip = parseClipLink(text);
   const selected = keywords.filter((k) => k.on);
-  const credits = creditEstimate(platforms, selected.length);
+  const credits = creditEstimate(platforms, selected.length, selected.some((k) => k.region === "th"));
   // While the plan streams in, show the draft with everything disabled; then the finished plan.
   const drafting = phase === "thinking" && draft !== null;
   const view: PlanDraft | null = drafting ? draft : phase === "plan" || phase === "running" ? plan : null;

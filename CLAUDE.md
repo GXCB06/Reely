@@ -108,6 +108,10 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     +2 credits each) so older hits count. Thai can't be searched on Instagram (popular is English-only, reels search
     returns unrelated clips), so with TikTok + Reels and Thai keywords, up to 4 Thai TikTok creators are tried under
     the same Instagram handle (`instagramReels`; a missing profile is free) and their standout reels join too.
+    Instagram's own account search (`/v1/instagram/search`, 1 credit, ~15 s) does understand Thai: the first 2 Thai
+    keywords are searched alongside the keyword search, `pickRelevantAccounts` (AI) keeps up to 4 accounts in the
+    product's field, and 2 pages of each one's reels are read (max ~10 credits). Their standout reels join with a
+    5K-view floor (Thai Instagram is smaller), counted as `fromAccounts`.
 12. Run the AI relevance check (`rateRelevance`) BEFORE baseline lookups, so off-topic creators cost nothing.
     Score 1 means "inside the product's field", not just "same audience"; with 15+ clear matches, only score 2 stays.
 16. Covers are copied to storage with `after()` (`persistThumbnails`), never inside the search itself:

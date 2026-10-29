@@ -22,8 +22,10 @@ export const RESEARCHES_PER_DAY: number | null = null;
  * Credits for one run: TikTok 1 per keyword + 5 creators x 2 pages; Instagram 1 per keyword + 5 creators x 1
  * (8 creators when Reels are searched without TikTok).
  */
-export function creditEstimate(platforms: string[], keywords: number) {
+export function creditEstimate(platforms: string[], keywords: number, thai = false) {
   const tiktok = platforms.includes("tiktok");
-  // Instagram: + 2 more pages of reels for the top 3 creators (6), + Thai TikTok creators found there (~1).
-  return (tiktok ? keywords + 10 : 0) + (platforms.includes("instagram") ? keywords + (tiktok ? 5 : 8) + 6 + (tiktok ? 1 : 0) : 0);
+  // Instagram: + 2 more pages of reels for the top 3 creators (6), + Thai TikTok creators found there (~1),
+  // + Thai keywords: account search (2) and 2 pages of reels for up to 4 accounts (8).
+  const ig = keywords + (tiktok ? 5 : 8) + 6 + (tiktok ? 1 : 0) + (thai ? 10 : 0);
+  return (tiktok ? keywords + 10 : 0) + (platforms.includes("instagram") ? ig : 0);
 }

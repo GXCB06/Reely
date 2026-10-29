@@ -30,6 +30,7 @@ import {
   englishKeywordsSchema,
   type FollowUp,
   followUpSchema,
+  accountPickSchema,
   type PlanDraft,
   planOutputSchema,
   type Understanding,
@@ -722,6 +723,41 @@ export async function ideasForClips(
   } catch (e) {
     console.warn("[ai] ideasForClips failed", (e as Error).message);
     return null;
+  }
+}
+
+/**
+ * Instagram account search returns a mix (for "AI บัญชี": accounting educators, but also @zuck and a band). Keeps the
+ * accounts that likely post short videos inside the product's field: creators, educators, media and similar products.
+ * Empty when AI is unavailable, so nothing unchecked costs credits.
+ */
+export async function pickRelevantAccounts(
+  product: ProductBrief,
+  accounts: { handle: string; name: string }[],
+  max: number,
+): Promise<string[]> {
+  const model = getModel();
+  if (!model || !accounts.length) return [];
+  try {
+    const { output } = await generateText({
+      ...aiCallOptions(20_000),
+      model,
+      output: Output.object({ schema: accountPickSchema }),
+      prompt: [
+        "These Instagram accounts came from a search. Keep only accounts that likely post short videos the user can learn",
+        "from for their product: creators, educators, media or brands inside the product's field, or similar products.",
+        "Drop celebrities, famous people and brands from other fields, universities or student clubs, government bodies,",
+        "big firms' corporate pages, and anything unrelated. When unsure, drop it.",
+        `Product: ${product.name} — ${product.whatItIs}${product.audience ? `. Audience: ${product.audience}` : ""}`,
+        `Keep at most ${max}, most promising first.`,
+        "",
+        ...accounts.map((a, i) => `${i} | @${a.handle} | ${a.name.slice(0, 60)}`),
+      ].join("\n"),
+    });
+    return [...new Set(output.keep)].filter((i) => i < accounts.length).slice(0, max).map((i) => accounts[i].handle);
+  } catch (e) {
+    console.warn("[ai] pickRelevantAccounts failed", (e as Error).message);
+    return [];
   }
 }
 

@@ -105,6 +105,11 @@ export const clipIdeasSchema = z.object({
  * Results page follow-up: what the user typed under a research, answered from that research's clips. Reely only
  * answers about these results or proposes a new search (it is not an open-ended chat).
  */
+/** Instagram account search: which found accounts likely post short videos in the product's field. */
+export const accountPickSchema = z.object({
+  keep: z.array(z.number().int().min(0)).max(8).describe("Line numbers of the accounts to keep, most promising first"),
+});
+
 export const followUpSchema = z.object({
   kind: z
     .enum(["answer", "research"])

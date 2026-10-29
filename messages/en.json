@@ -393,7 +393,8 @@
       "like": "Find clips like this one: (paste a Reel / TikTok link)"
     },
     "askReference": "Reference",
-    "recheckAuto": "The AI was busy during the search, so off-topic clips weren't filtered yet. Filtering them now, for free…"
+    "recheckAuto": "The AI was busy during the search, so off-topic clips weren't filtered yet. Filtering them now, for free…",
+    "fromAccounts": "incl. {n} from Thai Instagram accounts found by search"
   },
   "card": {
     "save": "Save",

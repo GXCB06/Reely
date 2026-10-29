@@ -195,6 +195,19 @@ export const instagramAdapter: PlatformAdapter = {
  * Up to `pages` pages (~12 reels each, newest first) of a creator's reels: 1 credit per page found, and a profile that
  * doesn't exist costs nothing. One page misses older hits: AccOS Pro's 1.4M-play reel was 3 weeks and ~25 reels back.
  */
+export type InstagramAccount = { handle: string; name: string };
+
+/**
+ * Instagram's own account search (1 credit, ~15 s): unlike popular and reels search it understands Thai, e.g.
+ * "AI การตลาด" → @contentshifu, @everydaymarketing.co (checked 2026-10-28). It returns accounts only, no posts.
+ */
+export async function instagramSearchAccounts(query: string): Promise<InstagramAccount[]> {
+  if (fixturesEnabled()) return [];
+  type Res = { users?: { username?: string; full_name?: string | null }[] };
+  const data = await call<Res>("/v1/instagram/search", { query });
+  return (data?.users ?? []).filter((u) => u.username).map((u) => ({ handle: u.username!, name: u.full_name ?? "" }));
+}
+
 export async function instagramReels(handle: string, pages = 1): Promise<NormalizedVideo[]> {
   if (fixturesEnabled()) return instagramAdapter.getCreatorVideos(handle);
   type Res = { items?: ProfileReel[]; max_id?: string | null };

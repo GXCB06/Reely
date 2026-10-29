@@ -223,6 +223,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
                         <span className="text-muted-foreground/80">· {t("mostlyDropped", { reason: t(`dropReason.${drop[0]}`), n: drop[1] })}</span>
                       )}
                       {!!s.fromFeeds && <span className="text-primary">· {t("fromFeeds", { n: s.fromFeeds })}</span>}
+                      {!!s.fromAccounts && <span className="text-primary">· {t("fromAccounts", { n: s.fromAccounts })}</span>}
                     </span>
                   );
                 })}
