@@ -7,7 +7,6 @@ import { OutlierCard } from "@/components/outlier-card";
 import { PlatformIcon } from "@/components/platform-icon";
 import { FilterBar } from "@/components/results/filter-bar";
 import { FollowTopicButton } from "@/components/results/follow-topic-button";
-import { AskFab } from "@/components/results/ask-fab";
 import { ExportDialog } from "@/components/results/export-dialog";
 import { FollowUpBox } from "@/components/results/follow-up-box";
 import { TrackButton } from "@/components/tracking/track-button";
@@ -19,6 +18,7 @@ import { RefreshRunButton } from "@/components/results/refresh-run-button";
 import { ScoreExplainer } from "@/components/results/score-explainer";
 import { Link } from "@/i18n/navigation";
 import type { RunSummary } from "@/lib/ai/schemas";
+import type { AskAnswer, AskTurn } from "@/lib/ask";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
 import { applyFilters, diverseTop, parseFilters, type PlatformTab } from "@/lib/results";
 import { withFeedback } from "@/lib/feedback";
@@ -54,7 +54,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   const supabase = await createClient();
 
   // One round trip: the run, its results and the saved list are fetched together.
-  const [{ data: run }, { data: rows }, { data: savedRows }] = await Promise.all([
+  const [{ data: run }, { data: rows }, { data: savedRows }, { data: followups }] = await Promise.all([
     supabase
       .from("research_runs")
       .select("id, brief, keywords, keyword_regions, exclusions, platforms, region, input, status, error, summary, stats, followed_at, settings, last_refreshed_at, product_id, goal, created_at")
@@ -66,7 +66,10 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
       .eq("run_id", id)
       .order("rank"),
     supabase.from("saved_videos").select("video_id"),
+    // The "Ask Reely" thread under this research (oldest first).
+    supabase.from("research_followups").select("request_id, question, answer").eq("run_id", id).order("created_at").limit(30),
   ]);
+  const askTurns: AskTurn[] = (followups ?? []).map((f) => ({ requestId: f.request_id as string, question: f.question as string, answer: f.answer as AskAnswer }));
   if (!run) notFound();
   // The product's 👍/👎: shown on each clip and used to order them.
   const { feedback, votes } = await loadFeedback(supabase, run.product_id as string | null);
@@ -352,7 +355,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
           <section id="ask" className="mx-auto max-w-3xl scroll-mt-6">
             <ReelyBubble>
               <p className="mb-3 text-sm font-semibold">{t("nextTitle")}</p>
-              <FollowUpBox runId={run.id as string} lead={lead?.creatorHandle ?? null} />
+              <FollowUpBox runId={run.id as string} lead={lead?.creatorHandle ?? null} initialTurns={askTurns} />
               {/* At most 4 next steps; "more like this" and "follow" open a small menu. */}
               <p className="mt-5 mb-2 text-xs font-semibold text-muted-foreground">{t("nextSteps")}</p>
               <div className="flex flex-wrap gap-2">
@@ -410,7 +413,6 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
             </ReelyBubble>
           </section>
         )}
-        {run.status !== "running" && <AskFab />}
       </div>
     </div>
   );

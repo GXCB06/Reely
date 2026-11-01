@@ -383,14 +383,7 @@
     "askPlaceholder": "Ask anything, e.g. which clips suit working women?",
     "askSend": "Send",
     "askThinking": "Reely is looking through this research…",
-    "askFailed": "Couldn't answer right now. Try again in a moment.",
     "askResearch": "Search for this",
-    "askStarter": {
-      "whyLead": "Why did @{handle}'s clip take off?",
-      "first": "Which clip should I make first, and why?",
-      "why": "What do these hits have in common?"
-    },
-    "askReference": "Reference",
     "recheckAuto": "The AI was busy during the search, so off-topic clips weren't filtered yet. Filtering them now, for free…",
     "fromAccounts": "incl. {n} from Thai Instagram accounts found by search",
     "askClipChip": "Reference clip: {what}",
@@ -401,8 +394,37 @@
     "nextSteps": "Next steps",
     "moreLikeThis": "Find more like this",
     "followMenu": "Follow",
-    "askFab": "Ask Reely",
-    "askAttachShort": "Attach a reference clip"
+    "askAttachShort": "Attach a reference clip",
+    "ask": {
+      "totalViews": "total views",
+      "standout": "standout (over {x}×)",
+      "reference": "Reference",
+      "views": "{n} views",
+      "scriptFromHook": "Write a script from this hook",
+      "scriptFromHookQ": "Write a script from hook {n} (@{handle}) for my product",
+      "script": "Script",
+      "saved": "Saved on the clip's page",
+      "builtFrom": "From @{handle}'s clip",
+      "seconds": "{n}s",
+      "openClip": "Open the clip",
+      "failed": "Not sent. Your question is kept; try again.",
+      "retry": "Try again",
+      "tooShort": "Type at least 2 characters",
+      "dockPlaceholder": "Ask Reely about these results…",
+      "start": {
+        "hooks": "Give me the 3 best hooks here",
+        "script": "Write a 30-second script from @{handle}'s clip",
+        "clips": "Which clips suit my product best?"
+      },
+      "next": {
+        "scriptFirst": "Write a script from hook 1",
+        "whichHook": "Which hook suits my product best, and why?",
+        "hooksOfThese": "Show me the hooks of these clips",
+        "scriptTop": "Write a script from the first clip",
+        "moreHooks": "Give me 3 more hooks",
+        "whatNext": "Which clip should I make next?"
+      }
+    }
   },
   "card": {
     "save": "Save",

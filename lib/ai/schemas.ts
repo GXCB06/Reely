@@ -110,12 +110,28 @@ export const accountPickSchema = z.object({
   keep: z.array(z.number().int().min(0)).max(8).describe("Line numbers of the accounts to keep, most promising first"),
 });
 
+export const FOLLOW_UP_KINDS = ["answer", "clips", "hooks", "script", "research"] as const;
+
 export const followUpSchema = z.object({
   kind: z
-    .enum(["answer", "research"])
-    .describe("answer: a question about these clips or what to make from them; research: they want different or more videos"),
-  reply: z.string().describe("2-5 short sentences in the user's language; cite clips by @handle and their numbers"),
-  clips: z.array(z.number().int().min(0)).max(4).describe("Line numbers of the clips the reply is about (best first)"),
+    .enum(FOLLOW_UP_KINDS)
+    .describe(
+      "answer: a question about these clips; clips: show or pick clips; hooks: list opening lines; script: write a script from one clip; research: they want videos that are not here",
+    ),
+  reply: z.string().describe("1-4 short sentences in the user's language; cite clips by @handle and their numbers"),
+  clips: z.array(z.number().int().min(0)).max(6).describe("Line numbers of the clips the reply is about (best first); up to 6 for kind=clips, else up to 3"),
+  hooks: z
+    .array(
+      z.object({
+        clip: z.number().int().min(0).describe("Line number of the clip"),
+        hook: z.string().max(160).describe("Its opening line, copied word for word from that clip's caption or spoken hook"),
+        hookType: z.string().max(30).describe("Short label in the user's language, e.g. question, bold claim, POV, problem callout, list"),
+        format: z.string().max(30).describe("Short label in the user's language, e.g. talking head, demo, review, skit, tutorial"),
+      }),
+    )
+    .max(5)
+    .describe("kind=hooks only, best first; else empty"),
+  scriptClip: z.number().int().min(-1).describe("kind=script: line number of the clip to adapt (-1 = the reference clip, or none)"),
   brief: z.string().max(400).describe("kind=research only: the new search brief in the user's language, else empty"),
 });
 export type FollowUp = z.infer<typeof followUpSchema>;

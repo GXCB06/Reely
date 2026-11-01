@@ -1,16 +1,17 @@
 "use client";
 
-import { ArrowUp, Flame, Loader2, Paperclip, Search, X } from "lucide-react";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
-import { type FollowUpReply, followUpAction } from "@/app/[locale]/app/research/actions";
+import { ArrowUp, Loader2, Paperclip, RotateCcw, Search, X } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
+import { logEventAction } from "@/app/[locale]/app/feedback-actions";
+import { followUpAction } from "@/app/[locale]/app/research/actions";
 import { PlatformIcon } from "@/components/platform-icon";
-import { Thumb } from "@/components/thumb";
 import { Link } from "@/i18n/navigation";
+import type { AskAnswer, AskTurn } from "@/lib/ask";
 import { type ClipLink, parseClipLink } from "@/lib/clip-link";
-import { formatMultiplier } from "@/lib/scoring";
+import { ClipGrid, HookList, ScriptCard } from "./ask-cards";
 
-type Turn = { question: string; answer: FollowUpReply | "failed" | null };
+type Turn = { requestId: string; question: string; answer: AskAnswer | "failed" | null };
 
 /** "@handle" for a TikTok link, "Reel" for Instagram (no lookup, so nothing is spent before sending). */
 function ClipChip({ clip, onRemove }: { clip: ClipLink; onRemove?: () => void }) {
@@ -29,163 +30,210 @@ function ClipChip({ clip, onRemove }: { clip: ClipLink; onRemove?: () => void })
   );
 }
 
-/**
- * "Ask Reely about these results": the user writes what they want next, or taps a suggested question (which sends at
- * once). Reely answers from this research's clips (citing them) or proposes a new search they can start. A Reel or
- * TikTok link, attached with 📎 or pasted into the box, becomes the reference clip.
- */
-export function FollowUpBox({ runId, lead }: { runId: string; lead: string | null }) {
+/** One answer: a short reply, then its cards (clips, hooks or a script) and, when Reely proposes one, a new search. */
+function Answer({ answer, busy, onAsk }: { answer: AskAnswer; busy: boolean; onAsk: (question: string) => void }) {
   const t = useTranslations("results");
-  const format = useFormatter();
+  return (
+    <div className="space-y-3">
+      {answer.reply && <p className="text-sm leading-relaxed whitespace-pre-line">{answer.reply}</p>}
+      {answer.kind === "hooks" && answer.hooks.length > 0 && (
+        <HookList
+          hooks={answer.hooks}
+          busy={busy}
+          onScript={(i) => onAsk(t("ask.scriptFromHookQ", { n: i + 1, handle: answer.hooks[i].clip.handle }))}
+        />
+      )}
+      {answer.script && <ScriptCard script={answer.script} />}
+      {answer.kind !== "hooks" && !answer.script && <ClipGrid clips={answer.clips} reference={answer.reference} />}
+      {answer.researchHref && (
+        <Link
+          href={answer.researchHref}
+          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          <Search className="size-4" /> {t("askResearch")}
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/**
+ * "Ask Reely about these results": the user writes what they want next, or taps a suggestion (which sends at once).
+ * Reely answers from this research's clips with a reply, picked clips, their hooks, or a script it writes and saves;
+ * or it proposes a new search. A Reel or TikTok link, attached with 📎 or pasted into the box, becomes the reference
+ * clip. The thread is stored, so it is still here after a reload, and later questions can point at earlier answers
+ * ("hook 2"). While the box is below the screen, a compact copy of it docks at the bottom of the page.
+ */
+export function FollowUpBox({ runId, lead, initialTurns }: { runId: string; lead: string | null; initialTurns: AskTurn[] }) {
+  const t = useTranslations("results");
   const locale = useLocale();
   const [text, setText] = useState("");
-  const [turns, setTurns] = useState<Turn[]>([]);
-  const busy = turns.at(-1)?.answer === null;
+  const [turns, setTurns] = useState<Turn[]>(initialTurns);
+  const busy = turns.some((x) => x.answer === null);
   const [attaching, setAttaching] = useState(false);
   const [attachText, setAttachText] = useState("");
+  const [hint, setHint] = useState(false);
   const attached = parseClipLink(attachText);
   const inText = parseClipLink(text);
-  const starters = [...(lead ? [t("askStarter.whyLead", { handle: lead })] : []), t("askStarter.first"), t("askStarter.why")];
+  const box = useRef<HTMLDivElement>(null);
+  const threadEnd = useRef<HTMLDivElement>(null);
+  const [docked, setDocked] = useState(false);
 
-  async function ask(override?: string) {
+  // Dock a compact composer while the box is below the screen (the user is still reading the clips above it).
+  useEffect(() => {
+    const target = box.current;
+    if (!target) return;
+    const observer = new IntersectionObserver(([entry]) => setDocked(!entry.isIntersecting && entry.boundingClientRect.top > 0));
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, []);
+
+  const last = [...turns].reverse().find((x) => x.answer && x.answer !== "failed")?.answer as AskAnswer | undefined;
+  const suggestions =
+    last?.kind === "hooks"
+      ? [t("ask.next.scriptFirst"), t("ask.next.whichHook")]
+      : last?.kind === "clips"
+        ? [t("ask.next.hooksOfThese"), t("ask.next.scriptTop")]
+        : last?.kind === "script"
+          ? [t("ask.next.moreHooks"), t("ask.next.whatNext")]
+          : [t("ask.start.hooks"), ...(lead ? [t("ask.start.script", { handle: lead })] : []), t("ask.start.clips")];
+
+  async function send(turn: { requestId: string; question: string }) {
+    setTurns((ts) => [...ts.filter((x) => x.requestId !== turn.requestId), { ...turn, answer: null }]);
+    requestAnimationFrame(() => threadEnd.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    const res = await followUpAction(runId, turn.question, locale, turn.requestId).catch(() => null);
+    if (!res?.ok) void logEventAction({ name: "ask_failed", source: "ask", requestId: turn.requestId }).catch(() => {});
+    setTurns((ts) => ts.map((x) => (x.requestId === turn.requestId ? { ...x, answer: res?.ok ? res.turn.answer : "failed" } : x)));
+  }
+
+  function ask(override?: string) {
+    if (busy) return;
     const typed = (override ?? text).trim();
     const clip = override ? null : attached;
     const question = clip ? `${typed || t("askClipDefault")}\n${clip.url}` : typed;
-    if (question.length < 2 || busy) return;
+    if (question.length < 2) return setHint(true);
+    setHint(false);
     if (!override) {
       setText("");
       setAttachText("");
       setAttaching(false);
     }
-    setTurns((ts) => [...ts, { question, answer: null }]);
-    const res = await followUpAction(runId, question, locale).catch(() => null);
-    setTurns((ts) => ts.map((x, i) => (i === ts.length - 1 ? { ...x, answer: res?.ok ? res : "failed" } : x)));
+    void send({ requestId: crypto.randomUUID(), question });
   }
 
+  const composer = (compact: boolean) => (
+    <div className="rounded-3xl border bg-background transition focus-within:border-primary/40 focus-within:ring-3 focus-within:ring-primary/10">
+      <textarea
+        id={compact ? undefined : "ask-input"}
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          if (hint) setHint(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+            e.preventDefault();
+            ask();
+          }
+        }}
+        rows={compact ? 1 : 2}
+        maxLength={500}
+        placeholder={compact ? t("ask.dockPlaceholder") : t("askPlaceholder")}
+        aria-label={t("askPlaceholder")}
+        className={`block w-full resize-none bg-transparent px-4 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/70 ${compact ? "pt-2.5" : "pt-3 pb-1"}`}
+      />
+      {/* Toolbar: the reference clip on the left, send on the right. */}
+      <div className="flex items-center gap-2 px-2 pb-2">
+        {attached || inText ? (
+          attached ? <ClipChip clip={attached} onRemove={() => setAttachText("")} /> : <ClipChip clip={inText!} />
+        ) : attaching && !compact ? (
+          <input
+            autoFocus
+            type="url"
+            value={attachText}
+            onChange={(e) => setAttachText(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && setAttaching(false)}
+            onBlur={() => !attachText.trim() && setAttaching(false)}
+            placeholder={t("askAttachPlaceholder")}
+            aria-label={t("askAttach")}
+            className="h-8 min-w-0 flex-1 rounded-full bg-muted px-3 text-xs outline-none sm:max-w-sm"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              if (compact) box.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+              setAttaching(true);
+            }}
+            title={t("askAttach")}
+            aria-label={t("askAttach")}
+            className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Paperclip className="size-3.5" /> {!compact && t("askAttachShort")}
+          </button>
+        )}
+        {hint && <span className="text-xs text-muted-foreground">{t("ask.tooShort")}</span>}
+        <button
+          type="button"
+          onClick={() => ask()}
+          disabled={busy}
+          aria-label={t("askSend")}
+          className={`ml-auto grid size-9 shrink-0 place-items-center rounded-full disabled:opacity-60 ${
+            text.trim().length >= 2 || attached ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted text-muted-foreground"
+          }`}
+        >
+          {busy ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="space-y-3">
-      {turns.map((turn, i) => (
-        <div key={i} className="space-y-2">
+    <div className="space-y-4">
+      {turns.map((turn) => (
+        <div key={turn.requestId} className="space-y-2">
           <p className="ml-auto w-fit max-w-[85%] rounded-3xl rounded-br-md bg-primary/10 px-4 py-2 text-sm whitespace-pre-wrap">{turn.question}</p>
           {turn.answer === null ? (
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <p className="flex items-center gap-2 rounded-2xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" /> {t("askThinking")}
             </p>
           ) : turn.answer === "failed" ? (
-            <p className="text-sm text-muted-foreground">{t("askFailed")}</p>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-sm leading-relaxed whitespace-pre-line">{turn.answer.reply}</p>
-              {(turn.answer.clips.length > 0 || turn.answer.reference) && (
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {[...(turn.answer.reference ? [{ ...turn.answer.reference, isReference: true }] : []), ...turn.answer.clips.map((c) => ({ ...c, isReference: false }))].map((c) => (
-                    <Link
-                      key={`${c.isReference ? "ref" : "clip"}:${c.dbId}`}
-                      href={`/app/video/${c.dbId}`}
-                      className={`relative w-24 shrink-0 overflow-hidden rounded-xl border bg-card hover:shadow ${c.isReference ? "ring-2 ring-primary" : ""}`}
-                    >
-                      {c.isReference && (
-                        <span className="absolute top-1 left-1 z-10 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                          {t("askReference")}
-                        </span>
-                      )}
-                      <div className="aspect-[9/14] bg-muted">
-                        <Thumb src={c.thumbnailUrl} videoId={c.dbId} />
-                      </div>
-                      <p className="truncate px-1.5 pt-1 text-[11px] font-medium">@{c.handle}</p>
-                      <p className="flex items-center gap-1 px-1.5 pb-1.5 text-[11px] text-muted-foreground">
-                        {c.views !== null && format.number(c.views, { notation: "compact", maximumFractionDigits: 1 })}
-                        {c.multiplier !== null && (
-                          <span className="inline-flex items-center text-primary">
-                            <Flame className="size-3" />
-                            {formatMultiplier(c.multiplier)}×
-                          </span>
-                        )}
-                      </p>
-                    </Link>
-                  ))}
-                </div>
-              )}
-              {turn.answer.researchHref && (
-                <Link
-                  href={turn.answer.researchHref}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                >
-                  <Search className="size-4" /> {t("askResearch")}
-                </Link>
-              )}
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <span>{t("ask.failed")}</span>
+              {/* Same request id: if the answer did arrive on the server, the stored one comes back. */}
+              <button type="button" disabled={busy} onClick={() => void send(turn)} className="chip">
+                <RotateCcw className="size-3.5" /> {t("ask.retry")}
+              </button>
             </div>
+          ) : (
+            <Answer answer={turn.answer} busy={busy} onAsk={(q) => ask(q)} />
           )}
         </div>
       ))}
+      <div ref={threadEnd} />
 
-      <div className="rounded-3xl border bg-background transition focus-within:border-primary/40 focus-within:ring-3 focus-within:ring-primary/10">
-        <textarea
-          id="ask-input"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              void ask();
-            }
-          }}
-          rows={2}
-          maxLength={500}
-          placeholder={t("askPlaceholder")}
-          aria-label={t("askPlaceholder")}
-          className="block w-full resize-none bg-transparent px-4 pt-3 pb-1 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/70"
-        />
-        {/* Toolbar: the reference clip on the left, send on the right. */}
-        <div className="flex items-center gap-2 px-2 pb-2">
-          {attached || inText ? (
-            attached ? <ClipChip clip={attached} onRemove={() => setAttachText("")} /> : <ClipChip clip={inText!} />
-          ) : attaching ? (
-            <input
-              autoFocus
-              type="url"
-              value={attachText}
-              onChange={(e) => setAttachText(e.target.value)}
-              onKeyDown={(e) => e.key === "Escape" && setAttaching(false)}
-              onBlur={() => !attachText.trim() && setAttaching(false)}
-              placeholder={t("askAttachPlaceholder")}
-              aria-label={t("askAttach")}
-              className="h-8 min-w-0 flex-1 rounded-full bg-muted px-3 text-xs outline-none sm:max-w-sm"
-            />
-          ) : (
+      <div ref={box} className="space-y-2">
+        {composer(false)}
+        <div className="flex flex-wrap gap-1.5">
+          {suggestions.map((q) => (
             <button
+              key={q}
               type="button"
-              onClick={() => setAttaching(true)}
-              title={t("askAttach")}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+              disabled={busy}
+              onClick={() => ask(q)}
+              className="rounded-full border px-3 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
             >
-              <Paperclip className="size-3.5" /> {t("askAttachShort")}
+              {q}
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => void ask()}
-            disabled={busy || (text.trim().length < 2 && !attached)}
-            aria-label={t("askSend")}
-            className="ml-auto grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
-          >
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
-          </button>
+          ))}
         </div>
       </div>
-      <div className="flex flex-wrap gap-1.5">
-        {starters.map((q) => (
-          <button
-            key={q}
-            type="button"
-            disabled={busy}
-            onClick={() => void ask(q)}
-            className="rounded-full border px-3 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-          >
-            {q}
-          </button>
-        ))}
-      </div>
+
+      {docked && (
+        <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 md:right-6 md:left-[18rem]">
+          <div className="mx-auto max-w-3xl rounded-3xl shadow-[0_10px_40px_-12px_rgba(86,54,186,0.35)]">{composer(true)}</div>
+        </div>
+      )}
     </div>
   );
 }

@@ -761,13 +761,26 @@ export async function pickRelevantAccounts(
   }
 }
 
-export type FollowUpClip = { handle: string; platform: string; caption: string; views: number | null; multiplier: number | null; engagement: number | null };
+export type FollowUpClip = {
+  handle: string;
+  platform: string;
+  caption: string;
+  views: number | null;
+  multiplier: number | null;
+  engagement: number | null;
+  /** What is said first, when someone already read the clip's transcript. */
+  spokenHook?: string | null;
+  /** From the shared caption breakdown (video_analyses), when there is one. */
+  format?: string | null;
+  hookType?: string | null;
+};
 /** A clip the user pasted a link to: "find clips like this one". */
 export type ReferenceClip = { handle: string; platform: string; caption: string; views: number | null; format?: string | null; hookType?: string | null; angle?: string | null };
 
 /**
- * "Ask Reely about these results": one Gemini call that either answers from this research's clips (which to make
- * first, why they worked, how to adapt one) or turns the request into a new search brief. Null when AI fails.
+ * "Ask Reely about these results": one Gemini call that answers from this research's clips (which to make first, why
+ * they worked, pick clips, list their hooks, pick one to turn into a script) or turns the request into a new search
+ * brief. `history` = the thread's earlier turns, so "hook 2" or "the first one" can be resolved. Null when AI fails.
  */
 export async function answerFollowUp(
   product: ProductBrief,
@@ -777,6 +790,7 @@ export async function answerFollowUp(
   clips: FollowUpClip[],
   locale: string,
   reference: ReferenceClip | null = null,
+  history: string[] = [],
 ): Promise<FollowUp | null> {
   const model = getModel();
   if (!model) return null;
@@ -792,8 +806,15 @@ export async function answerFollowUp(
         `This research looked for: ${brief}`,
         "Below are the clips it found, best first. The user typed a follow-up. Decide:",
         "- answer: they ask about these clips (which to make first, why they worked, what they have in common, how to adapt",
-        "  one for the product, which suits a goal or audience). Answer ONLY from the clips below and cite them by @handle with",
-        "  their views or multiplier; put their line numbers in clips.",
+        "  one for the product). Answer ONLY from the clips below and cite them by @handle with their views or multiplier;",
+        "  put up to 3 line numbers in clips.",
+        "- clips: they want to see or pick clips (the best ones, ones that suit an audience, goal or style). Put up to 6 line",
+        "  numbers in clips, best first; reply is one sentence saying what they have in common.",
+        "- hooks: they want opening lines / hooks. Fill hooks (up to 5, best first) with each clip's opening line copied WORD",
+        "  FOR WORD from its spoken hook or caption below (never invent or translate a hook), plus short hookType and format",
+        "  labels in the user's language (reuse the given format / hook labels when a clip has them). reply is one sentence.",
+        "- script: they want a script / their own version of a clip. Set scriptClip to that clip's line number (-1 = the",
+        "  reference clip). reply is one sentence saying which clip it is built from; the script itself is written separately.",
         "- research: they want videos that are not here (another angle, audience, format, platform or more of something).",
         "  Write brief: what to search for next, building on the product and their request. reply says what that search will",
         "  look for and that they can press the search button below to start it (you do not start it yourself).",
@@ -810,16 +831,24 @@ export async function answerFollowUp(
             ]
           : []),
         NO_MADE_UP_NUMBERS,
-        "Clips (line | platform | handle | views | multiplier | engagement | caption):",
+        "Clips (line | platform | handle | views | multiplier | engagement | format | hook type | spoken hook | caption):",
         ...clips.map(
           (v, i) =>
-            `${i} | ${v.platform} | @${v.handle} | ${shortViews(v.views)} | ${v.multiplier !== null ? formatMultiplier(v.multiplier) + "x" : "?"} | ${v.engagement !== null ? (v.engagement * 100).toFixed(1) + "%" : "?"} | ${v.caption.slice(0, 160).replace(/\s+/g, " ")}`,
+            `${i} | ${v.platform} | @${v.handle} | ${shortViews(v.views)} | ${v.multiplier !== null ? formatMultiplier(v.multiplier) + "x" : "?"} | ${v.engagement !== null ? (v.engagement * 100).toFixed(1) + "%" : "?"} | ${v.format ?? "-"} | ${v.hookType ?? "-"} | ${v.spokenHook ? v.spokenHook.slice(0, 120).replace(/\s+/g, " ") : "-"} | ${v.caption.slice(0, 160).replace(/\s+/g, " ")}`,
         ),
+        ...(history.length
+          ? ["", "Earlier in this conversation (oldest first; numbers like 'hook 2' or 'ข้อ 2' refer to these lists):", ...history]
+          : []),
         "",
         `User: ${question}`,
       ].join("\n"),
     });
-    return { ...output, clips: output.clips.filter((i) => i < clips.length) };
+    return {
+      ...output,
+      clips: output.clips.filter((i) => i < clips.length),
+      hooks: output.hooks.filter((h) => h.clip < clips.length && h.hook.trim()),
+      scriptClip: output.scriptClip < clips.length ? output.scriptClip : -1,
+    };
   } catch (e) {
     console.warn("[ai] answerFollowUp failed", (e as Error).message);
     return null;

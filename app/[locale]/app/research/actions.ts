@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
-import { MAX_KEYWORDS, type RunSummary } from "@/lib/ai/schemas";
+import { type HookBreakdown, MAX_KEYWORDS, type RunSummary } from "@/lib/ai/schemas";
 import { answerFollowUp, englishKeywords, type ReferenceClip, enhanceBrief, ideasForClips, type ProductBrief, rateRelevance, summarizeRun } from "@/lib/ai/tasks";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
 import { type Feedback, withFeedback } from "@/lib/feedback";
@@ -19,6 +19,8 @@ import { researchesLeft } from "@/lib/limits";
 import { readLink } from "@/lib/link-preview";
 import { importClip } from "@/lib/clip-import";
 import { parseClipLink } from "@/lib/clip-link";
+import { type AskAnswer, type AskClip, type AskScript, type AskTurn, threadMemory } from "@/lib/ask";
+import { writeScript } from "@/lib/scripts";
 import { createClient } from "@/lib/supabase/server";
 import { persistThumbnails } from "@/lib/thumbs";
 
@@ -512,41 +514,69 @@ export async function followRunAction(id: string, follow: boolean) {
   return error ? { ok: false as const, error: "failed" } : { ok: true as const };
 }
 
-export type FollowUpReply = {
-  reply: string;
-  clips: { dbId: number; handle: string; thumbnailUrl: string | null; views: number | null; multiplier: number | null }[];
-  /** A new search the user can start (the chat, pre-filled), when they asked for videos this research doesn't have. */
-  researchHref: string | null;
-  /** The clip the user pasted a link to, when they asked for clips like it. */
-  reference: { dbId: number; handle: string; thumbnailUrl: string | null; views: number | null; multiplier: number | null } | null;
-};
+/** One clip as an Ask Reely card. */
+function askClip(v: ScoredVideo): AskClip {
+  return { dbId: v.dbId!, handle: v.creatorHandle, platform: v.platform, thumbnailUrl: v.thumbnailUrl, views: v.views, multiplier: v.usual ?? v.reach };
+}
 
-/** "Ask Reely" under a research: answers from its clips, or proposes a new search. One Gemini call, no credits. */
-export async function followUpAction(id: string, question: string, lang: string) {
-  const parsed = z.object({ id: runId, question: z.string().trim().min(2).max(800), lang: locale }).safeParse({ id, question, lang });
+/**
+ * "Ask Reely" under a research: answers from its clips (a reply, picked clips, their hooks, or a script written from one
+ * and saved), or proposes a new search. One Gemini call (two for a script), no credits except a pasted Reel/TikTok
+ * link (1, cached). Each turn is stored with its request id: a retry returns the stored answer instead of a second one.
+ */
+export async function followUpAction(id: string, question: string, lang: string, requestId: string) {
+  const parsed = z
+    .object({ id: runId, question: z.string().trim().min(2).max(800), lang: locale, requestId: z.string().uuid() })
+    .safeParse({ id, question, lang, requestId });
   if (!parsed.success) return { ok: false as const };
   const supabase = await createClient();
-  const [{ data: run }, { data: rows }] = await Promise.all([
+  const [{ data: run }, { data: rows }, { data: earlier }] = await Promise.all([
     supabase.from("research_runs").select("id, goal, input, brief, region, product_id").eq("id", parsed.data.id).maybeSingle(),
     supabase
       .from("run_results")
       .select("keyword, reach_score, usual_score, usual_views, label, copyable, videos(*)")
       .eq("run_id", parsed.data.id)
       .order("rank"),
+    supabase
+      .from("research_followups")
+      .select("request_id, question, answer")
+      .eq("run_id", parsed.data.id)
+      .order("created_at", { ascending: false })
+      .limit(5),
   ]);
   if (!run) return { ok: false as const };
-  const input = (run.input ?? {}) as { productName?: string; whatItIs?: string; audience?: string };
+  const done = (earlier ?? []).find((t) => t.request_id === parsed.data.requestId);
+  if (done) {
+    const turn: AskTurn = { requestId: parsed.data.requestId, question: done.question as string, answer: done.answer as AskAnswer };
+    return { ok: true as const, turn };
+  }
+
+  const input = (run.input ?? {}) as { productName?: string; whatItIs?: string; audience?: string; url?: string | null };
   const goal = isGoal(run.goal) ? (run.goal as Goal) : null;
   const all = ((rows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null);
   const { feedback } = await loadFeedback(supabase, run.product_id as string | null);
   const score = withFeedback<ScoredVideo>(scoreFor(goal), feedback);
   const clips = [...all].sort((a, b) => score(b) - score(a)).slice(0, 25);
 
+  // Format and hook labels (shared caption breakdowns) and real spoken hooks (transcripts someone already read).
+  const ids = clips.map((v) => v.dbId).filter((x): x is number => !!x);
+  const [{ data: analyses }, { data: transcripts }] = await Promise.all([
+    supabase.from("video_analyses").select("video_id, format, hook_type").in("video_id", ids),
+    supabase.from("video_transcripts").select("video_id, breakdowns").in("video_id", ids).eq("status", "ok"),
+  ]);
+  const analysisOf = new Map((analyses ?? []).map((a) => [a.video_id as number, a]));
+  const spokenOf = new Map(
+    (transcripts ?? []).map((tr) => {
+      const b = (tr.breakdowns ?? {}) as Record<string, HookBreakdown>;
+      return [tr.video_id as number, (b[parsed.data.lang] ?? Object.values(b)[0])?.hook ?? null];
+    }),
+  );
+
   // A pasted Reel / TikTok link is a reference clip: read it (cached 24 h, otherwise 1 credit) and its breakdown if any.
   const link = parseClipLink(parsed.data.question);
   const imported = link ? await importClip(link) : null;
   let reference: ReferenceClip | null = null;
-  let referenceCard: FollowUpReply["clips"][number] | null = null;
+  let referenceCard: AskClip | null = null;
   if (imported?.ok) {
     const [{ data: v }, { data: analysis }] = await Promise.all([
       supabase.from("videos").select("id, platform, creator_handle, caption, views, thumbnail_url").eq("id", imported.videoId).maybeSingle(),
@@ -562,10 +592,18 @@ export async function followUpAction(id: string, question: string, lang: string)
         hookType: (analysis?.hook_type as string | null) ?? null,
         angle: (analysis?.angle as string | null) ?? null,
       };
-      referenceCard = { dbId: v.id as number, handle: v.creator_handle as string, thumbnailUrl: v.thumbnail_url as string | null, views: v.views as number | null, multiplier: null };
+      referenceCard = {
+        dbId: v.id as number,
+        handle: v.creator_handle as string,
+        platform: v.platform as AskClip["platform"],
+        thumbnailUrl: v.thumbnail_url as string | null,
+        views: v.views as number | null,
+        multiplier: null,
+      };
     }
   }
 
+  const history = threadMemory([...(earlier ?? [])].reverse().map((t) => ({ question: t.question as string, answer: t.answer as AskAnswer })));
   const res = await answerFollowUp(
     { name: input.productName ?? "", whatItIs: input.whatItIs ?? "", audience: input.audience ?? "" },
     goal,
@@ -578,20 +616,84 @@ export async function followUpAction(id: string, question: string, lang: string)
       views: v.views,
       multiplier: v.usual ?? v.reach,
       engagement: engagementRate(v),
+      spokenHook: v.dbId ? (spokenOf.get(v.dbId) ?? null) : null,
+      format: v.dbId ? ((analysisOf.get(v.dbId)?.format as string | null) ?? null) : null,
+      hookType: v.dbId ? ((analysisOf.get(v.dbId)?.hook_type as string | null) ?? null) : null,
     })),
     parsed.data.lang,
     reference,
+    history,
   );
-  if (!res) return { ok: false as const };
+  if (!res) {
+    console.error(`[req ${parsed.data.requestId}] ask reely failed (AI)`);
+    return { ok: false as const };
+  }
+
   // The reference clip shows on its own card, so it isn't repeated among the similar ones.
-  const cited = res.clips.map((i) => clips[i]).filter((v): v is ScoredVideo => !!v?.dbId && v.dbId !== referenceCard?.dbId);
+  const pick = (i: number) => clips[i];
+  const cited = res.clips
+    .map(pick)
+    .filter((v): v is ScoredVideo => !!v?.dbId && v.dbId !== referenceCard?.dbId)
+    .slice(0, res.kind === "clips" ? 6 : 3);
+  const hooks =
+    res.kind === "hooks"
+      ? res.hooks.flatMap((h) => {
+          const v = pick(h.clip);
+          return v?.dbId ? [{ clip: askClip(v), hook: h.hook.trim(), hookType: h.hookType, format: h.format }] : [];
+        })
+      : [];
+
+  let script: AskScript | null = null;
+  if (res.kind === "script") {
+    const chosen = res.scriptClip >= 0 ? pick(res.scriptClip) : undefined;
+    const target = chosen?.dbId ? askClip(chosen) : referenceCard;
+    if (target) {
+      // The research's saved product, or (started from a description) what the research knows about it.
+      const { data: product } = run.product_id
+        ? await supabase.from("products").select("id, name, url, description, audience").eq("id", run.product_id).maybeSingle()
+        : { data: null };
+      const saved = await writeScript(
+        supabase,
+        target.dbId,
+        product ?? { id: null, name: input.productName ?? "", url: input.url ?? null, description: input.whatItIs ?? null, audience: input.audience ?? null },
+        parsed.data.lang,
+        goal,
+      );
+      if (saved) {
+        const a = analysisOf.get(target.dbId);
+        script = {
+          id: saved.id,
+          clip: target,
+          title: saved.content.title,
+          durationSeconds: saved.content.durationSeconds,
+          beats: saved.content.beats,
+          hookType: (a?.hook_type as string | null) ?? null,
+          format: (a?.format as string | null) ?? null,
+        };
+      }
+    }
+    if (!script) {
+      console.error(`[req ${parsed.data.requestId}] ask reely script not written`);
+      return { ok: false as const };
+    }
+  }
+
   const params = new URLSearchParams({ q: res.brief, region: (run.region as string | null) ?? "th" });
   if (run.product_id) params.set("product", run.product_id as string);
-  return {
-    ok: true as const,
+  const answer: AskAnswer = {
+    kind: res.kind,
     reply: res.reply,
     reference: referenceCard,
-    clips: cited.map((v) => ({ dbId: v.dbId!, handle: v.creatorHandle, thumbnailUrl: v.thumbnailUrl, views: v.views, multiplier: v.usual ?? v.reach })),
+    clips: res.kind === "hooks" ? [] : cited.map(askClip),
+    hooks,
+    script,
     researchHref: (res.kind === "research" || reference) && res.brief.trim() ? `/app?${params}` : null,
-  } satisfies FollowUpReply & { ok: true };
+  };
+
+  const { error } = await supabase
+    .from("research_followups")
+    .insert({ run_id: parsed.data.id, request_id: parsed.data.requestId, question: parsed.data.question, answer });
+  if (error) console.warn(`[req ${parsed.data.requestId}] ask reely turn not stored`, error.message);
+  const turn: AskTurn = { requestId: parsed.data.requestId, question: parsed.data.question, answer };
+  return { ok: true as const, turn };
 }

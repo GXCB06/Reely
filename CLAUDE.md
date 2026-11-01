@@ -45,6 +45,8 @@ lib/feedback.ts               # 👍/👎 per product (clip_feedback): examples 
 lib/goals.ts                  # what the clips are for (sell / shop / startup / brand) → goal-aware ranking; prompts in lib/ai/tasks.ts
 lib/link-preview.ts           # reads a pasted product link (blocks private addresses — keep that check)
 lib/clip-link.ts              # pasted Instagram Reel / TikTok links (client + server); lib/clip-import.ts reads one
+lib/ask.ts                    # Ask Reely answer and thread types, thread memory (lib/scripts.ts writes and saves scripts)
+lib/events.ts                 # client_events names and sources (lib/event-log.ts writes them); never what users typed
 lib/export.ts                 # research export: CSV (Excel), Markdown (for Claude / ChatGPT), JSON; data from lib/export-data.ts, served by app/api/research/[id]/export
 lib/embed.ts                  # official TikTok / YouTube / Instagram embed players (components/clip-player.tsx: hover preview + in-app player)
 lib/plan.ts                   # 7-day plan per product (content_plans): 👍 + saved + latest research's best clips → one AI call
@@ -134,7 +136,10 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     which asks for the creator's usual views (1-2 credits, ~20 s on Instagram; skipped when any value is known).
     Max 60 reads + lookups a day for everyone (`reely/clip-import` in `api_usage`). "More hits from @creator" on the
     video page only reads the shared cache. A link pasted into "Ask Reely" under a research is read the same way
-    (`followUpAction`, reference clip).
+    (`followUpAction`, reference clip). Ask Reely answers only from that research's clips: a reply, picked clips, their
+    hooks (quoted from captions or transcripts already read, never invented), or a script from one clip (`writeScript` in
+    lib/scripts.ts, one AI call, saved to `scripts`). The thread is stored in `research_followups`; the last 4 turns go into
+    the prompt so "hook 2" resolves. No credits beyond a pasted link.
 
 ## Security rules
 
@@ -175,5 +180,6 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 - Copy Virlo's or Peekly's name, logo, wording, or assets.
 - Use Virlo's API (its terms forbid competing products).
 - Build billing, teams, an open-ended Copilot chat (the Home chat only runs the research flow; the "Ask Reely" box
-  under a research only answers from that research's clips or proposes a new search: `followUpAction`),
+  under a research only answers from that research's clips (reply, clips, hooks, a script from one of them) or proposes
+  a new search: `followUpAction`),
   bring-your-own AI keys, alerts, or anything listed in docs/SPEC.md §3.
