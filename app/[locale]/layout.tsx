@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Anuphan, Plus_Jakarta_Sans } from "next/font/google";
 import { notFound } from "next/navigation";
@@ -31,6 +32,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
           {children}
           <Toaster />
         </NextIntlClientProvider>
+        <Analytics />
       </body>
     </html>
   );
