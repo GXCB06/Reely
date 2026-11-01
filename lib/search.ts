@@ -26,8 +26,8 @@ const BASELINE_CREATORS = 5;
 
 /**
  * Instagram, creator-first (cost rule 11). Its keyword search is thin, so Reels come from seed accounts' feeds:
- * 2 pages each (~24 reels, 1 credit a page; a missing profile is free), 4 accounts first (mixed sources) and up to 10 when they
- * ones gave on-topic Reels and the run is still quick, never past IG_CREDIT_CAP Instagram credits in a research
+ * 2 pages each (~24 reels, 1 credit a page; a missing profile is free), 4 accounts first (mixed sources) and up to
+ * 10 when they gave on-topic Reels and the run is still quick, never past IG_CREDIT_CAP Instagram credits in a research
  * (keyword and account searches included). A reel counts at 2x+ its own account's usual views (from 8+ reels), with
  * no absolute floor beyond 1K views; up to 4 per account, then the relevance check.
  */
