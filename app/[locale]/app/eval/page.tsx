@@ -21,6 +21,7 @@ import { EvalSummary } from "./eval-summary";
 const SUGGESTED = 12;
 // "Re-run" runs a whole research from this page.
 export const maxDuration = 120;
+const RERUN_BATCH_MS = 2 * 3600_000;
 
 /**
  * Owner-only: the relevance test set. Each brief's stored results are judged (strict AI, correctable in one tap) and
@@ -103,8 +104,14 @@ export default async function EvalPage({ params }: PageProps<"/[locale]/app/eval
   views.sort((a, b) => Number(b.core) - Number(a.core));
 
   const originals = metrics.filter((m) => !parentOf.has(m.runId));
-  const reruns = metrics.filter((m) => parentOf.has(m.runId));
-  const rerunParents = new Set(reruns.map((m) => parentOf.get(m.runId)!));
+  // The latest batch of re-runs (added within 2 hours of the newest one), compared with their originals: each search
+  // change is measured once, not mixed with re-runs made for an earlier change.
+  const rerunRows = (set ?? []).filter((b) => b.parent_run_id);
+  const newest = Math.max(0, ...rerunRows.map((b) => new Date(b.added_at as string).getTime()));
+  const batch = rerunRows.filter((b) => new Date(b.added_at as string).getTime() >= newest - RERUN_BATCH_MS);
+  const latestIds = new Set(batch.map((b) => b.run_id as string));
+  const reruns = metrics.filter((m) => latestIds.has(m.runId));
+  const rerunParents = new Set(batch.map((b) => b.parent_run_id as string));
   const group = (region?: string) => summarize(region ? originals.filter((m) => m.region === region) : originals);
   const rows = [
     { key: "all", name: t("rowAll"), s: group() },
