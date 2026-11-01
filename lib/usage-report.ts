@@ -16,6 +16,8 @@ export type UsageReport = {
   credits: { today: number; month: number };
   /** Owners only: researches per person. */
   people: { email: string; month: number; today: number }[] | null;
+  /** Owners only: sends that failed in the last 7 days (client_events), by step. */
+  failures: { plan: number; research: number; ask: number } | null;
 };
 
 const monthStart = (now = new Date()) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
@@ -33,6 +35,7 @@ export async function usageReport(supabase: Supabase): Promise<UsageReport> {
   const admin = createAdminClient();
   const credits = { today: 0, month: 0 };
   let people: UsageReport["people"] = null;
+  let failures: UsageReport["failures"] = null;
   if (admin) {
     const { data: usage } = await admin
       .from("api_usage")
@@ -45,10 +48,18 @@ export async function usageReport(supabase: Supabase): Promise<UsageReport> {
       if (r.day === utcToday) credits.today += r.calls as number;
     }
     if (owner) {
-      const [{ data: runs }, { data: users }] = await Promise.all([
+      const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString();
+      const [{ data: runs }, { data: users }, { data: failed }] = await Promise.all([
         admin.from("research_runs").select("user_id, created_at").gte("created_at", monthStart()),
         admin.auth.admin.listUsers({ perPage: 200 }),
+        admin.from("client_events").select("name").in("name", ["send_failed", "plan_timeout", "run_failed", "ask_failed"]).gte("created_at", weekAgo),
       ]);
+      failures = { plan: 0, research: 0, ask: 0 };
+      for (const e of failed ?? []) {
+        if (e.name === "run_failed") failures.research++;
+        else if (e.name === "ask_failed") failures.ask++;
+        else failures.plan++;
+      }
       const byUser = new Map<string, { month: number; today: number }>();
       for (const r of runs ?? []) {
         const u = byUser.get(r.user_id as string) ?? { month: 0, today: 0 };
@@ -60,5 +71,5 @@ export async function usageReport(supabase: Supabase): Promise<UsageReport> {
       people = [...byUser].map(([id, u]) => ({ email: emailOf.get(id) ?? id, ...u })).sort((a, b) => b.month - a.month);
     }
   }
-  return { today: today ?? 0, month: month ?? 0, cap: owner ? null : RESEARCHES_PER_DAY, owner, credits, people };
+  return { today: today ?? 0, month: month ?? 0, cap: owner ? null : RESEARCHES_PER_DAY, owner, credits, people, failures };
 }

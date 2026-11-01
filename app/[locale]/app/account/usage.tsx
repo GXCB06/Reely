@@ -25,6 +25,11 @@ export async function UsageSection() {
         ))}
       </div>
       <p className="text-xs text-muted-foreground">{t("creditsHint")}</p>
+      {u.failures && (
+        <p className="text-xs text-muted-foreground">
+          {t("failures", { n: u.failures.plan + u.failures.research + u.failures.ask, plan: u.failures.plan, research: u.failures.research, ask: u.failures.ask })}
+        </p>
+      )}
       {u.people && u.people.length > 0 && (
         <div className="overflow-x-auto rounded-2xl border">
           <table className="w-full text-sm">

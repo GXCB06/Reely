@@ -244,7 +244,8 @@
     "keywordRegion": {
       "th": "Searched in Thailand (tap for worldwide)",
       "global": "Searched worldwide (tap for Thailand)"
-    }
+    },
+    "planSlow": "This is taking longer than usual. Wait a little, or try again (your message is kept)."
   },
   "search": {
     "title": "Test search",
@@ -566,7 +567,8 @@
     "mismatch": "The two passwords don't match.",
     "weak": "Use at least {n} characters.",
     "error": "Couldn't save the password. Try again.",
-    "usageUnlimited": "No daily limit while we collect feedback: research as much as you like, and tell us what to improve."
+    "usageUnlimited": "No daily limit while we collect feedback: research as much as you like, and tell us what to improve.",
+    "failures": "Failed sends, last 7 days: {n} (plan {plan} · research {research} · Ask Reely {ask})"
   },
   "tracking": {
     "title": "Competitor tracking",

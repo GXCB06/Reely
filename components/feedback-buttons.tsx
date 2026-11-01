@@ -2,9 +2,11 @@
 
 import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { voteClipAction } from "@/app/[locale]/app/feedback-actions";
+import { sourceOf } from "@/lib/events";
 import type { Vote } from "@/lib/feedback";
 
 // The "Reely will remember" note shows once per page load, not on every tap.
@@ -14,12 +16,13 @@ let explained = false;
 export function FeedbackButtons({ productId, videoId, initialVote }: { productId: string; videoId: number; initialVote: Vote | null }) {
   const t = useTranslations("card");
   const [vote, setVote] = useState<Vote | null>(initialVote);
+  const pathname = usePathname();
 
   function cast(next: Vote) {
     const before = vote;
     const value = vote === next ? null : next;
     setVote(value);
-    voteClipAction(productId, videoId, value ?? 0)
+    voteClipAction(productId, videoId, value ?? 0, sourceOf(pathname))
       .then((res) => {
         if (!res.ok) throw new Error();
         if (value && !explained) {

@@ -1,12 +1,16 @@
 import type { PlanRequest } from "@/app/api/plan/route";
 import type { PlanEvent } from "@/lib/ai/schemas";
 
-/** Calls /api/plan and hands each event (drafts, then the finished plan) to `onEvent` as it arrives. */
-export async function streamPlan(body: PlanRequest, onEvent: (event: PlanEvent) => void): Promise<void> {
+/**
+ * Calls /api/plan and hands each event (drafts, then the finished plan) to `onEvent` as it arrives. `signal` lets the
+ * chat give up on a plan that hangs.
+ */
+export async function streamPlan(body: PlanRequest, onEvent: (event: PlanEvent) => void, signal?: AbortSignal): Promise<void> {
   const res = await fetch("/api/plan", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal,
   });
   if (!res.ok || !res.body) throw new Error(`plan ${res.status}`);
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();

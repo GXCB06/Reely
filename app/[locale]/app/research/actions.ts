@@ -54,6 +54,8 @@ export async function enhanceBriefAction(text: string, lang: string) {
 }
 
 const runSchema = z.object({
+  /** One per plan in the chat: a retry with the same id opens the research already started instead of a second one. */
+  requestId: z.string().uuid().optional(),
   text: z.string().trim().max(1000),
   url: z.union([z.literal(""), z.string().trim().max(300)]),
   imageThumb: thumbDataUrl.nullable(),
@@ -149,6 +151,11 @@ export async function runResearchAction(input: RunInput) {
   const brief = (text || `${understanding.productName}: ${understanding.whatItIs}`).slice(0, 1000);
 
   const supabase = await createClient();
+  const { requestId } = parsed.data;
+  const started = async () =>
+    requestId ? ((await supabase.from("research_runs").select("id").eq("request_id", requestId).maybeSingle()).data?.id as string | undefined) : undefined;
+  const already = await started();
+  if (already) return { ok: true as const, runId: already };
   if ((await researchesLeft(supabase)) === 0) return { ok: false as const, error: "limit" };
   const productRowId = await resolveProduct(supabase, parsed.data);
   const { data: run, error: runError } = await supabase
@@ -167,10 +174,19 @@ export async function runResearchAction(input: RunInput) {
       settings,
       input: { text, url: url || null, imageThumb, ...understanding },
       status: "running",
+      request_id: requestId ?? null,
     })
     .select("id")
     .single();
-  if (runError || !run) return { ok: false as const, error: "save" };
+  if (runError?.code === "23505") {
+    // The same request started a moment ago (a double click or a second tab): open that one.
+    const existing = await started();
+    if (existing) return { ok: true as const, runId: existing };
+  }
+  if (runError || !run) {
+    console.error(`[req ${requestId ?? "-"}] research not saved`, runError?.message);
+    return { ok: false as const, error: "save" };
+  }
 
   try {
     const product = {
@@ -213,6 +229,7 @@ export async function runResearchAction(input: RunInput) {
     revalidatePath("/[locale]/app", "layout");
     return { ok: true as const, runId: run.id as string };
   } catch (e) {
+    console.error(`[req ${requestId ?? "-"}] research ${run.id} failed`, (e as Error).message);
     await supabase
       .from("research_runs")
       .update({ status: "failed", error: (e as Error).message.slice(0, 2000), finished_at: new Date().toISOString() })

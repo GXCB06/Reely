@@ -24,6 +24,7 @@ import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { logEventAction } from "@/app/[locale]/app/feedback-actions";
 import { enhanceBriefAction, runResearchAction } from "@/app/[locale]/app/research/actions";
 import { importClipAction } from "@/app/[locale]/app/video/import-actions";
 import { PlatformIcon } from "@/components/platform-icon";
@@ -49,6 +50,9 @@ import { RegionIcon } from "./region-flag";
 import { ResearchStory } from "./research-story";
 
 const MAX_KEYWORDS = 5;
+// A plan usually takes 5-20 s (the server gives up at 60 s): say so after 25 s, give up at 65 s.
+const PLAN_SLOW_MS = 25_000;
+const PLAN_GIVE_UP_MS = 65_000;
 const PLATFORMS = ["tiktok", "youtube", "instagram"] as const;
 export type PlatformId = (typeof PLATFORMS)[number];
 /** The platforms a user last searched, remembered per browser (someone who works from Reels keeps Reels on). */
@@ -120,6 +124,11 @@ export function ResearchChat({
   const [draft, setDraft] = useState<PlanDraft | null>(null);
   // Each plan request gets a number, so events from an older request (before a goal or region switch) are ignored.
   const planRequest = useRef(0);
+  // A plan that takes long gets a notice (and a retry); one that hangs is given up on.
+  const [slow, setSlow] = useState(false);
+  const planAbort = useRef<{ controller: AbortController; timers: number[] } | null>(null);
+  // One id per plan: pressing "start" again (after a network error) opens the research already started, never a second.
+  const runRequestId = useRef<string | null>(null);
   const [keywords, setKeywords] = useState<(Keyword & { on: boolean })[]>([]);
   const [exclusions, setExclusions] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState("");
@@ -164,8 +173,34 @@ export function ResearchChat({
     }
   }
 
+  // Leaving the page ends a plan still in progress.
+  useEffect(() => () => planAbort.current?.controller.abort(), []);
+
+  function stopPlanTimers() {
+    planAbort.current?.timers.forEach((timer) => window.clearTimeout(timer));
+    planAbort.current = null;
+    setSlow(false);
+  }
+
   function understand(message: Sent, regionChoice: RegionChoice, goalChoice: Goal | null = goal) {
     const id = ++planRequest.current;
+    planAbort.current?.controller.abort();
+    stopPlanTimers();
+    const controller = new AbortController();
+    let timedOut = false;
+    planAbort.current = {
+      controller,
+      timers: [
+        window.setTimeout(() => {
+          setSlow(true);
+          void logEventAction({ name: "plan_slow", source: "chat" }).catch(() => {});
+        }, PLAN_SLOW_MS),
+        window.setTimeout(() => {
+          timedOut = true;
+          controller.abort();
+        }, PLAN_GIVE_UP_MS),
+      ],
+    };
     setPhase("thinking");
     setDraft(null);
     let finished = false;
@@ -184,9 +219,13 @@ export function ResearchChat({
         if (id !== planRequest.current) return;
         if (event.type === "draft") return setDraft(event.plan);
         finished = true;
+        stopPlanTimers();
         setReplanning(false);
         setDraft(null);
-        if (event.type === "error") return setPhase("error");
+        if (event.type === "error") {
+          void logEventAction({ name: "send_failed", source: "chat", props: { stage: "plan", reason: "ai" } }).catch(() => {});
+          return setPhase("error");
+        }
         const u = event.understanding;
         if (event.linkRead === false) toast.info(t("linkFailed"));
         if (u.source === "sample") toast.info(t("sampleNotice"));
@@ -194,14 +233,18 @@ export function ResearchChat({
         setGoal(u.goal);
         setKeywords(u.keywords.map((k) => ({ ...k, on: true })));
         setExclusions(u.exclusions);
+        runRequestId.current = crypto.randomUUID();
         setPhase("plan");
       },
+      controller.signal,
     )
       .catch(() => {})
       .finally(() => {
         if (finished || id !== planRequest.current) return;
+        stopPlanTimers();
         setReplanning(false);
         setDraft(null);
+        void logEventAction({ name: timedOut ? "plan_timeout" : "send_failed", source: "chat", props: { stage: "plan", reason: timedOut ? "timeout" : "network" } }).catch(() => {});
         setPhase("error");
       });
   }
@@ -311,9 +354,12 @@ export function ResearchChat({
 
   function run() {
     if (!sent || !plan || !selected.length) return;
+    runRequestId.current ??= crypto.randomUUID();
+    const requestId = runRequestId.current;
     setPhase("running");
     startTransition(async () => {
       const res = await runResearchAction({
+        requestId,
         text: sent.text,
         url: sent.link ?? "",
         imageThumb: sent.thumb,
@@ -335,7 +381,12 @@ export function ResearchChat({
       }).catch(() => null);
       if (res?.ok) return router.push(`/app/research/${res.runId}`);
       if (res?.runId) return router.push(`/app/research/${res.runId}`);
-      toast.error(res?.error === "limit" ? t("errorLimit", { n: RESEARCHES_PER_DAY ?? 0 }) : t("errorRun"));
+      if (res?.error === "limit") toast.error(t("errorLimit", { n: RESEARCHES_PER_DAY ?? 0 }));
+      else {
+        void logEventAction({ name: "run_failed", source: "chat", requestId, props: { reason: res?.error ?? "network" } }).catch(() => {});
+        // Retrying keeps the same request id: if the research did start, this opens it instead of starting another.
+        toast.error(t("errorRun"), { action: { label: t("retry"), onClick: run } });
+      }
       setPhase("plan");
     });
   }
@@ -510,6 +561,14 @@ export function ResearchChat({
               <Loader2 className="size-4 animate-spin" />
               {replanning ? t("goalReplanning") : t(sent.link ? "thinking.link" : sent.image ? "thinking.image" : "thinking.text")}
             </p>
+          )}
+          {phase === "thinking" && slow && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <span>{t("planSlow")}</span>
+              <button type="button" onClick={() => understand(sent, region)} className="chip">
+                <RotateCcw className="size-3.5" /> {t("retry")}
+              </button>
+            </div>
           )}
 
           {phase === "error" && (

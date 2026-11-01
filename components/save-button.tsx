@@ -2,10 +2,12 @@
 
 import { Bookmark, BookmarkCheck, Folder, FolderPlus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createCollectionAction, listCollectionsAction, moveToCollectionAction } from "@/app/[locale]/app/saved/collection-actions";
 import { toggleSaveAction } from "@/app/[locale]/app/saved-actions";
+import { sourceOf } from "@/lib/events";
 
 type FolderItem = { id: string; name: string };
 
@@ -24,6 +26,7 @@ export function SaveButton({ videoId, initialSaved = false }: { videoId: number;
   // Filing has its own pending state: a quick tap right after saving must not hit buttons still disabled by the save.
   const [filing, startFiling] = useTransition();
   const box = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
 
   // Close the picker on a click outside it.
   useEffect(() => {
@@ -36,7 +39,7 @@ export function SaveButton({ videoId, initialSaved = false }: { videoId: number;
   function toggle() {
     startTransition(async () => {
       setSaved(!saved);
-      const res = await toggleSaveAction(videoId, !saved);
+      const res = await toggleSaveAction(videoId, !saved, sourceOf(pathname));
       setSaved(res.saved);
       if (res.saved && !saved) {
         setPicking(true);
