@@ -315,7 +315,7 @@
     },
     "noMatch": "No videos match these filters.",
     "nextTitle": "What next? Ask Reely",
-    "nextScript": "Write my version of @{handle}’s video",
+    "nextScript": "Write a script from @{handle}",
     "nextWorldwide": "Search worldwide instead",
     "nextThailand": "Search Thailand instead",
     "nextEdit": "Edit my request",
@@ -400,7 +400,8 @@
     "nextSteps": "Next steps",
     "moreLikeThis": "Find more like this",
     "followMenu": "Follow",
-    "askFab": "Ask Reely"
+    "askFab": "Ask Reely",
+    "askAttachShort": "Attach a reference clip"
   },
   "card": {
     "save": "Save",

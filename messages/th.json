@@ -313,8 +313,8 @@
       "engagement": "เอนเกจสูงสุด"
     },
     "noMatch": "ไม่มีคลิปที่ตรงกับตัวกรองนี้",
-    "nextTitle": "อยากได้อะไรต่อ? พิมพ์ถาม Reely ได้เลย",
-    "nextScript": "เขียนสคริปต์เวอร์ชันของฉันจากคลิปของ @{handle}",
+    "nextTitle": "อยากได้อะไรต่อ? ถาม Reely ได้เลย",
+    "nextScript": "เขียนสคริปต์จาก @{handle}",
     "nextWorldwide": "ค้นหาจากทั่วโลกแทน",
     "nextThailand": "ค้นหาเฉพาะไทยแทน",
     "nextEdit": "แก้ไขคำขอ",
@@ -399,7 +399,8 @@
     "nextSteps": "ขั้นต่อไป",
     "moreLikeThis": "หาเพิ่มแบบนี้",
     "followMenu": "ติดตาม",
-    "askFab": "ถาม Reely"
+    "askFab": "ถาม Reely",
+    "askAttachShort": "แนบคลิปต้นแบบ"
   },
   "card": {
     "save": "บันทึก",

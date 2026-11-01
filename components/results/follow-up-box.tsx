@@ -119,56 +119,55 @@ export function FollowUpBox({ runId, lead }: { runId: string; lead: string | nul
         </div>
       ))}
 
-      <div className="rounded-3xl border bg-background p-2 focus-within:ring-2 focus-within:ring-primary/30">
-        {(attached || inText) && (
-          <div className="px-1 pb-1.5">
-            {attached ? <ClipChip clip={attached} onRemove={() => setAttachText("")} /> : <ClipChip clip={inText!} />}
-          </div>
-        )}
-        {attaching && !attached && (
-          <input
-            autoFocus
-            type="url"
-            value={attachText}
-            onChange={(e) => setAttachText(e.target.value)}
-            onKeyDown={(e) => e.key === "Escape" && setAttaching(false)}
-            placeholder={t("askAttachPlaceholder")}
-            aria-label={t("askAttach")}
-            className="mb-1.5 h-9 w-full rounded-full bg-muted px-3 text-sm outline-none"
-          />
-        )}
-        <div className="flex items-end gap-1.5">
-          <button
-            type="button"
-            onClick={() => setAttaching((a) => !a)}
-            aria-label={t("askAttach")}
-            title={t("askAttach")}
-            className={`grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted ${attaching || attached ? "text-primary" : ""}`}
-          >
-            <Paperclip className="size-4" />
-          </button>
-          <textarea
-            id="ask-input"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                void ask();
-              }
-            }}
-            rows={2}
-            maxLength={500}
-            placeholder={t("askPlaceholder")}
-            aria-label={t("askPlaceholder")}
-            className="min-h-12 flex-1 resize-none bg-transparent px-1 py-1.5 text-sm outline-none"
-          />
+      <div className="rounded-3xl border bg-background transition focus-within:border-primary/40 focus-within:ring-3 focus-within:ring-primary/10">
+        <textarea
+          id="ask-input"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              void ask();
+            }
+          }}
+          rows={2}
+          maxLength={500}
+          placeholder={t("askPlaceholder")}
+          aria-label={t("askPlaceholder")}
+          className="block w-full resize-none bg-transparent px-4 pt-3 pb-1 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/70"
+        />
+        {/* Toolbar: the reference clip on the left, send on the right. */}
+        <div className="flex items-center gap-2 px-2 pb-2">
+          {attached || inText ? (
+            attached ? <ClipChip clip={attached} onRemove={() => setAttachText("")} /> : <ClipChip clip={inText!} />
+          ) : attaching ? (
+            <input
+              autoFocus
+              type="url"
+              value={attachText}
+              onChange={(e) => setAttachText(e.target.value)}
+              onKeyDown={(e) => e.key === "Escape" && setAttaching(false)}
+              onBlur={() => !attachText.trim() && setAttaching(false)}
+              placeholder={t("askAttachPlaceholder")}
+              aria-label={t("askAttach")}
+              className="h-8 min-w-0 flex-1 rounded-full bg-muted px-3 text-xs outline-none sm:max-w-sm"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAttaching(true)}
+              title={t("askAttach")}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Paperclip className="size-3.5" /> {t("askAttachShort")}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => void ask()}
             disabled={busy || (text.trim().length < 2 && !attached)}
             aria-label={t("askSend")}
-            className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+            className="ml-auto grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
           >
             {busy ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
           </button>
