@@ -26,7 +26,7 @@ const BASELINE_CREATORS = 5;
 
 /**
  * Instagram, creator-first (cost rule 11). Its keyword search is thin, so Reels come from seed accounts' feeds:
- * 2 pages each (~24 reels, 1 credit a page; a missing profile is free), 4 accounts first and up to 10 when the first
+ * 2 pages each (~24 reels, 1 credit a page; a missing profile is free), 4 accounts first (mixed sources) and up to 10 when they
  * ones gave on-topic Reels and the run is still quick, never past IG_CREDIT_CAP Instagram credits in a research
  * (keyword and account searches included). A reel counts at 2x+ its own account's usual views (from 8+ reels), with
  * no absolute floor beyond 1K views; up to 4 per account, then the relevance check.
@@ -35,7 +35,7 @@ const IG_CREDIT_CAP = 25;
 const IG_SEED_PAGES = 2;
 const IG_FIRST_STEP = 4;
 const IG_MAX_ACCOUNTS = 10;
-const IG_SECOND_STEP_AFTER = 3;
+const IG_SECOND_STEP_AFTER = 2;
 const IG_SECOND_STEP_BEFORE_MS = 55_000;
 const IG_PICKS_PER_ACCOUNT = 4;
 const IG_MIN_SAMPLE = 8;
@@ -49,6 +49,20 @@ const IG_CROSS_PLATFORM = 4;
 export type SeedSource = "known" | "search" | "keyword" | "suggested" | "cross";
 type Seed = { handle: string; source: SeedSource; keyword: string };
 const SEED_ORDER: SeedSource[] = ["known", "search", "keyword", "suggested", "cross"];
+
+/**
+ * The accounts read first: known creators (up to 2), then one from each other source in turn (search, keyword,
+ * suggested, cross, again…), so one weak source can't take the whole first step. Measured 2026-11-01: a first step of
+ * 4 account-search results found 1 on-topic Reel for a Thai accounting brief, and the other sources were never tried.
+ */
+export function firstStep<T extends { source: SeedSource }>(seeds: T[], n: number): T[] {
+  const picked: T[] = seeds.filter((s) => s.source === "known").slice(0, Math.min(2, n));
+  const queues = SEED_ORDER.filter((s) => s !== "known").map((source) => seeds.filter((s) => s.source === source));
+  while (picked.length < n && queues.some((q) => q.length)) {
+    for (const q of queues) if (q.length && picked.length < n) picked.push(q.shift()!);
+  }
+  return picked;
+}
 
 /** Seeds best first (known > search > keyword > suggested > cross), each handle once (its best source wins). */
 export function orderSeeds<T extends { handle: string; source: SeedSource }>(seeds: T[]): T[] {
@@ -463,11 +477,11 @@ export async function searchKeywords(
     };
     // Accounts still affordable within the cap (cached accounts cost nothing, so this errs on the safe side).
     const affordable = () => Math.max(0, Math.floor((IG_CREDIT_CAP - creditsSoFar("instagram")) / IG_SEED_PAGES));
-    const step1 = seeds.slice(0, Math.min(IG_FIRST_STEP, affordable()));
+    const step1 = firstStep(seeds, Math.min(IG_FIRST_STEP, affordable()));
     const found1 = await mine(step1);
     if (found1 >= IG_SECOND_STEP_AFTER && Date.now() - started < IG_SECOND_STEP_BEFORE_MS) {
       const room = Math.min(IG_MAX_ACCOUNTS - step1.length, affordable());
-      await mine(seeds.slice(step1.length, step1.length + room));
+      await mine(seeds.filter((s) => !step1.includes(s)).slice(0, room));
     }
     // Brands among the accounts read count as similar products (their own section on the results page).
     for (const s of seeds) {
