@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type AskAnswer, type AskClip, clipTotals, threadMemory } from "./ask";
+import { type AskAnswer, type AskClip, cleanHook, clipTotals, threadMemory, usefulLabel } from "./ask";
 
 const clip = (handle: string, views: number | null, multiplier: number | null, dbId = 1): AskClip => ({
   dbId,
@@ -54,5 +54,31 @@ describe("threadMemory", () => {
   it("names the clip a script was built from", () => {
     const script = { id: "s", clip: clip("c", 1, 1), title: "ฉันรีแบรนด์โซดา", durationSeconds: 30, beats: [], hookType: null, format: null };
     expect(threadMemory([{ question: "เขียนสคริปต์", answer: answer({ kind: "script", script }) }])[1]).toBe('A1 (script): script from @c: "ฉันรีแบรนด์โซดา"');
+  });
+});
+
+describe("cleanHook", () => {
+  it("keeps the first sentence without hashtags or emoji", () => {
+    expect(
+      cleanHook("I created a fully functional hospital management system with Ai 😳🤯🤯 #ai #vibecoding #chatgpt"),
+    ).toBe("I created a fully functional hospital management system with Ai");
+    expect(cleanHook("Want to learn AI Automation? 🤖✨ No coding experience? No problem.")).toBe("Want to learn AI Automation?");
+    expect(cleanHook("ผมจะสร้าง Ai และปล่อยมันทำงานแทน 7 วัน #fyp #Relick #coding")).toBe("ผมจะสร้าง Ai และปล่อยมันทำงานแทน 7 วัน");
+  });
+
+  it("cuts a long line at a word and skips a hashtag-only first line", () => {
+    const long = "COMMENT ‘42’ for the complete AI agent org chart 👇 I built an AI sales team with 42 specialized agents and here is how the team looks";
+    const out = cleanHook(long);
+    expect(out.length).toBeLessThanOrEqual(111);
+    expect(out.endsWith("…")).toBe(true);
+    expect(cleanHook("#ai #tools\nThis app writes my emails")).toBe("This app writes my emails");
+  });
+});
+
+describe("usefulLabel", () => {
+  it("drops placeholder labels", () => {
+    expect(usefulLabel("unknown")).toBe("");
+    expect(usefulLabel(" - ")).toBe("");
+    expect(usefulLabel("talking head")).toBe("talking head");
   });
 });

@@ -72,3 +72,29 @@ export function threadMemory(turns: Pick<AskTurn, "question" | "answer">[], keep
     return [`Q${n}: ${short(question, 200)}`, `A${n} (${a.kind}): ${list}`];
   });
 }
+
+/**
+ * A caption is not a hook: keep its first sentence or line, without hashtags, @mentions or trailing emoji, cut at a
+ * word near 110 characters. Thai has no sentence dots, so a long Thai line is cut at a space.
+ */
+export function cleanHook(text: string, max = 110): string {
+  const firstLine = text.split(/\n/).find((l) => l.replace(/[#@][\p{L}\p{M}\p{N}_.]+/gu, "").trim()) ?? text;
+  let hook = firstLine
+    .replace(/[#@][\p{L}\p{M}\p{N}_.]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const sentence = hook.match(/^.{12,}?[.!?…](?=\s|$)/u)?.[0];
+  if (sentence) hook = sentence;
+  if (hook.length > max) {
+    const cut = hook.slice(0, max);
+    const space = cut.lastIndexOf(" ");
+    hook = `${(space > max * 0.6 ? cut.slice(0, space) : cut).trim()}…`;
+  }
+  return hook.replace(/[\s\p{Extended_Pictographic}‍️.,:;-]+$/u, (m) => (m.includes("…") ? "…" : "")).trim();
+}
+
+/** A tag worth showing: not empty, "unknown", "none", "-" or "n/a". */
+export function usefulLabel(label: string | null | undefined): string {
+  const l = (label ?? "").trim();
+  return /^(unknown|none|n\/a|-|other|ไม่ทราบ|ไม่มี)$/i.test(l) ? "" : l;
+}

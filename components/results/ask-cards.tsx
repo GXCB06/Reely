@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { PlatformIcon } from "@/components/platform-icon";
 import { Thumb } from "@/components/thumb";
 import { Link } from "@/i18n/navigation";
-import { type AskClip, type AskHook, type AskScript, clipTotals, STANDOUT_MULTIPLIER } from "@/lib/ask";
+import { type AskClip, type AskHook, type AskScript, cleanHook, clipTotals, STANDOUT_MULTIPLIER, usefulLabel } from "@/lib/ask";
 import { formatMultiplier } from "@/lib/scoring";
 
 function useCompact() {
@@ -88,11 +88,13 @@ export function HookList({ hooks, onScript, busy }: { hooks: AskHook[]; onScript
           </Link>
           <div className="min-w-0 flex-1 space-y-1.5">
             <p className="text-sm leading-snug font-semibold">
-              <span className="mr-1 text-muted-foreground">{i + 1}.</span>“{h.hook}”
+              <span className="mr-1 text-muted-foreground">{i + 1}.</span>“{cleanHook(h.hook)}”
             </p>
             <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-              {h.hookType && <span className="rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary uppercase">{h.hookType}</span>}
-              {h.format && <span className="rounded-full bg-muted px-2 py-0.5 font-medium">{h.format}</span>}
+              {usefulLabel(h.hookType) && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary uppercase">{usefulLabel(h.hookType)}</span>
+              )}
+              {usefulLabel(h.format) && <span className="rounded-full bg-muted px-2 py-0.5 font-medium">{usefulLabel(h.format)}</span>}
               <span className="text-muted-foreground">
                 @{h.clip.handle}
                 {h.clip.views !== null && <> · {t("views", { n: compact(h.clip.views) })}</>}
@@ -148,8 +150,8 @@ export function ScriptCard({ script }: { script: AskScript }) {
           </p>
           <div className="flex flex-wrap gap-1.5 text-[11px]">
             <span className="rounded-full bg-muted px-2 py-0.5">{t("seconds", { n: script.durationSeconds })}</span>
-            {script.hookType && <span className="rounded-full bg-muted px-2 py-0.5">{script.hookType}</span>}
-            {script.format && <span className="rounded-full bg-muted px-2 py-0.5">{script.format}</span>}
+            {usefulLabel(script.hookType) && <span className="rounded-full bg-muted px-2 py-0.5">{usefulLabel(script.hookType)}</span>}
+            {usefulLabel(script.format) && <span className="rounded-full bg-muted px-2 py-0.5">{usefulLabel(script.format)}</span>}
           </div>
         </div>
       </div>
