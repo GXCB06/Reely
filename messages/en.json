@@ -316,7 +316,6 @@
     "noMatch": "No videos match these filters.",
     "nextTitle": "What next? Ask Reely",
     "nextScript": "Write my version of @{handle}’s video",
-    "nextTrack": "Track @{handle}",
     "nextWorldwide": "Search worldwide instead",
     "nextThailand": "Search Thailand instead",
     "nextEdit": "Edit my request",
@@ -380,21 +379,28 @@
     "recheckDone": "Done: removed {n, plural, one {# off-topic clip} other {# off-topic clips}}",
     "recheckBusy": "Gemini is still busy. Try again in a little while.",
     "recheckFailed": "Couldn't check the clips. Try again.",
-    "shortcutsTitle": "Or pick a shortcut",
-    "askPlaceholder": "e.g. Which clip suits working women? Or paste a Reel / TikTok link and write \"find clips like this\"",
+    "askPlaceholder": "Ask anything, e.g. which clips suit working women?",
     "askSend": "Send",
     "askThinking": "Reely is looking through this research…",
     "askFailed": "Couldn't answer right now. Try again in a moment.",
     "askResearch": "Search for this",
     "askStarter": {
+      "whyLead": "Why did @{handle}'s clip take off?",
       "first": "Which clip should I make first, and why?",
-      "why": "What do these hits have in common?",
-      "more": "Find more clips like…",
-      "like": "Find clips like this one: (paste a Reel / TikTok link)"
+      "why": "What do these hits have in common?"
     },
     "askReference": "Reference",
     "recheckAuto": "The AI was busy during the search, so off-topic clips weren't filtered yet. Filtering them now, for free…",
-    "fromAccounts": "incl. {n} from Thai Instagram accounts found by search"
+    "fromAccounts": "incl. {n} from Thai Instagram accounts found by search",
+    "askClipChip": "Reference clip: {what}",
+    "askClipRemove": "Remove the reference clip",
+    "askClipDefault": "Find clips like this one",
+    "askAttach": "Attach a Reel / TikTok link as a reference",
+    "askAttachPlaceholder": "Paste a Reel or TikTok link",
+    "nextSteps": "Next steps",
+    "moreLikeThis": "Find more like this",
+    "followMenu": "Follow",
+    "askFab": "Ask Reely"
   },
   "card": {
     "save": "Save",
@@ -407,7 +413,6 @@
     "play": "Play clip"
   },
   "video": {
-    "back": "Home",
     "openOriginal": "Open original",
     "likes": "likes",
     "comments": "comments",
@@ -482,7 +487,6 @@
     "goal": "Clips for",
     "goalHint": "Reely uses this to pick keywords, filter clips and write ideas that fit what you'll make.",
     "addTitle": "Add a product",
-    "close": "Close",
     "edit": "Edit",
     "fillTitle": "Paste the website and let Reely fill it in",
     "fill": "Fill in",
@@ -498,7 +502,17 @@
     "openPlan": "Open 7-day plan",
     "makePlan": "Make a 7-day plan",
     "countOf": "{n} of {max} products",
-    "emptyList": "No products yet. Add your first one above, then research it in one tap."
+    "emptyList": "No products yet. Add your first one above, then research it in one tap.",
+    "sheet": {
+      "titleEdit": "Edit {name}",
+      "cancel": "Cancel",
+      "discard": "Discard unsaved changes?",
+      "filledEmpty": "Filled in the empty fields. Check them, then save.",
+      "fillHintEdit": "Reely reads the page and fills only the empty fields; nothing you typed is replaced (no credits).",
+      "sectionBasics": "Basics",
+      "sectionAudience": "Audience and goal",
+      "sectionCompetitors": "Competitors"
+    }
   },
   "script": {
     "needProduct": "Add your product first, so Reely can adapt this video for you.",
@@ -850,5 +864,15 @@
     "copied": "Copied. Paste it into Claude or ChatGPT.",
     "failed": "Couldn't export. Try again.",
     "aiTip": "The Markdown file ends with a starter prompt that asks the AI to write scripts only from the real clips and say which clip each borrows from."
+  },
+  "backTo": {
+    "results": "Back to results",
+    "saved": "Back to Saved",
+    "tracking": "Back to Tracking",
+    "plan": "Back to the 7-day plan",
+    "today": "Back to Today",
+    "other": "Back",
+    "research": "Go to the research",
+    "home": "Home"
   }
 }

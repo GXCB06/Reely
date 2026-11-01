@@ -1,7 +1,8 @@
-import { ArrowLeft, ExternalLink, Flame, Search } from "lucide-react";
+import { ExternalLink, Flame, Search } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
+import { BackLink } from "@/components/back-link";
 import { OutlierCard } from "@/components/outlier-card";
 import { SaveButton } from "@/components/save-button";
 import { ClipPlayer } from "@/components/clip-player";
@@ -117,6 +118,7 @@ export default async function VideoPage({ params, searchParams }: PageProps<"/[l
   setRequestLocale(locale);
   const t = await getTranslations("video");
   const ts = await getTranslations("search");
+  const tb = await getTranslations("backTo");
   const format = await getFormatter();
   const supabase = await createClient();
 
@@ -125,7 +127,7 @@ export default async function VideoPage({ params, searchParams }: PageProps<"/[l
   const { data: video } = await supabase.from("videos").select("*").eq("id", videoId).maybeSingle<VideoRow>();
   if (!video) notFound();
 
-  const [{ data: creator }, { data: savedRow }, { data: product }, { data: scripts }, { data: trackedRow }, { data: transcript }, { data: analysis }] = await Promise.all([
+  const [{ data: creator }, { data: savedRow }, { data: product }, { data: scripts }, { data: trackedRow }, { data: transcript }, { data: analysis }, { data: latestRun }] = await Promise.all([
     supabase.from("creators").select("usual_views").eq("platform", video.platform).eq("handle", video.creator_handle).maybeSingle(),
     supabase.from("saved_videos").select("video_id").eq("video_id", videoId).maybeSingle(),
     supabase.from("products").select("id, name, goal").order("created_at"),
@@ -134,6 +136,8 @@ export default async function VideoPage({ params, searchParams }: PageProps<"/[l
     supabase.from("video_transcripts").select("status, segments, breakdowns").eq("video_id", videoId).maybeSingle(),
     // The clip's breakdown (when already made): "find more like this" then searches by its format and hook, not just its words.
     supabase.from("video_analyses").select("format, hook_type").eq("video_id", videoId).maybeSingle(),
+    // Where "back" goes when the clip was opened directly: the user's latest research that found it.
+    supabase.from("run_results").select("run_id, research_runs!inner(created_at)").eq("video_id", videoId).order("research_runs(created_at)", { ascending: false }).limit(1).maybeSingle(),
   ]);
   // The real hook, when anyone has read this clip's transcript before (shared, so it shows at once).
   const hookInitial =
@@ -161,9 +165,10 @@ export default async function VideoPage({ params, searchParams }: PageProps<"/[l
 
   return (
     <div className="px-4 md:px-10 py-8">
-      <Link href="/app" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> {t("back")}
-      </Link>
+      <BackLink
+        fallbackHref={latestRun ? `/app/research/${latestRun.run_id}` : "/app"}
+        fallbackLabel={latestRun ? tb("research") : tb("home")}
+      />
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[320px_1fr]">
         <aside className="space-y-4">

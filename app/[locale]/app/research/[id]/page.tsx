@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronDown, ChevronUp, Eye, Globe, Layers, PenLine, Radar, RotateCcw, Sparkles, Target, ThumbsUp } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronUp, Eye, Globe, Layers, PenLine, Radar, RotateCcw, Search, Sparkles, Target, ThumbsUp } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { ReelyBubble, UserBubble } from "@/components/chat/research-chat";
@@ -7,6 +7,7 @@ import { OutlierCard } from "@/components/outlier-card";
 import { PlatformIcon } from "@/components/platform-icon";
 import { FilterBar } from "@/components/results/filter-bar";
 import { FollowTopicButton } from "@/components/results/follow-topic-button";
+import { AskFab } from "@/components/results/ask-fab";
 import { ExportDialog } from "@/components/results/export-dialog";
 import { FollowUpBox } from "@/components/results/follow-up-box";
 import { TrackButton } from "@/components/tracking/track-button";
@@ -348,38 +349,60 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
         )}
 
         {run.status !== "running" && (
-          <section className="mx-auto max-w-3xl">
+          <section id="ask" className="mx-auto max-w-3xl scroll-mt-6">
             <ReelyBubble>
               <p className="mb-3 text-sm font-semibold">{t("nextTitle")}</p>
-              <FollowUpBox runId={run.id as string} />
-              <p className="mt-4 mb-2 text-xs font-semibold text-muted-foreground">{t("shortcutsTitle")}</p>
+              <FollowUpBox runId={run.id as string} lead={lead?.creatorHandle ?? null} />
+              {/* At most 4 next steps; "more like this" and "follow" open a small menu. */}
+              <p className="mt-5 mb-2 text-xs font-semibold text-muted-foreground">{t("nextSteps")}</p>
               <div className="flex flex-wrap gap-2">
-                <FollowTopicButton runId={run.id as string} initialFollowed={run.followed_at !== null} />
                 {lead?.dbId && (
                   <Link href={`/app/video/${lead.dbId}`} className="chip">
                     <PenLine className="size-3.5" /> {t("nextScript", { handle: lead.creatorHandle })}
                   </Link>
                 )}
-                {lead?.dbId && (
-                  <Link href={`/app/format/${lead.dbId}`} className="chip">
-                    <Layers className="size-3.5" /> {t("nextFormat")}
-                  </Link>
-                )}
-                {lead && lead.platform !== "instagram" && lead.dbId && (
-                  <Link href={`/app/video/${lead.dbId}`} className="chip">
-                    <Radar className="size-3.5" /> {t("nextTrack", { handle: lead.creatorHandle })}
-                  </Link>
-                )}
-                {region !== "global" && (
-                  <Link href={again("global")} className="chip">
-                    <Globe className="size-3.5" /> {t("nextWorldwide")}
-                  </Link>
-                )}
-                {region !== "th" && (
-                  <Link href={again("th")} className="chip">
-                    <RegionIcon region="th" /> {t("nextThailand")}
-                  </Link>
-                )}
+                <details className="group relative">
+                  <summary className="chip list-none">
+                    <Search className="size-3.5" /> {t("moreLikeThis")}
+                    <ChevronDown className="size-3.5 opacity-60 transition group-open:rotate-180" />
+                  </summary>
+                  <div className="absolute z-20 mt-2 flex min-w-48 flex-col rounded-xl border bg-popover p-1 shadow-lg">
+                    {lead?.dbId && (
+                      <Link href={`/app/format/${lead.dbId}`} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted">
+                        <Layers className="size-3.5" /> {t("nextFormat")}
+                      </Link>
+                    )}
+                    {region !== "global" && (
+                      <Link href={again("global")} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted">
+                        <Globe className="size-3.5" /> {t("nextWorldwide")}
+                      </Link>
+                    )}
+                    {region !== "th" && (
+                      <Link href={again("th")} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted">
+                        <RegionIcon region="th" /> {t("nextThailand")}
+                      </Link>
+                    )}
+                  </div>
+                </details>
+                <details className="group relative">
+                  <summary className="chip list-none">
+                    <Radar className="size-3.5" /> {t("followMenu")}
+                    <ChevronDown className="size-3.5 opacity-60 transition group-open:rotate-180" />
+                  </summary>
+                  <div className="absolute z-20 mt-2 flex min-w-56 flex-col items-start gap-2 rounded-xl border bg-popover p-3 shadow-lg">
+                    <FollowTopicButton runId={run.id as string} initialFollowed={run.followed_at !== null} />
+                    {lead && (
+                      <span className="inline-flex items-center gap-2 text-sm">
+                        <PlatformIcon platform={lead.platform} className="size-3.5" /> @{lead.creatorHandle}
+                        <TrackButton
+                          platform={lead.platform}
+                          handle={lead.creatorHandle}
+                          initialTracked={trackedKeys.has(`${lead.platform}:${lead.creatorHandle}`)}
+                        />
+                      </span>
+                    )}
+                  </div>
+                </details>
                 <Link href={`/app?${new URLSearchParams({ q: input?.text || run.brief })}`} className="chip">
                   <RotateCcw className="size-3.5" /> {t("nextEdit")}
                 </Link>
@@ -387,6 +410,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
             </ReelyBubble>
           </section>
         )}
+        {run.status !== "running" && <AskFab />}
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { setRequestLocale } from "next-intl/server";
+import { NavMemory } from "@/components/back-link";
 import { type RecentRun, Sidebar } from "@/components/shell/sidebar";
 import { redirect } from "@/i18n/navigation";
 import { isSupabaseConfigured } from "@/lib/env";
@@ -41,6 +42,7 @@ export default async function AppLayout({ children, params }: LayoutProps<"/[loc
 
   return (
     <div className="flex min-h-dvh items-start bg-sidebar">
+      <NavMemory />
       <Sidebar email={email} recent={recent} onSignOut={email ? signOut : undefined} />
       <main className="mx-2 mt-16 mb-2 min-w-0 flex-1 overflow-hidden rounded-3xl bg-background md:my-2 md:mr-2 md:ml-0">
         {!isSupabaseConfigured() && (

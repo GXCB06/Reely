@@ -1,32 +1,62 @@
 "use client";
 
-import { ArrowUp, Flame, Loader2, Search } from "lucide-react";
+import { ArrowUp, Flame, Loader2, Paperclip, Search, X } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { type FollowUpReply, followUpAction } from "@/app/[locale]/app/research/actions";
+import { PlatformIcon } from "@/components/platform-icon";
 import { Thumb } from "@/components/thumb";
 import { Link } from "@/i18n/navigation";
+import { type ClipLink, parseClipLink } from "@/lib/clip-link";
 import { formatMultiplier } from "@/lib/scoring";
 
 type Turn = { question: string; answer: FollowUpReply | "failed" | null };
 
+/** "@handle" for a TikTok link, "Reel" for Instagram (no lookup, so nothing is spent before sending). */
+function ClipChip({ clip, onRemove }: { clip: ClipLink; onRemove?: () => void }) {
+  const t = useTranslations("results");
+  const handle = clip.url.match(/tiktok\.com\/(@[\w.-]+)/i)?.[1];
+  return (
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-accent py-1 pr-1.5 pl-2 text-xs text-accent-foreground">
+      <PlatformIcon platform={clip.platform} className="size-3.5" />
+      <span className="truncate">{t("askClipChip", { what: handle ?? (clip.platform === "instagram" ? "Reel" : "TikTok") })}</span>
+      {onRemove && (
+        <button type="button" onClick={onRemove} aria-label={t("askClipRemove")} className="rounded-full p-0.5 hover:bg-background/60">
+          <X className="size-3" />
+        </button>
+      )}
+    </span>
+  );
+}
+
 /**
- * "Ask Reely about these results": the user writes what they want next. Reely answers from this research's clips
- * (citing them) or proposes a new search they can start. Starter questions only fill the box, so they can edit.
+ * "Ask Reely about these results": the user writes what they want next, or taps a suggested question (which sends at
+ * once). Reely answers from this research's clips (citing them) or proposes a new search they can start. A Reel or
+ * TikTok link, attached with 📎 or pasted into the box, becomes the reference clip.
  */
-export function FollowUpBox({ runId }: { runId: string }) {
+export function FollowUpBox({ runId, lead }: { runId: string; lead: string | null }) {
   const t = useTranslations("results");
   const format = useFormatter();
   const locale = useLocale();
   const [text, setText] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const busy = turns.at(-1)?.answer === null;
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [attaching, setAttaching] = useState(false);
+  const [attachText, setAttachText] = useState("");
+  const attached = parseClipLink(attachText);
+  const inText = parseClipLink(text);
+  const starters = [...(lead ? [t("askStarter.whyLead", { handle: lead })] : []), t("askStarter.first"), t("askStarter.why")];
 
-  async function ask() {
-    const question = text.trim();
+  async function ask(override?: string) {
+    const typed = (override ?? text).trim();
+    const clip = override ? null : attached;
+    const question = clip ? `${typed || t("askClipDefault")}\n${clip.url}` : typed;
     if (question.length < 2 || busy) return;
-    setText("");
+    if (!override) {
+      setText("");
+      setAttachText("");
+      setAttaching(false);
+    }
     setTurns((ts) => [...ts, { question, answer: null }]);
     const res = await followUpAction(runId, question, locale).catch(() => null);
     setTurns((ts) => ts.map((x, i) => (i === ts.length - 1 ? { ...x, answer: res?.ok ? res : "failed" } : x)));
@@ -89,45 +119,71 @@ export function FollowUpBox({ runId }: { runId: string }) {
         </div>
       ))}
 
-      <div className="flex items-end gap-2 rounded-3xl border bg-background p-2 focus-within:ring-2 focus-within:ring-primary/30">
-        <textarea
-          ref={inputRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              void ask();
-            }
-          }}
-          rows={2}
-          maxLength={500}
-          placeholder={t("askPlaceholder")}
-          aria-label={t("askPlaceholder")}
-          className="min-h-12 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none"
-        />
-        <button
-          type="button"
-          onClick={() => void ask()}
-          disabled={busy || text.trim().length < 2}
-          aria-label={t("askSend")}
-          className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
-        >
-          {busy ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
-        </button>
+      <div className="rounded-3xl border bg-background p-2 focus-within:ring-2 focus-within:ring-primary/30">
+        {(attached || inText) && (
+          <div className="px-1 pb-1.5">
+            {attached ? <ClipChip clip={attached} onRemove={() => setAttachText("")} /> : <ClipChip clip={inText!} />}
+          </div>
+        )}
+        {attaching && !attached && (
+          <input
+            autoFocus
+            type="url"
+            value={attachText}
+            onChange={(e) => setAttachText(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && setAttaching(false)}
+            placeholder={t("askAttachPlaceholder")}
+            aria-label={t("askAttach")}
+            className="mb-1.5 h-9 w-full rounded-full bg-muted px-3 text-sm outline-none"
+          />
+        )}
+        <div className="flex items-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => setAttaching((a) => !a)}
+            aria-label={t("askAttach")}
+            title={t("askAttach")}
+            className={`grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted ${attaching || attached ? "text-primary" : ""}`}
+          >
+            <Paperclip className="size-4" />
+          </button>
+          <textarea
+            id="ask-input"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                void ask();
+              }
+            }}
+            rows={2}
+            maxLength={500}
+            placeholder={t("askPlaceholder")}
+            aria-label={t("askPlaceholder")}
+            className="min-h-12 flex-1 resize-none bg-transparent px-1 py-1.5 text-sm outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => void ask()}
+            disabled={busy || (text.trim().length < 2 && !attached)}
+            aria-label={t("askSend")}
+            className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+          >
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
+          </button>
+        </div>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        {(["first", "why", "more", "like"] as const).map((k) => (
+        {starters.map((q) => (
           <button
-            key={k}
+            key={q}
             type="button"
-            onClick={() => {
-              setText(t(`askStarter.${k}`));
-              inputRef.current?.focus();
-            }}
-            className="rounded-full border px-3 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+            disabled={busy}
+            onClick={() => void ask(q)}
+            className="rounded-full border px-3 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
           >
-            {t(`askStarter.${k}`)}
+            {q}
           </button>
         ))}
       </div>
