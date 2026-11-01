@@ -1,9 +1,9 @@
 import "server-only";
 import { planWeek, type PlanClip } from "@/lib/ai/tasks";
 import { type ResultRow, type VideoRow, videoFromResultRow, videoFromRow } from "@/lib/db-mappers";
-import { withFeedback } from "@/lib/feedback";
+import { bestOrder } from "@/lib/ranking";
 import { loadFeedback } from "@/lib/feedback-store";
-import { isGoal, scoreFor } from "@/lib/goals";
+import { isGoal } from "@/lib/goals";
 import { diverseTop } from "@/lib/results";
 import type { ScoredVideo } from "@/lib/search";
 import type { createClient } from "@/lib/supabase/server";
@@ -44,13 +44,13 @@ export async function buildPlan(supabase: Supabase, productId: string, locale: s
   const [{ data: picked }, { data: resultRows }] = await Promise.all([
     likedIds.length + savedIds.length ? supabase.from("videos").select("*").in("id", [...likedIds, ...savedIds]) : Promise.resolve({ data: [] }),
     lastRun
-      ? supabase.from("run_results").select("keyword, reach_score, usual_score, usual_views, label, copyable, videos(*)").eq("run_id", lastRun.id).order("rank")
+      ? supabase.from("run_results").select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, videos(*)").eq("run_id", lastRun.id).order("rank")
       : Promise.resolve({ data: [] }),
   ]);
   const byId = new Map(((picked ?? []) as VideoRow[]).map((v) => [v.id, v]));
   const asVideo = (v: VideoRow) => videoFromRow(v, { reach: null, usual: null, usualViews: null, label: "normal" });
   const research = ((resultRows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null);
-  const best = diverseTop(research, 12, 2, withFeedback<ScoredVideo>(scoreFor(goal), feedback));
+  const best = diverseTop(research, 12, 2, bestOrder(goal, feedback));
 
   const candidates: { video: ScoredVideo; source: PlanClip["source"] }[] = [];
   const seen = new Set<number>();

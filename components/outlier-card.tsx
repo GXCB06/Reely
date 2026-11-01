@@ -1,4 +1,4 @@
-import { Bookmark, Clapperboard, Eye, Flame, Heart, Layers, Lightbulb, MessageCircle, Music2, Share2, ShoppingBag, Users } from "lucide-react";
+import { BadgeCheck, Bookmark, Clapperboard, Eye, Flame, Heart, Layers, Lightbulb, MessageCircle, Music2, Share2, ShoppingBag, Users } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { PlatformIcon } from "@/components/platform-icon";
 import { SaveButton } from "@/components/save-button";
@@ -146,6 +146,12 @@ export async function OutlierCard({
             </>
           )}
         </p>
+        {/* What this account mostly posts (AI, when the research rated its accounts): why it is worth learning from. */}
+        {video.creatorWhy && (video.creatorFit ?? 0) >= 1 && (
+          <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground" title={video.creatorWhy}>
+            {video.creatorFit === 2 && <BadgeCheck className="size-3 shrink-0 text-emerald-600" />} {video.creatorWhy}
+          </p>
+        )}
         {variant === "grid" && video.sound && !video.sound.original && (
           <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground" title={video.sound.title}>
             <Music2 className="size-3 shrink-0" /> {video.sound.title}

@@ -19,11 +19,11 @@ import { ScoreExplainer } from "@/components/results/score-explainer";
 import { Link } from "@/i18n/navigation";
 import type { RunSummary } from "@/lib/ai/schemas";
 import type { AskAnswer, AskTurn } from "@/lib/ask";
+import { bestOrder } from "@/lib/ranking";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
 import { applyFilters, diverseTop, parseFilters, type PlatformTab } from "@/lib/results";
-import { withFeedback } from "@/lib/feedback";
 import { loadFeedback } from "@/lib/feedback-store";
-import { isGoal, scoreFor } from "@/lib/goals";
+import { isGoal } from "@/lib/goals";
 import type { RegionChoice } from "@/lib/region";
 import { runTotals } from "@/lib/run-stats";
 import type { DropReason, PlatformStats, ScoredVideo, SimilarAccount } from "@/lib/search";
@@ -62,7 +62,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
       .maybeSingle(),
     supabase
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, copyable, added_at, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, added_at, videos(*)")
       .eq("run_id", id)
       .order("rank"),
     supabase.from("saved_videos").select("video_id"),
@@ -79,7 +79,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   // Videos added by "update with new videos" (well after the research was created) are marked new.
   // "Best" = best for what the user wants the clips for (plain best on researches made before goals).
   const goal = isGoal(run.goal) ? run.goal : null;
-  const score = withFeedback<ScoredVideo>(scoreFor(goal), feedback);
+  const score = bestOrder(goal, feedback);
   const feedbackFor = (v: ScoredVideo) =>
     run.product_id && v.dbId ? { productId: run.product_id as string, vote: votes.get(v.dbId) ?? null } : undefined;
   const createdAt = new Date(run.created_at as string).getTime();

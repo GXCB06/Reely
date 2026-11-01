@@ -45,7 +45,7 @@ export async function HomeDashboard({ productId = null }: { productId?: string |
   const pickedRuns = picked ? (runs ?? []).filter((r) => r.product_id === picked.id).map((r) => r.id as string) : null;
   let resultsQuery = supabase
     .from("run_results")
-    .select("keyword, reach_score, usual_score, usual_views, label, copyable, added_at, videos(*)")
+    .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, added_at, videos(*)")
     .gte("added_at", recentSince())
     .order("added_at", { ascending: false })
     .limit(RECENT_RESULTS);

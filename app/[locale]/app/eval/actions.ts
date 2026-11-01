@@ -6,9 +6,11 @@ import { modelName } from "@/lib/ai/model";
 import { judgeRelevance } from "@/lib/ai/tasks";
 import { EVAL_PLATFORMS, JUDGE_CLIPS, creatorItem, topClips, topCreators } from "@/lib/eval";
 import { loadEvalBrief } from "@/lib/eval-data";
+import { isGoal } from "@/lib/goals";
 import { isOwner } from "@/lib/limits";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { runResearchAction } from "../research/actions";
 
 /** Every action here is for owners only (REELY_OWNER_EMAILS) and uses the service role after that check. */
 async function ownerAdmin() {
@@ -161,4 +163,60 @@ export async function addBriefsAction(ids: string[], core: boolean) {
     .upsert(parsed.data.map((run_id) => ({ run_id, core })), { onConflict: "run_id" });
   refresh();
   return { ok: !error };
+}
+
+/**
+ * Re-runs a test brief with the same product, goal, region, platforms, settings and KEYWORDS (so the comparison is the
+ * search, not the keyword planner) and adds the new research to the set, linked to the original. Spends credits like
+ * any research (~30-40), so the page asks first.
+ */
+export async function rerunBriefAction(id: string, lang: string) {
+  const admin = await ownerAdmin();
+  const parsed = z.object({ id: runId, lang: z.enum(["th", "en"]) }).safeParse({ id, lang });
+  if (!admin || !parsed.success) return { ok: false as const, error: "invalid" as const };
+  const { data: run } = await admin
+    .from("research_runs")
+    .select("id, brief, keywords, keyword_regions, keyword_english, exclusions, platforms, region, goal, settings, input, product_id")
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+  if (!run || !isGoal(run.goal)) return { ok: false as const, error: "noGoal" as const };
+  const input = (run.input ?? {}) as { text?: string; url?: string | null; productName?: string; whatItIs?: string; audience?: string; reply?: string; competitors?: string[] };
+  const keywords = ((run.keywords as string[]) ?? []).map((text, i) => ({
+    text,
+    region: (((run.keyword_regions as string[] | null) ?? [])[i] === "global" ? "global" : "th") as "th" | "global",
+    english: ((run.keyword_english as string[] | null) ?? [])[i] || undefined,
+  }));
+  const settings = (run.settings ?? {}) as { days?: number; minViews?: number; language?: string };
+  const res = await runResearchAction({
+    requestId: crypto.randomUUID(),
+    text: (input.text ?? run.brief ?? "").slice(0, 1000),
+    url: input.url ?? "",
+    imageThumb: null,
+    understanding: {
+      productName: (input.productName || "Product").slice(0, 80),
+      whatItIs: (input.whatItIs ?? "").slice(0, 300),
+      audience: (input.audience ?? "").slice(0, 200),
+      reply: (input.reply ?? "").slice(0, 400),
+      competitors: (input.competitors ?? []).slice(0, 6),
+    },
+    keywords,
+    exclusions: (run.exclusions as string[]) ?? [],
+    platforms: (run.platforms as ("tiktok" | "youtube" | "instagram")[]) ?? ["tiktok", "youtube"],
+    region: (run.region as "th" | "global" | "both") ?? "th",
+    goal: run.goal,
+    settings: {
+      days: ([7, 30, 90].includes(settings.days ?? 90) ? settings.days : 90) as 7 | 30 | 90,
+      minViews: settings.minViews ?? 10_000,
+      language: (["any", "th", "en"].includes(settings.language ?? "any") ? settings.language : "any") as "any" | "th" | "en",
+    },
+    productId: (run.product_id as string | null) ?? null,
+    locale: parsed.data.lang,
+  }).catch((e: Error) => {
+    console.error("[eval] re-run failed", e.message);
+    return null;
+  });
+  if (!res?.runId) return { ok: false as const, error: (res && "error" in res ? res.error : "failed") as string };
+  await admin.from("eval_briefs").upsert({ run_id: res.runId, parent_run_id: parsed.data.id, core: false }, { onConflict: "run_id" });
+  refresh();
+  return { ok: true as const, runId: res.runId };
 }

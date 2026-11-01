@@ -359,7 +359,8 @@
       "old": "older than the time window",
       "language": "other language",
       "excluded": "words you filtered out",
-      "offTopic": "not about your product"
+      "offTopic": "not about your product",
+      "offCreator": "from accounts outside your field"
     },
     "tileViews": "Total views",
     "tileAvgViews": "Avg views",
@@ -749,7 +750,8 @@
       "body": "Words on your avoid list are dropped before you ever see them.",
       "dropped": "Dropped before you see them",
       "offTopic": "off-topic videos",
-      "ai": "AI also reads every caption and removes anything that isn’t about your product."
+      "ai": "AI also reads every caption and removes anything that isn’t about your product.",
+      "offCreator": "clips from unrelated accounts"
     },
     "score": {
       "title": "And I score every keeper",
@@ -944,6 +946,18 @@
     "costLine": "{n} credits/useful clip",
     "coreTip": "Core: re-run after big search changes",
     "remove": "Remove from the test set",
-    "topClips": "Top {n} clips + top creators"
+    "topClips": "Top {n} clips + top creators",
+    "rowRerunBefore": "Originals (before)",
+    "rowRerunAfter": "Re-runs (after)",
+    "rerun": "Re-run",
+    "rerunning": "Re-running…",
+    "rerunTip": "Run this research again with the same keywords, to compare before and after a search change (credits as a normal research, ~30–40)",
+    "rerunConfirm": "Re-run this research with the same keywords? About 30–40 credits and ~1 minute.",
+    "rerunDone": "Re-run done and added to the test set",
+    "rerunFailed": "Re-run failed",
+    "rerunNoGoal": "This research has no goal (made before goals), so it can’t be re-run",
+    "rerunOf": "Re-run of: {title}",
+    "judgeAllAgain": "Judge all again ({n})",
+    "judgeAgainConfirm": "Judge all {n} briefs again? (No credits, takes a few minutes.)"
   }
 }

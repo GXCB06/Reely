@@ -1,9 +1,9 @@
 import "server-only";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
+import { bestOrder } from "@/lib/ranking";
 import { type EvalClip, type EvalPlatform, EVAL_PLATFORMS, effectiveLabels, type Label, type LabelRow, type RunStatsLite } from "@/lib/eval";
-import { withFeedback } from "@/lib/feedback";
 import { loadFeedback } from "@/lib/feedback-store";
-import { type Goal, isGoal, scoreFor } from "@/lib/goals";
+import { type Goal, isGoal } from "@/lib/goals";
 import type { ScoredVideo } from "@/lib/search";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
@@ -35,7 +35,7 @@ export async function loadEvalBrief(admin: Admin, runId: string) {
       .maybeSingle(),
     admin
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, copyable, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, videos(*)")
       .eq("run_id", runId)
       .order("rank"),
     admin.from("relevance_labels").select("item, source, label, reason").eq("run_id", runId),
@@ -43,7 +43,7 @@ export async function loadEvalBrief(admin: Admin, runId: string) {
   if (!run) return null;
   const goal = isGoal(run.goal) ? (run.goal as Goal) : null;
   const { feedback } = await loadFeedback(admin as never, run.product_id as string | null);
-  const score = withFeedback<ScoredVideo>(scoreFor(goal), feedback);
+  const score = bestOrder(goal, feedback);
   const videos = ((rows ?? []) as unknown as ResultRow[])
     .map(videoFromResultRow)
     .filter((v): v is ScoredVideo => v !== null && !!v.dbId && (EVAL_PLATFORMS as readonly string[]).includes(v.platform))

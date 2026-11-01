@@ -34,6 +34,9 @@ export type ResultRow = {
   usual_views: number | null;
   label: OutlierLabel | null;
   copyable?: number | null;
+  creator_fit?: number | null;
+  account_type?: string | null;
+  creator_why?: string | null;
   videos: VideoRow | null;
 };
 
@@ -87,5 +90,11 @@ export function videoFromResultRow(r: ResultRow): ScoredVideo | null {
     label: r.label ?? "normal",
     keyword: r.keyword ?? "",
   });
-  return { ...video, copyable: r.copyable ?? null };
+  return {
+    ...video,
+    copyable: r.copyable ?? null,
+    creatorFit: r.creator_fit ?? null,
+    accountType: (r.account_type ?? null) as ScoredVideo["accountType"],
+    creatorWhy: r.creator_why ?? null,
+  };
 }

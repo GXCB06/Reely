@@ -19,6 +19,8 @@ import { BriefCard, type BriefView, type EvalItem } from "./brief-card";
 import { EvalSummary } from "./eval-summary";
 
 const SUGGESTED = 12;
+// "Re-run" runs a whole research from this page.
+export const maxDuration = 120;
 
 /**
  * Owner-only: the relevance test set. Each brief's stored results are judged (strict AI, correctable in one tap) and
@@ -36,7 +38,7 @@ export default async function EvalPage({ params }: PageProps<"/[locale]/app/eval
   const format = await getFormatter();
 
   const [{ data: set }, { data: mine }, { data: snapshots }] = await Promise.all([
-    admin.from("eval_briefs").select("run_id, core, added_at").order("added_at"),
+    admin.from("eval_briefs").select("run_id, core, parent_run_id, added_at").order("added_at"),
     admin
       .from("research_runs")
       .select("id, title, brief, region, platforms, created_at")
@@ -47,16 +49,20 @@ export default async function EvalPage({ params }: PageProps<"/[locale]/app/eval
     admin.from("eval_snapshots").select("note, created_at, metrics").order("created_at", { ascending: false }).limit(1),
   ]);
   const inSet = new Map((set ?? []).map((b) => [b.run_id as string, b.core as boolean]));
+  // A re-run points at the brief it repeats: originals make the main rows, re-runs are compared with their originals.
+  const parentOf = new Map((set ?? []).filter((b) => b.parent_run_id).map((b) => [b.run_id as string, b.parent_run_id as string]));
 
   const briefs = (await Promise.all([...inSet.keys()].map((id) => loadEvalBrief(admin, id)))).filter((b) => b !== null);
   const views: BriefView[] = [];
   const metrics: BriefMetrics[] = [];
   const unjudged: string[] = [];
+  const allIds: string[] = [];
   const pct = (x: number | null) => (x === null ? "—" : `${Math.round(x * 100)}%`);
 
   for (const b of briefs) {
     const m = briefMetrics({ runId: b.run.id, region: b.run.region, clips: b.clips, labels: b.labels, stats: b.run.stats, seconds: b.run.seconds });
     metrics.push(m);
+    allIds.push(b.run.id);
     const byId = new Map(b.videos.map((v) => [v.dbId!, v]));
     const item = (key: string, kind: EvalItem["kind"], platform: EvalItem["platform"], handle: string, videoId: number | null): EvalItem => ({
       item: key,
@@ -87,6 +93,7 @@ export default async function EvalPage({ params }: PageProps<"/[locale]/app/eval
       region: b.run.region,
       goal: b.run.goal,
       core: inSet.get(b.run.id) ?? false,
+      rerunOf: parentOf.has(b.run.id) ? (briefs.find((x) => x.run.id === parentOf.get(b.run.id))?.run.title ?? "—") : null,
       judged,
       lists,
       line: judged ? line : t("notJudged"),
@@ -95,12 +102,18 @@ export default async function EvalPage({ params }: PageProps<"/[locale]/app/eval
   // Core briefs first, then the newest.
   views.sort((a, b) => Number(b.core) - Number(a.core));
 
-  const group = (region?: string) => summarize(region ? metrics.filter((m) => m.region === region) : metrics);
+  const originals = metrics.filter((m) => !parentOf.has(m.runId));
+  const reruns = metrics.filter((m) => parentOf.has(m.runId));
+  const rerunParents = new Set(reruns.map((m) => parentOf.get(m.runId)!));
+  const group = (region?: string) => summarize(region ? originals.filter((m) => m.region === region) : originals);
   const rows = [
     { key: "all", name: t("rowAll"), s: group() },
     { key: "th", name: t("region.th"), s: group("th") },
     { key: "global", name: t("region.global"), s: group("global") },
     { key: "both", name: t("region.both"), s: group("both") },
+    // Same briefs before and after a search change.
+    { key: "rerunBefore", name: t("rowRerunBefore"), s: summarize(originals.filter((m) => rerunParents.has(m.runId))) },
+    { key: "rerunAfter", name: t("rowRerunAfter"), s: summarize(reruns) },
   ].filter((r) => r.key === "all" || r.s.briefs > 0);
 
   const lastSnap = snapshots?.[0];
@@ -137,7 +150,7 @@ export default async function EvalPage({ params }: PageProps<"/[locale]/app/eval
         <p className="mt-1 max-w-3xl text-muted-foreground">{t("subtitle")}</p>
       </header>
       <div className="space-y-6 px-4 pb-16 md:px-10">
-        <EvalSummary rows={rows} last={last} unjudged={unjudged} />
+        <EvalSummary rows={rows} last={last} unjudged={unjudged} all={allIds} />
         <section className="space-y-3">
           <h2 className="font-heading text-xl font-bold">{t("setTitle", { n: views.length, core: views.filter((v) => v.core).length })}</h2>
           {views.length === 0 && <p className="text-sm text-muted-foreground">{t("empty")}</p>}

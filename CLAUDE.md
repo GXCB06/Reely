@@ -47,6 +47,7 @@ lib/link-preview.ts           # reads a pasted product link (blocks private addr
 lib/clip-link.ts              # pasted Instagram Reel / TikTok links (client + server); lib/clip-import.ts reads one
 lib/ask.ts                    # Ask Reely answer and thread types, thread memory (lib/scripts.ts writes and saves scripts)
 lib/eval.ts                   # relevance test set metrics (precision@10, creators@5, IG useful, cost per useful clip); data in lib/eval-data.ts, owner page app/[locale]/app/eval
+lib/ranking.ts                # the "best" order (goal, account fit, 👍/👎) used by the search and every page that ranks results
 lib/run-context.ts            # credits counted per research (stats.credits)
 lib/events.ts                 # client_events names and sources (lib/event-log.ts writes them); never what users typed
 lib/export.ts                 # research export: CSV (Excel), Markdown (for Claude / ChatGPT), JSON; data from lib/export-data.ts, served by app/api/research/[id]/export
@@ -118,6 +119,11 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     5K-view floor (Thai Instagram is smaller), counted as `fromAccounts`.
 12. Run the AI relevance check (`rateRelevance`) BEFORE baseline lookups, so off-topic creators cost nothing.
     Score 1 means "inside the product's field", not just "same audience"; with 15+ clear matches, only score 2 stays.
+    Then the ACCOUNTS behind the kept clips are rated (`rateCreators`, up to 80, from up to 6 captions each: this run's
+    plus posts already cached; 1 AI call per 40, no credits): a fit-0 account gets no usual-views lookup or feed picks, and
+    its clips are dropped unless the clip itself scored 2 (`dropForCreator`, counted as `offCreator`). Lookups go to
+    on-topic accounts first; the "best" order (`bestOrder` in lib/ranking.ts, used everywhere results are ranked) weighs
+    the account's fit inside each label tier. Fit, account type and a one-line "why" are stored on `run_results`.
 16. Covers are copied to storage with `after()` (`persistThumbnails`), never inside the search itself:
     copying ~200 covers inline made a run take 66-80 s instead of ~25 s.
 13. Today page: built at most once per user per day (`daily_digests`), only when the page is opened.

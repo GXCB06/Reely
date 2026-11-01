@@ -41,6 +41,29 @@ export function relevanceKeep(scores: number[], strictAt = STRICT_RELEVANCE_AT):
   return scores.map((s) => s >= minScore);
 }
 
+/** How much a result's account fitting the product (creator fit 0-2) weighs in the "best" order. */
+export const CREATOR_FIT_FACTOR: Record<number, number> = { 2: 1, 1: 0.85, 0: 0.6 };
+
+/**
+ * Nudges a "best" score by how well the clip's ACCOUNT fits the product, inside its label tier (scores are tiered in
+ * steps of 1e12, as in withFeedback): an off-topic account's breakout stays a breakout but sinks among breakouts.
+ * Unknown fit (null) leaves the score as it is.
+ */
+export function withCreatorFit<T>(score: (v: T) => number, fitOf: (v: T) => number | null | undefined): (v: T) => number {
+  return (v) => {
+    const s = score(v);
+    const fit = fitOf(v);
+    if (fit === null || fit === undefined) return s;
+    const tier = Math.floor(s / 1e12) * 1e12;
+    return tier + (s - tier) * (CREATOR_FIT_FACTOR[fit] ?? 1);
+  };
+}
+
+/** A clip goes when its account is unrelated (fit 0) unless the clip itself is clearly on topic (relevance 2). */
+export function dropForCreator(creatorFit: number | null | undefined, clipRelevance: number | null | undefined): boolean {
+  return creatorFit === 0 && (clipRelevance ?? 0) < 2;
+}
+
 const squash = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]/gu, "");
 
 /**

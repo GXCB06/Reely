@@ -38,6 +38,8 @@ import {
   videoAnalysisSchema,
   type Judged,
   judgeSchema,
+  type AccountType,
+  creatorFitSchema,
 } from "./schemas";
 
 // Every task falls back to deterministic sample output when Gemini is not configured or fails,
@@ -436,6 +438,65 @@ export async function rateRelevance(
     return { scores: ordered.flatMap((r) => r.scores), copy: ordered.flatMap((r) => r.copy), brand: ordered.flatMap((r) => r.brand) };
   } catch (e) {
     console.warn("[ai] rateRelevance failed, keeping all results", (e as Error).message);
+    return null;
+  }
+}
+
+const CREATOR_BATCH = 40;
+
+export type CreatorFit = { fit: number; type: AccountType; why: string };
+
+/**
+ * Rates each ACCOUNT for the product from a few of its captions (its clips in this research plus posts already in the
+ * shared cache): one AI call per 40 creators, no credits. Runs before the paid usual-views lookups, so those go to
+ * on-topic accounts. Keyed by "platform:handle". Null when AI is unavailable or fails (nothing changes then).
+ */
+export async function rateCreators(
+  product: ProductBrief,
+  creators: { key: string; platform: string; handle: string; captions: string[] }[],
+  goal: Goal | null | undefined,
+  locale: string,
+): Promise<Map<string, CreatorFit> | null> {
+  const model = getModel();
+  if (!model || !creators.length) return null;
+  const batches = Array.from({ length: Math.ceil(creators.length / CREATOR_BATCH) }, (_, b) =>
+    creators.slice(b * CREATOR_BATCH, (b + 1) * CREATOR_BATCH),
+  );
+  try {
+    const out = new Map<string, CreatorFit>();
+    await Promise.all(
+      batches.map(async (batch) => {
+        const { output } = await generateText({
+          ...aiCallOptions(40_000),
+          model,
+          output: Output.object({ schema: creatorFitSchema }),
+          prompt: [
+            "A founder wants to learn from short-video ACCOUNTS in their product's field. Judge each account below from",
+            "what it posts (a few of its captions), not from one lucky video.",
+            `Product: ${product.name} — ${product.whatItIs}${product.audience ? `. Audience: ${product.audience}` : ""}`,
+            goal ? `The founder ${GOAL_BRIEF[goal]}.` : "",
+            "fit 2: the account is mostly about the product's field: the same problem, category or job to be done. Competitors,",
+            "  same-category products promoting themselves, and creators who review or demo such products are 2.",
+            "fit 1: same audience or an adjacent topic, but mostly not about the field.",
+            "fit 0: mostly unrelated (other niches, general entertainment, generic motivation or news) or too little to tell",
+            "  that it fits.",
+            "type: brand = a product, app or company account; founder = a founder showing their own product or journey;",
+            "  media = news, magazine or curation page; creator = an individual creator; other.",
+            `why: what the account mostly posts, at most 10 words, in ${languageName(locale)}.`,
+            "Return every line number.",
+            "",
+            "Accounts (i | platform | handle | captions separated by ' / '):",
+            ...batch.map((c, i) => `${i} | ${c.platform} | @${c.handle} | ${c.captions.map((x) => x.slice(0, 120).replace(/\s+/g, " ")).join(" / ")}`),
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        });
+        for (const r of output.creators) if (r.i < batch.length) out.set(batch[r.i].key, { fit: r.fit, type: r.type, why: r.why.trim() });
+      }),
+    );
+    return out;
+  } catch (e) {
+    console.warn("[ai] rateCreators failed, creators not rated", (e as Error).message);
     return null;
   }
 }

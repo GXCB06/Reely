@@ -34,7 +34,18 @@ function Delta({ now, before, lowerIsBetter }: { now: number | null | undefined;
  * The metric table (all briefs, Thai, worldwide, both) with v0.2 targets, the last snapshot to compare with, and the
  * buttons to judge every unjudged brief, save a snapshot and copy the table as Markdown.
  */
-export function EvalSummary({ rows, last, unjudged }: { rows: Row[]; last: { note: string | null; createdAt: string; all: Summary | null } | null; unjudged: string[] }) {
+export function EvalSummary({
+  rows,
+  last,
+  unjudged,
+  all,
+}: {
+  rows: Row[];
+  last: { note: string | null; createdAt: string; all: Summary | null } | null;
+  unjudged: string[];
+  /** Every brief in the set, for "judge all again" (after the judge itself changes). */
+  all: string[];
+}) {
   const t = useTranslations("eval");
   const router = useRouter();
   const [note, setNote] = useState("");
@@ -54,12 +65,12 @@ export function EvalSummary({ rows, last, unjudged }: { rows: Row[]; last: { not
   const head = [t("col.p10", { p: "TikTok" }), t("col.p10", { p: "YouTube" }), t("col.p10", { p: "IG" }), t("col.creators"), t("col.igUseful"), t("col.diversity"), t("col.cost"), t("col.seconds")];
   const lastCols = last?.all ? columns(last.all) : null;
 
-  async function judgeAll() {
-    setProgress({ done: 0, of: unjudged.length });
-    for (const [i, id] of unjudged.entries()) {
+  async function judgeAll(ids: string[]) {
+    setProgress({ done: 0, of: ids.length });
+    for (const [i, id] of ids.entries()) {
       const res = await judgeBriefAction(id).catch(() => null);
       if (!res?.ok) toast.error(t("judgeFailed"));
-      setProgress({ done: i + 1, of: unjudged.length });
+      setProgress({ done: i + 1, of: ids.length });
     }
     setProgress(null);
     router.refresh();
@@ -112,11 +123,19 @@ export function EvalSummary({ rows, last, unjudged }: { rows: Row[]; last: { not
         <button
           type="button"
           disabled={!unjudged.length || progress !== null}
-          onClick={() => void judgeAll()}
+          onClick={() => void judgeAll(unjudged)}
           className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
         >
           {progress ? <Loader2 className="size-3.5 animate-spin" /> : <Gavel className="size-3.5" />}
           {progress ? t("judgingAll", { done: progress.done, of: progress.of }) : t("judgeAll", { n: unjudged.length })}
+        </button>
+        <button
+          type="button"
+          disabled={!all.length || progress !== null}
+          onClick={() => window.confirm(t("judgeAgainConfirm", { n: all.length })) && void judgeAll(all)}
+          className="chip"
+        >
+          <Gavel className="size-3.5" /> {t("judgeAllAgain", { n: all.length })}
         </button>
         <input
           value={note}

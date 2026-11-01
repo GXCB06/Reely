@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyFilters, diverseTop, isBrandAccount, isExcluded, isOwnAccount, parseFilters, relevanceKeep } from "./results";
+import { applyFilters, diverseTop, dropForCreator, isBrandAccount, isExcluded, isOwnAccount, parseFilters, relevanceKeep, withCreatorFit } from "./results";
 
 describe("isExcluded", () => {
   it("matches Thai and English words inside captions", () => {
@@ -121,5 +121,30 @@ describe("diverseTop", () => {
     expect(top.slice(0, 7)).toEqual(["t0", "t1", "t2", "t3", "t4", "t5", "t6"]);
     expect(top).toEqual(expect.arrayContaining(["y1", "y2", "i1"]));
     expect(top).not.toContain("y3");
+  });
+});
+
+describe("withCreatorFit", () => {
+  const score = (v: { s: number }) => v.s;
+  const fit = new Map<number, number | null>([[3e12 + 700, 0], [3e12 + 500, 2], [2e12 + 999, 2], [1e12 + 50, null]]);
+  const ranked = withCreatorFit(score, (v: { s: number }) => fit.get(v.s));
+
+  it("keeps label tiers and reorders within them", () => {
+    // An off-topic account's 700 falls below an on-topic 500 in the same tier, but stays above the next tier.
+    expect(ranked({ s: 3e12 + 700 })).toBeLessThan(ranked({ s: 3e12 + 500 }));
+    expect(ranked({ s: 3e12 + 700 })).toBeGreaterThan(ranked({ s: 2e12 + 999 }));
+  });
+
+  it("leaves unknown fit alone", () => {
+    expect(ranked({ s: 1e12 + 50 })).toBe(1e12 + 50);
+  });
+});
+
+describe("dropForCreator", () => {
+  it("drops an unrelated account's clips unless the clip itself is clearly on topic", () => {
+    expect(dropForCreator(0, 1)).toBe(true);
+    expect(dropForCreator(0, 2)).toBe(false);
+    expect(dropForCreator(1, 0)).toBe(false);
+    expect(dropForCreator(null, 0)).toBe(false);
   });
 });

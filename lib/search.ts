@@ -3,12 +3,13 @@ import { adapters } from "@/lib/adapters";
 import { INSTAGRAM_MIN_DAYS, instagramReels, instagramSearchAccounts } from "@/lib/adapters/instagram-scrapecreators";
 import { DEFAULT_WINDOW, type NormalizedVideo, type Platform, type SearchRegion } from "@/lib/adapters/types";
 import type { SearchSettings } from "@/lib/search-settings";
-import { pickRelevantAccounts, type ProductBrief, rateRelevance } from "@/lib/ai/tasks";
+import type { AccountType } from "@/lib/ai/schemas";
+import { type CreatorFit, pickRelevantAccounts, type ProductBrief, rateCreators, rateRelevance } from "@/lib/ai/tasks";
 import { getCreatorVideos, getFreshCreator, saveCreator, saveVideos } from "@/lib/cache";
 import { clipKey, type Feedback, withFeedback } from "@/lib/feedback";
 import { type Goal, goalScore } from "@/lib/goals";
 import { captionLanguage } from "@/lib/region";
-import { isBrandAccount, isExcluded, isOwnAccount, relevanceKeep, STRICT_RELEVANCE_AT } from "@/lib/results";
+import { dropForCreator, isBrandAccount, isExcluded, isOwnAccount, relevanceKeep, STRICT_RELEVANCE_AT, withCreatorFit } from "@/lib/results";
 import {
   labelFor,
   type OutlierLabel,
@@ -69,6 +70,11 @@ export type ScoredVideo = NormalizedVideo & {
   dbId?: number;
   /** How easily a small business could film a similar clip (AI): 2 easy, 1 needs production, 0 can't be copied. */
   copyable?: number | null;
+  /** How well the ACCOUNT fits the product (AI, from its captions): 2 in the field, 1 same audience, 0 unrelated. */
+  creatorFit?: number | null;
+  accountType?: AccountType | null;
+  /** What the account mostly posts (shown on the card). */
+  creatorWhy?: string | null;
 };
 
 export type SearchResult = {
@@ -86,7 +92,7 @@ export type SearchResult = {
   similarAccounts: SimilarAccount[];
 };
 
-export type DropReason = "views" | "old" | "language" | "excluded" | "offTopic";
+export type DropReason = "views" | "old" | "language" | "excluded" | "offTopic" | "offCreator";
 export type PlatformStats = {
   found: number;
   kept: number;
@@ -156,6 +162,49 @@ async function feedPicks(
     .map((x) => x.v);
 }
 
+/** Creators rated per research (the busiest first), and captions shown to the AI for each. */
+const CREATORS_RATED = 80;
+const CAPTIONS_PER_CREATOR = 6;
+
+/**
+ * Rates the accounts behind the kept clips (one AI call per 40, no credits). Each account is shown with up to 6 captions:
+ * its clips in this run first, then its other posts already in the shared cache (no fetch).
+ */
+async function creatorFits(
+  kept: (NormalizedVideo & { keyword: string })[],
+  product: ProductBrief,
+  goal: Goal | null | undefined,
+  locale = "th",
+): Promise<Map<string, CreatorFit> | null> {
+  const byCreator = new Map<string, { platform: Platform; handle: string; captions: string[]; views: number }>();
+  for (const v of kept) {
+    const key = `${v.platform}:${v.creatorHandle}`;
+    const c = byCreator.get(key) ?? { platform: v.platform, handle: v.creatorHandle, captions: [], views: 0 };
+    if (v.caption.trim() && c.captions.length < CAPTIONS_PER_CREATOR) c.captions.push(v.caption);
+    c.views += v.views ?? 0;
+    byCreator.set(key, c);
+  }
+  const creators = [...byCreator]
+    .sort((a, b) => b[1].captions.length - a[1].captions.length || b[1].views - a[1].views)
+    .slice(0, CREATORS_RATED);
+  await Promise.all(
+    creators.map(async ([, c]) => {
+      if (c.captions.length >= CAPTIONS_PER_CREATOR) return;
+      const cached = await getCreatorVideos(c.platform, c.handle, CAPTIONS_PER_CREATOR).catch(() => []);
+      for (const p of cached) {
+        if (c.captions.length >= CAPTIONS_PER_CREATOR) break;
+        if (p.caption.trim() && !c.captions.includes(p.caption)) c.captions.push(p.caption);
+      }
+    }),
+  );
+  return rateCreators(
+    product,
+    creators.map(([key, c]) => ({ key, platform: c.platform, handle: c.handle, captions: c.captions.length ? c.captions : ["(no caption)"] })),
+    goal,
+    locale,
+  );
+}
+
 /**
  * Searches each keyword on each platform (1 page each), drops excluded and noisy videos,
  * adds both outlier scores for the top creators, saves to the shared cache and ranks the results.
@@ -164,7 +213,7 @@ export async function searchKeywords(
   keywords: KeywordQuery[],
   platforms: Platform[] = ["tiktok", "youtube"],
   exclusions: string[] = [],
-  opts: SearchSettings & { product?: ProductBrief; goal?: Goal | null; feedback?: Feedback | null } = {},
+  opts: SearchSettings & { product?: ProductBrief; goal?: Goal | null; feedback?: Feedback | null; locale?: string } = {},
 ): Promise<SearchResult> {
   const days = opts.days ?? DEFAULT_WINDOW;
   const since = Date.now() - days * 864e5;
@@ -245,12 +294,26 @@ export async function searchKeywords(
   const copyOf = new Map(clean.map((v, i) => [v, rated?.copy[i] ?? null]));
   const brandOf = new Map(clean.map((v, i) => [v, !!rated?.brand[i] || isBrandAccount(v.creatorHandle, opts.product?.competitors)]));
   const keep = relevance ? relevanceKeep(relevance) : null;
-  const kept = keep ? clean.filter((_, i) => keep[i]) : clean;
+  let kept = keep ? clean.filter((_, i) => keep[i]) : clean;
   clean.forEach((v, i) => {
     if (keep && !keep[i]) statOf(v.platform).dropped.offTopic = (statOf(v.platform).dropped.offTopic ?? 0) + 1;
   });
+  const relevanceOf = new Map(clean.map((v, i) => [v, relevance?.[i] ?? null]));
+
+  // The ACCOUNTS behind the kept clips, judged from a few of their captions (this run's plus posts already cached),
+  // before any paid lookup: credits go to on-topic accounts, and an unrelated account's clips go unless the clip
+  // itself is clearly on topic. Runs alongside saving the kept clips.
+  const [dbIds, fits] = await Promise.all([saveVideos(kept), opts.product && relevance ? creatorFits(kept, opts.product, opts.goal, opts.locale) : null]);
+  const fitOf = (v: { platform: Platform; creatorHandle: string }) => fits?.get(`${v.platform}:${v.creatorHandle}`) ?? null;
+  if (fits) {
+    kept = kept.filter((v) => {
+      if (!dropForCreator(fitOf(v)?.fit, relevanceOf.get(v))) return true;
+      const s = statOf(v.platform);
+      s.dropped.offCreator = (s.dropped.offCreator ?? 0) + 1;
+      return false;
+    });
+  }
   kept.forEach((v) => statOf(v.platform).kept++);
-  const dbIds = await saveVideos(kept);
 
   // Usual-views lookups, by "platform:handle" (filled below and by the Thai Instagram account job).
   const baselines = new Map<string, Baseline>();
@@ -285,14 +348,17 @@ export async function searchKeywords(
   const reelsOnly = !platforms.includes("tiktok");
   await Promise.all(
     platforms.map(async (p) => {
+      // On-topic accounts first (unknown fit counts as 1), then reach; unrelated accounts get no paid lookup.
       const ranked = kept
-        .filter((v) => v.platform === p)
+        .filter((v) => v.platform === p && fitOf(v)?.fit !== 0)
         .sort(
           (a, b) =>
+            (fitOf(b)?.fit ?? 1) - (fitOf(a)?.fit ?? 1) ||
             (reachScore(b.views, b.creatorFollowers) ?? 0) - (reachScore(a.views, a.creatorFollowers) ?? 0) ||
             (b.views ?? 0) - (a.views ?? 0),
         );
-      const brands = [...new Set(ranked.filter((v) => brandOf.get(v)).map((v) => v.creatorHandle))].slice(0, SIMILAR_ACCOUNTS);
+      const isBrand = (v: (typeof ranked)[number]) => brandOf.get(v) || fitOf(v)?.type === "brand";
+      const brands = [...new Set(ranked.filter(isBrand).map((v) => v.creatorHandle))].slice(0, SIMILAR_ACCOUNTS);
       brands.forEach((h) => similar.add(`${p}:${h}`));
       const top = [
         ...new Set([
@@ -374,7 +440,11 @@ export async function searchKeywords(
     (await saveVideos(extras)).forEach((id, key) => dbIds.set(key, id));
   }
 
-  const rank = withFeedback((v: ScoredVideo) => goalScore(v, opts.goal), opts.feedback ?? null);
+  // "Best for your goal", then the account's fit for the product, then the user's 👍/👎.
+  const rank = withFeedback(
+    withCreatorFit((v: ScoredVideo) => goalScore(v, opts.goal), (v) => v.creatorFit),
+    opts.feedback ?? null,
+  );
   const videos = [...kept, ...extras]
     .map((v): ScoredVideo => {
       const base = baselines.get(`${v.platform}:${v.creatorHandle}`);
@@ -394,6 +464,9 @@ export async function searchKeywords(
         label: labelFor(usual, reach, { views, followers: v.creatorFollowers }),
         dbId: dbIds.get(`${v.platform}:${v.platformVideoId}`),
         copyable: copyOf.get(v) ?? null,
+        creatorFit: fitOf(v)?.fit ?? null,
+        accountType: fitOf(v)?.type ?? null,
+        creatorWhy: fitOf(v)?.why || null,
       };
     })
     // "Best for your goal" (plain best when there is no goal), nudged by the user's 👍/👎.

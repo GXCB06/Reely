@@ -6,9 +6,10 @@ import { z } from "zod";
 import { type HookBreakdown, MAX_KEYWORDS, type RunSummary } from "@/lib/ai/schemas";
 import { answerFollowUp, englishKeywords, type ReferenceClip, enhanceBrief, ideasForClips, type ProductBrief, rateRelevance, summarizeRun } from "@/lib/ai/tasks";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
-import { type Feedback, withFeedback } from "@/lib/feedback";
+import { bestOrder } from "@/lib/ranking";
+import type { Feedback } from "@/lib/feedback";
 import { loadFeedback } from "@/lib/feedback-store";
-import { GOALS, type Goal, isGoal, scoreFor } from "@/lib/goals";
+import { GOALS, type Goal, isGoal } from "@/lib/goals";
 import { diverseTop, relevanceKeep } from "@/lib/results";
 import { looksThai } from "@/lib/region";
 import { engagementRate, keepRate } from "@/lib/scoring";
@@ -137,6 +138,9 @@ const resultRow = (runId: string, v: ScoredVideo, rank: number) => ({
   label: v.label,
   rank,
   copyable: v.copyable ?? null,
+  creator_fit: v.creatorFit ?? null,
+  account_type: v.accountType ?? null,
+  creator_why: v.creatorWhy ? v.creatorWhy.slice(0, 160) : null,
 });
 
 /** Creates a research run, searches, saves ranked results and the AI insight card. Returns the run id. */
@@ -202,7 +206,7 @@ export async function runResearchAction(input: RunInput) {
     const { feedback } = await loadFeedback(supabase, productRowId);
     const searchStarted = Date.now();
     const { value: result, credits } = await countCredits(() =>
-      searchKeywords(keywords, platforms, exclusions, { product, goal, feedback, ...settings }),
+      searchKeywords(keywords, platforms, exclusions, { product, goal, feedback, locale, ...settings }),
     );
     const searchSeconds = Math.round((Date.now() - searchStarted) / 100) / 10;
     const rows = result.videos.filter((v) => v.dbId !== undefined).map((v, i) => resultRow(run.id, v, i + 1));
@@ -259,7 +263,7 @@ async function summaryFor(
   feedback: Feedback | null,
   locale: "th" | "en",
 ) {
-  const top10 = diverseTop(videos, 10, 2, withFeedback<ScoredVideo>(scoreFor(goal), feedback));
+  const top10 = diverseTop(videos, 10, 2, bestOrder(goal, feedback));
   const top = [...top10, ...videos.filter((v) => !top10.includes(v))].slice(0, 15);
   return summarizeRun(
     {
@@ -305,7 +309,7 @@ export async function recheckRelevanceAction(id: string, lang: string) {
     supabase.from("research_runs").select("id, keywords, goal, input, stats, product_id").eq("id", parsed.data.id).maybeSingle(),
     supabase
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, copyable, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, videos(*)")
       .eq("run_id", parsed.data.id)
       .order("rank"),
   ]);
@@ -364,7 +368,7 @@ export async function writeIdeasAction(id: string, lang: string) {
     supabase.from("research_runs").select("id, goal, input, summary, product_id").eq("id", parsed.data.id).maybeSingle(),
     supabase
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, copyable, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, videos(*)")
       .eq("run_id", parsed.data.id)
       .order("rank"),
   ]);
@@ -376,7 +380,7 @@ export async function writeIdeasAction(id: string, lang: string) {
   // The same 10 the page shows first.
   const all = ((rows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null);
   const { feedback } = await loadFeedback(supabase, run.product_id as string | null);
-  const top10 = diverseTop(all, 10, 2, withFeedback<ScoredVideo>(scoreFor(run.goal), feedback));
+  const top10 = diverseTop(all, 10, 2, bestOrder(run.goal, feedback));
   const ideas = await ideasForClips(
     { name: input.productName, whatItIs: input.whatItIs ?? "", audience: input.audience ?? "" },
     run.goal,
@@ -541,7 +545,7 @@ export async function followUpAction(id: string, question: string, lang: string,
     supabase.from("research_runs").select("id, goal, input, brief, region, product_id").eq("id", parsed.data.id).maybeSingle(),
     supabase
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, copyable, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, videos(*)")
       .eq("run_id", parsed.data.id)
       .order("rank"),
     supabase
@@ -562,7 +566,7 @@ export async function followUpAction(id: string, question: string, lang: string,
   const goal = isGoal(run.goal) ? (run.goal as Goal) : null;
   const all = ((rows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null);
   const { feedback } = await loadFeedback(supabase, run.product_id as string | null);
-  const score = withFeedback<ScoredVideo>(scoreFor(goal), feedback);
+  const score = bestOrder(goal, feedback);
   const clips = [...all].sort((a, b) => score(b) - score(a)).slice(0, 25);
 
   // Format and hook labels (shared caption breakdowns) and real spoken hooks (transcripts someone already read).

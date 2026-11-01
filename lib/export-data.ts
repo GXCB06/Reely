@@ -1,10 +1,10 @@
 import "server-only";
 import type { HookBreakdown, RunSummary } from "@/lib/ai/schemas";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
+import { bestOrder } from "@/lib/ranking";
 import type { ExportClip, ExportData } from "@/lib/export";
-import { withFeedback } from "@/lib/feedback";
 import { loadFeedback } from "@/lib/feedback-store";
-import { isGoal, scoreFor } from "@/lib/goals";
+import { isGoal } from "@/lib/goals";
 import { diverseTop } from "@/lib/results";
 import { engagementRate } from "@/lib/scoring";
 import type { ScoredVideo, SimilarAccount } from "@/lib/search";
@@ -25,14 +25,14 @@ export async function researchExport(supabase: Supabase, id: string, scope: "top
       .maybeSingle(),
     supabase
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, copyable, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, videos(*)")
       .eq("run_id", id)
       .order("rank"),
   ]);
   if (!run) return null;
   const goal = isGoal(run.goal) ? run.goal : null;
   const { feedback } = await loadFeedback(supabase, run.product_id as string | null);
-  const score = withFeedback<ScoredVideo>(scoreFor(goal), feedback);
+  const score = bestOrder(goal, feedback);
   const all = ((rows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null);
   const clips = scope === "top" ? diverseTop(all, 10, 2, score) : [...all].sort((a, b) => score(b) - score(a));
 

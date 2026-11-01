@@ -1,14 +1,14 @@
 "use client";
 
-import { Gavel, Loader2, Star, Trash2 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { Gavel, Loader2, Repeat2, Star, Trash2 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { PlatformIcon } from "@/components/platform-icon";
 import { Thumb } from "@/components/thumb";
 import { Link, useRouter } from "@/i18n/navigation";
 import type { EvalPlatform, Label } from "@/lib/eval";
-import { judgeBriefAction, setCoreAction, setInTestSetAction, setLabelAction } from "./actions";
+import { judgeBriefAction, rerunBriefAction, setCoreAction, setInTestSetAction, setLabelAction } from "./actions";
 
 export type EvalItem = {
   item: string;
@@ -30,6 +30,8 @@ export type BriefView = {
   region: string;
   goal: string | null;
   core: boolean;
+  /** The original brief's title when this research is a re-run of it. */
+  rerunOf: string | null;
   judged: boolean;
   lists: { platform: EvalPlatform; clips: EvalItem[]; creators: EvalItem[] }[];
   line: string;
@@ -74,8 +76,20 @@ function LabelPicker({ runId, it }: { runId: string; it: EvalItem }) {
 export function BriefCard({ view }: { view: BriefView }) {
   const t = useTranslations("eval");
   const router = useRouter();
+  const locale = useLocale();
   const [judging, startJudge] = useTransition();
+  const [rerunning, startRerun] = useTransition();
   const [pending, start] = useTransition();
+
+  function rerun() {
+    if (!window.confirm(t("rerunConfirm"))) return;
+    startRerun(async () => {
+      const res = await rerunBriefAction(view.runId, locale);
+      if (!res.ok) return void toast.error(t(res.error === "noGoal" ? "rerunNoGoal" : "rerunFailed"));
+      toast.success(t("rerunDone"));
+      router.refresh();
+    });
+  }
 
   function judge() {
     startJudge(async () => {
@@ -102,6 +116,12 @@ export function BriefCard({ view }: { view: BriefView }) {
           <Link href={`/app/research/${view.runId}`} className="font-heading font-bold hover:underline">
             {view.title}
           </Link>
+          {view.rerunOf && (
+            <p className="text-[11px] font-medium text-primary">
+              <Repeat2 className="mr-1 inline size-3" />
+              {t("rerunOf", { title: view.rerunOf })}
+            </p>
+          )}
           <p className="line-clamp-1 text-xs text-muted-foreground">
             {t(`region.${view.region}`)}
             {view.goal && <> · {view.goal}</>} · {view.brief}
@@ -117,6 +137,17 @@ export function BriefCard({ view }: { view: BriefView }) {
         >
           {judging ? <Loader2 className="size-3.5 animate-spin" /> : <Gavel className="size-3.5" />} {view.judged ? t("rejudge") : t("judge")}
         </button>
+        {!view.rerunOf && (
+          <button
+            type="button"
+            onClick={rerun}
+            disabled={rerunning}
+            title={t("rerunTip")}
+            className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium disabled:opacity-60"
+          >
+            {rerunning ? <Loader2 className="size-3.5 animate-spin" /> : <Repeat2 className="size-3.5" />} {rerunning ? t("rerunning") : t("rerun")}
+          </button>
+        )}
         <button
           type="button"
           disabled={pending}

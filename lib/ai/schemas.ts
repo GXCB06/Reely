@@ -91,6 +91,21 @@ export const relevanceSchema = z.object({
   ),
 });
 
+export const ACCOUNT_TYPES = ["brand", "creator", "media", "founder", "other"] as const;
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
+
+/** Search: how well each ACCOUNT (not one clip) fits the product, judged from a few of its captions. */
+export const creatorFitSchema = z.object({
+  creators: z.array(
+    z.object({
+      i: z.number().int().min(0),
+      fit: z.number().int().min(0).max(2).describe("2 in the product's field (incl. competitors), 1 same audience, 0 unrelated"),
+      type: z.enum(ACCOUNT_TYPES),
+      why: z.string().max(120).describe("What the account mostly posts, at most 10 words, in the user's language"),
+    }),
+  ),
+});
+
 /** Relevance test set (owner-only): a strict judge, separate from the search's own relevance check. */
 export const judgeSchema = z.object({
   labels: z.array(
