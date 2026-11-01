@@ -6,6 +6,7 @@ import type { LinkPreview } from "@/lib/link-preview";
 import { firstSeconds, type Segment } from "@/lib/transcript";
 import { keywordRegions, type RegionChoice } from "@/lib/region";
 import { formatMultiplier } from "@/lib/scoring";
+import { combineJudgements } from "@/lib/eval";
 import { aiCallOptions, getModel, languageName } from "./model";
 import {
   MAX_KEYWORDS,
@@ -475,9 +476,12 @@ export async function rateCreators(
             "what it posts (a few of its captions), not from one lucky video.",
             `Product: ${product.name} — ${product.whatItIs}${product.audience ? `. Audience: ${product.audience}` : ""}`,
             goal ? `The founder ${GOAL_BRIEF[goal]}.` : "",
-            "fit 2: the account is mostly about the product's field: the same problem, category or job to be done. Competitors,",
-            "  same-category products promoting themselves, and creators who review or demo such products are 2.",
-            "fit 1: same audience or an adjacent topic, but mostly not about the field.",
+            "First name the product's SPECIFIC problem or category in a few words (e.g. 'AI bookkeeping for SMEs', not 'AI' or",
+            "'business'). Then:",
+            "fit 2: most of the account's posts are about THAT specific problem or category: competitors, same-category",
+            "  products promoting themselves, and creators who mostly review or demo such products.",
+            "fit 1: same audience or the broader field (e.g. general AI tools, general fitness, general business tips), or",
+            "  only some posts are on the specific topic.",
             "fit 0: mostly unrelated (other niches, general entertainment, generic motivation or news) or too little to tell",
             "  that it fits.",
             "type: brand = a product, app or company account; founder = a founder showing their own product or journey;",
@@ -1182,36 +1186,42 @@ export async function judgeRelevance(
 ): Promise<Judged | null> {
   const model = getModel();
   if (!model || !items.length) return items.length ? null : [];
-  try {
+  // Two passes, the second with the list reversed (list order sways labels), combined conservatively.
+  const order = items.map((_, i) => i);
+  const pass = async (idx: number[]) => {
     const { output } = await generateText({
       ...aiCallOptions(45_000),
+      temperature: 0,
       model,
       output: Output.object({ schema: judgeSchema }),
       prompt: [
-        "You are grading a short-video research tool. A founder asked it for clips to learn from and adapt for their product.",
+        "You are grading the RELEVANCE of a short-video research tool's results for one founder's product.",
         `Product: ${product.name} — ${product.whatItIs}${product.audience ? `. Audience: ${product.audience}` : ""}`,
         goal ? `The founder ${GOAL_BRIEF[goal]}.` : "The founder wants clips that make people want this product.",
         `Market: ${region === "th" ? "Thailand" : region === "global" ? "worldwide" : "Thailand and worldwide"}.`,
         kind === "clip"
-          ? "Label each CLIP (judge only what its caption says, be strict):"
-          : "Label each CREATOR from their recent captions (what the account is mostly about, be strict):",
-        "2 = squarely in the product's field (same problem, category or job to be done) AND something this founder could",
-        "    realistically adapt for this product and goal. A competitor's or same-category product's own promo, and a",
-        "    review or demo of a competing product, are 2 too: they show what works for this kind of product.",
-        "1 = same audience or an adjacent topic, but not directly usable for this product.",
-        "0 = off-topic, generic viral content, unrelated niche, or the product's own account.",
-        "Do not reward big view counts; a famous but unrelated clip is 0. Return every line with i, label and a short reason.",
+          ? "Label each CLIP by what its caption says it is about:"
+          : "Label each CREATOR by what their recent captions are mostly about:",
+        "2 = about the product's own problem, category or job to be done. Includes a competitor's or same-category",
+        "    product's own promo, demo or tutorial, and reviews or comparisons of such products.",
+        "1 = same audience or the broader field, but not this product's problem or category (e.g. for an AI accounting",
+        "    app: general AI tools, personal finance, general business tips).",
+        "0 = unrelated: other niches, generic entertainment, motivation or news, or the product's own account.",
+        "Judge relevance ONLY. Do not judge hook strength, production quality, virality, views or how simple the clip is:",
+        "a plain same-category app demo is still 2. When a caption is too vague to tell, use 1.",
+        "Return every line with i, label and a short reason.",
         "",
-        kind === "clip" ? "Clips (i | platform | handle | views | caption):" : "Creators (i | platform | handle | recent captions):",
-        ...items.map(
-          (it, i) =>
-            `${i} | ${it.platform} | @${it.handle}${kind === "clip" ? ` | ${shortViews(it.views)}` : ""} | ${it.text.slice(0, kind === "clip" ? 220 : 600).replace(/\s+/g, " ")}`,
+        kind === "clip" ? "Clips (i | platform | handle | caption):" : "Creators (i | platform | handle | recent captions):",
+        ...idx.map(
+          (k, i) =>
+            `${i} | ${items[k].platform} | @${items[k].handle} | ${items[k].text.slice(0, kind === "clip" ? 220 : 600).replace(/\s+/g, " ")}`,
         ),
       ].join("\n"),
     });
-    return output.labels.filter((l) => l.i < items.length);
-  } catch (e) {
-    console.warn("[ai] judgeRelevance failed", (e as Error).message);
-    return null;
-  }
+    // Back to the caller's numbering.
+    return output.labels.filter((l) => l.i < idx.length).map((l) => ({ ...l, i: idx[l.i] }));
+  };
+  const [a, b] = await Promise.all([pass(order), pass([...order].reverse())].map((p) => p.catch((e: Error) => (console.warn("[ai] judgeRelevance pass failed", e.message), null))));
+  if (!a && !b) return null;
+  return combineJudgements(a, b);
 }

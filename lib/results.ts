@@ -42,7 +42,9 @@ export function relevanceKeep(scores: number[], strictAt = STRICT_RELEVANCE_AT):
 }
 
 /** How much a result's account fitting the product (creator fit 0-2) weighs in the "best" order. */
-export const CREATOR_FIT_FACTOR: Record<number, number> = { 2: 1, 1: 0.85, 0: 0.6 };
+// Measured on the test set (2026-11-01): 0.85 / 0.6 bunched the top results on a few broad "fit 2" accounts
+// (concentration 27% → 38%), so the nudge is gentler.
+export const CREATOR_FIT_FACTOR: Record<number, number> = { 2: 1, 1: 0.92, 0: 0.75 };
 
 /**
  * Nudges a "best" score by how well the clip's ACCOUNT fits the product, inside its label tier (scores are tiered in

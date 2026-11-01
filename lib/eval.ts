@@ -176,3 +176,27 @@ export function summaryMarkdown(rows: { name: string; s: Summary }[]): string {
   );
   return [head.join(" | "), head.map(() => "---").join(" | "), ...lines].map((l) => `| ${l} |`).join("\n");
 }
+
+type JudgedRow = { i: number; label: number; reason: string };
+
+/**
+ * The relevance judge answers twice (the second time with the list reversed); this keeps one label per line. When the
+ * passes agree, that label; when they differ, the lower-leaning average (2+1 → 1, 2+0 → 1, 1+0 → 0), so one generous
+ * pass can't lift the score. A line only one pass answered (or a failed pass) keeps that pass's label.
+ */
+export function combineJudgements(a: JudgedRow[] | null, b: JudgedRow[] | null): JudgedRow[] {
+  const second = new Map((b ?? []).map((r) => [r.i, r]));
+  const out: JudgedRow[] = [];
+  for (const r of a ?? []) {
+    const o = second.get(r.i);
+    second.delete(r.i);
+    if (!o) {
+      out.push(r);
+      continue;
+    }
+    const label = Math.floor((r.label + o.label) / 2);
+    out.push({ i: r.i, label, reason: (label === r.label ? r : o.label === label ? o : r).reason });
+  }
+  out.push(...second.values());
+  return out.sort((x, y) => x.i - y.i);
+}

@@ -126,13 +126,13 @@ describe("diverseTop", () => {
 
 describe("withCreatorFit", () => {
   const score = (v: { s: number }) => v.s;
-  const fit = new Map<number, number | null>([[3e12 + 700, 0], [3e12 + 500, 2], [2e12 + 999, 2], [1e12 + 50, null]]);
+  const fit = new Map<number, number | null>([[3e12 + 600, 0], [3e12 + 500, 2], [2e12 + 999, 2], [1e12 + 50, null]]);
   const ranked = withCreatorFit(score, (v: { s: number }) => fit.get(v.s));
 
   it("keeps label tiers and reorders within them", () => {
-    // An off-topic account's 700 falls below an on-topic 500 in the same tier, but stays above the next tier.
-    expect(ranked({ s: 3e12 + 700 })).toBeLessThan(ranked({ s: 3e12 + 500 }));
-    expect(ranked({ s: 3e12 + 700 })).toBeGreaterThan(ranked({ s: 2e12 + 999 }));
+    // An off-topic account's 600 falls below an on-topic 500 in the same tier, but stays above the next tier.
+    expect(ranked({ s: 3e12 + 600 })).toBeLessThan(ranked({ s: 3e12 + 500 }));
+    expect(ranked({ s: 3e12 + 600 })).toBeGreaterThan(ranked({ s: 2e12 + 999 }));
   });
 
   it("leaves unknown fit alone", () => {

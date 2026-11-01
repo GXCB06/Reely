@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { briefMetrics, creatorItem, type EvalClip, effectiveLabels, type Label, summarize, summaryMarkdown, topCreators } from "./eval";
+import { briefMetrics, combineJudgements, creatorItem, type EvalClip, effectiveLabels, type Label, summarize, summaryMarkdown, topCreators } from "./eval";
 
 const clip = (id: number, platform: EvalClip["platform"], handle: string): EvalClip => ({ id, platform, handle });
 
@@ -73,5 +73,23 @@ describe("summarize", () => {
     expect(s.seconds).toBe(40);
     const md = summaryMarkdown([{ name: "All", s }]);
     expect(md).toContain("| All | 2 | 50% |");
+  });
+});
+
+describe("combineJudgements", () => {
+  it("keeps agreement and leans low on disagreement", () => {
+    const a = [{ i: 0, label: 2, reason: "a0" }, { i: 1, label: 2, reason: "a1" }, { i: 2, label: 1, reason: "a2" }, { i: 3, label: 1, reason: "a3" }];
+    const b = [{ i: 0, label: 2, reason: "b0" }, { i: 1, label: 1, reason: "b1" }, { i: 2, label: 0, reason: "b2" }, { i: 4, label: 2, reason: "b4" }];
+    expect(combineJudgements(a, b)).toEqual([
+      { i: 0, label: 2, reason: "a0" },
+      { i: 1, label: 1, reason: "b1" },
+      { i: 2, label: 0, reason: "b2" },
+      { i: 3, label: 1, reason: "a3" },
+      { i: 4, label: 2, reason: "b4" },
+    ]);
+  });
+
+  it("uses the one pass that answered", () => {
+    expect(combineJudgements(null, [{ i: 0, label: 2, reason: "b" }])).toEqual([{ i: 0, label: 2, reason: "b" }]);
   });
 });
