@@ -142,6 +142,8 @@ export type Summary = {
   diversity: number | null;
   costPerUseful: number | null;
   seconds: number | null;
+  /** Results per brief (all platforms): shows what a stricter filter or order variant gives up. */
+  clips: number | null;
 };
 
 export function summarize(briefs: BriefMetrics[]): Summary {
@@ -157,6 +159,7 @@ export function summarize(briefs: BriefMetrics[]): Summary {
     diversity: mean(briefs.map((b) => b.diversity)),
     costPerUseful: mean(briefs.map((b) => b.costPerUseful)),
     seconds: mean(briefs.map((b) => b.seconds)),
+    clips: mean(briefs.map((b) => Object.values(b.platforms).reduce((s, m) => s + m!.clips, 0))),
   };
   for (const p of EVAL_PLATFORMS) {
     out.precision10[p] = per(p, "precision10", (r) => (r as Ratio).value);
@@ -170,9 +173,9 @@ export function summarize(briefs: BriefMetrics[]): Summary {
 export function summaryMarkdown(rows: { name: string; s: Summary }[]): string {
   const pct = (x: number | null | undefined) => (x === null || x === undefined ? "—" : `${Math.round(x * 100)}%`);
   const num = (x: number | null | undefined, d = 1) => (x === null || x === undefined ? "—" : x.toFixed(d));
-  const head = ["", "Briefs", "P@10 TikTok", "P@10 YouTube", "P@10 IG", "Creators P@5", "IG useful", "Diversity", "Credits/useful", "Seconds"];
+  const head = ["", "Briefs", "P@10 TikTok", "P@10 YouTube", "P@10 IG", "Creators P@5", "IG useful", "Diversity", "Credits/useful", "Seconds", "Clips"];
   const lines = rows.map(({ name, s }) =>
-    [name, String(s.briefs), pct(s.precision10.tiktok), pct(s.precision10.youtube), pct(s.precision10.instagram), pct(s.creatorPrecision5), num(s.igCoverage), pct(s.diversity), num(s.costPerUseful), num(s.seconds, 0)].join(" | "),
+    [name, String(s.briefs), pct(s.precision10.tiktok), pct(s.precision10.youtube), pct(s.precision10.instagram), pct(s.creatorPrecision5), num(s.igCoverage), pct(s.diversity), num(s.costPerUseful), num(s.seconds, 0), num(s.clips, 0)].join(" | "),
   );
   return [head.join(" | "), head.map(() => "---").join(" | "), ...lines].map((l) => `| ${l} |`).join("\n");
 }
@@ -199,4 +202,96 @@ export function combineJudgements(a: JudgedRow[] | null, b: JudgedRow[] | null):
   }
   out.push(...second.values());
   return out.sort((x, y) => x.i - y.i);
+}
+
+/** Re-runs added one after another, each within this long of the next, are one batch (one search change). */
+export const RERUN_GAP_MS = 5 * 60_000;
+
+/**
+ * The latest batch of re-runs: each search change is measured once, not mixed with re-runs made for an earlier change.
+ * Rows are test-set entries; only re-runs (with a parent) count.
+ */
+export function latestBatch<T extends { parent_run_id: string | null; added_at: string }>(rows: T[], gapMs = RERUN_GAP_MS): T[] {
+  const reruns = rows.filter((r) => r.parent_run_id).sort((a, b) => (a.added_at < b.added_at ? 1 : -1));
+  const out: T[] = [];
+  for (const [i, r] of reruns.entries()) {
+    if (i > 0 && new Date(reruns[i - 1].added_at).getTime() - new Date(r.added_at).getTime() >= gapMs) break;
+    out.push(r);
+  }
+  return out;
+}
+
+/** One clip labelled by the owner (blind) and by another rater: the AI judge, or the search's own relevance check. */
+export type AgreementPair = { platform: EvalPlatform; thai: boolean; user: Label; other: Label };
+
+export type Agreement = {
+  n: number;
+  /** Same label. */
+  exact: number | null;
+  /** When the other rater says 2 (what P@10 counts), the owner agrees. */
+  precision2: number | null;
+  /** The owner's 2s that the other rater also calls 2. */
+  recall2: number | null;
+  /** Cohen's kappa: agreement beyond chance (1 perfect, 0 chance level). */
+  kappa: number | null;
+};
+
+/** How far another rater can be trusted against the owner's blind labels. */
+export function agreement(pairs: AgreementPair[]): Agreement {
+  const n = pairs.length;
+  if (!n) return { n, exact: null, precision2: null, recall2: null, kappa: null };
+  const exact = pairs.filter((p) => p.user === p.other).length / n;
+  const saidTwo = pairs.filter((p) => p.other === 2);
+  const userTwo = pairs.filter((p) => p.user === 2);
+  const share = (k: Label, who: "user" | "other") => pairs.filter((p) => p[who] === k).length / n;
+  const chance = ([0, 1, 2] as Label[]).reduce<number>((s, k) => s + share(k, "user") * share(k, "other"), 0);
+  return {
+    n,
+    exact,
+    precision2: saidTwo.length ? saidTwo.filter((p) => p.user === 2).length / saidTwo.length : null,
+    recall2: userTwo.length ? userTwo.filter((p) => p.other === 2).length / userTwo.length : null,
+    kappa: chance < 1 ? (exact - chance) / (1 - chance) : null,
+  };
+}
+
+/** The judge passes the check when its "2" is right and complete at least this often (search quality plan, S0). */
+export const AGREEMENT_BAR = 0.8;
+
+/** Clips per platform in the judge check (half the judge called 2, half 1 or 0). */
+export const CHECK_PER_PLATFORM = 20;
+
+/** A stable 32-bit hash (FNV-1a), so the judge check's sample doesn't change between visits. */
+export function stableHash(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h;
+}
+
+/**
+ * The judge check's sample: per platform, `perPlatform` clips, half the AI judge labelled 2 and half 1 or 0 (the line
+ * P@10 depends on), taken round-robin across briefs so no single brief dominates; a short half is filled from the
+ * other. Returned in a mixed, stable order, so the labels you see don't come in runs of the same kind.
+ */
+export function pickCheckSample<T extends { runId: string; item: string; platform: EvalPlatform; ai: Label }>(items: T[], perPlatform = CHECK_PER_PLATFORM): T[] {
+  const key = (x: T) => stableHash(`${x.runId}:${x.item}`);
+  const roundRobin = (list: T[]) => {
+    const byRun = new Map<string, T[]>();
+    for (const x of [...list].sort((a, b) => key(a) - key(b))) byRun.set(x.runId, [...(byRun.get(x.runId) ?? []), x]);
+    const queues = [...byRun.values()];
+    const out: T[] = [];
+    for (let i = 0; queues.some((q) => i < q.length); i++) for (const q of queues) if (i < q.length) out.push(q[i]);
+    return out;
+  };
+  const sample: T[] = [];
+  for (const p of EVAL_PLATFORMS) {
+    const twos = roundRobin(items.filter((x) => x.platform === p && x.ai === 2));
+    const rest = roundRobin(items.filter((x) => x.platform === p && x.ai !== 2));
+    const half = Math.floor(perPlatform / 2);
+    const fromTwos = Math.min(twos.length, Math.max(half, perPlatform - rest.length));
+    sample.push(...twos.slice(0, fromTwos), ...rest.slice(0, perPlatform - fromTwos));
+  }
+  return sample.sort((a, b) => key(a) - key(b));
 }

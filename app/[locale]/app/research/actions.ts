@@ -13,15 +13,16 @@ import { GOALS, type Goal, isGoal } from "@/lib/goals";
 import { diverseTop, relevanceKeep } from "@/lib/results";
 import { looksThai } from "@/lib/region";
 import { engagementRate, keepRate } from "@/lib/scoring";
-import { type PlatformStats, type ScoredVideo, searchKeywords } from "@/lib/search";
+import { type Candidate, type PlatformStats, type ScoredVideo, searchKeywords } from "@/lib/search";
 import { DEFAULT_MIN_VIEWS } from "@/lib/search-settings";
 import { findLink } from "@/components/chat/image-utils";
-import { researchesLeft } from "@/lib/limits";
+import { isOwner, researchesLeft } from "@/lib/limits";
 import { readLink } from "@/lib/link-preview";
 import { importClip } from "@/lib/clip-import";
 import { parseClipLink } from "@/lib/clip-link";
 import { type AskAnswer, type AskClip, type AskScript, type AskTurn, threadMemory } from "@/lib/ask";
 import { writeScript } from "@/lib/scripts";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { countCredits } from "@/lib/run-context";
 import { persistThumbnails } from "@/lib/thumbs";
@@ -155,7 +156,33 @@ const resultRow = (runId: string, v: ScoredVideo, rank: number) => ({
   creator_fit: v.creatorFit ?? null,
   account_type: v.accountType ?? null,
   creator_why: v.creatorWhy ? v.creatorWhy.slice(0, 160) : null,
+  relevance: v.relevance ?? null,
 });
+
+/**
+ * Owner researches (incl. test-set re-runs) keep their whole candidate pool, so the test set can replay filter changes
+ * without credits. Never stored for other users. Runs after the response, like the cover copies.
+ */
+async function saveCandidates(runId: string, candidates: Candidate[]) {
+  const admin = createAdminClient();
+  if (!admin || !candidates.length) return;
+  const rows = candidates.map((c) => ({
+    run_id: runId,
+    platform: c.platform,
+    platform_video_id: c.platformVideoId.slice(0, 100),
+    handle: c.handle.slice(0, 100),
+    caption: c.caption.slice(0, 300) || null,
+    views: c.views,
+    followers: c.followers,
+    published_at: c.publishedAt,
+    keyword: c.keyword.slice(0, 120) || null,
+    drop_reason: c.dropReason,
+    relevance: c.relevance,
+    creator_fit: c.creatorFit,
+  }));
+  const { error } = await admin.from("run_candidates").upsert(rows, { onConflict: "run_id,platform,platform_video_id", ignoreDuplicates: true });
+  if (error) console.warn("[eval] candidates not saved", error.message);
+}
 
 /** Creates a research run, searches, saves ranked results and the AI insight card. Returns the run id. */
 export async function runResearchAction(input: RunInput) {
@@ -236,6 +263,8 @@ export async function startResearch(input: RunInput, onCreated?: (runId: string)
     const searchSeconds = Math.round((Date.now() - searchStarted) / 100) / 10;
     const rows = result.videos.filter((v) => v.dbId !== undefined).map((v, i) => resultRow(run.id, v, i + 1));
     after(() => persistThumbnails(result.videos));
+    const { data: claims } = await supabase.auth.getClaims();
+    if (isOwner(claims?.claims?.email as string | undefined)) after(() => saveCandidates(run.id as string, result.candidates));
     if (rows.length) {
       const { error } = await supabase.from("run_results").insert(rows);
       if (error) throw new Error(error.message);
@@ -358,6 +387,11 @@ export async function recheckRelevanceAction(id: string, lang: string) {
   for (const copy of [0, 1, 2]) {
     const ids = all.filter((v, i) => keep[i] && rated.copy[i] === copy).map((v) => v.dbId!);
     if (ids.length) await supabase.from("run_results").update({ copyable: copy }).eq("run_id", run.id).in("video_id", ids);
+  }
+  // And the relevance scores (the test set orders and replays by them).
+  for (const score of [1, 2]) {
+    const ids = all.filter((v, i) => keep[i] && rated.scores[i] === score).map((v) => v.dbId!);
+    if (ids.length) await supabase.from("run_results").update({ relevance: score }).eq("run_id", run.id).in("video_id", ids);
   }
   const keptWithCopy = kept.map((v) => ({ ...v, copyable: rated.copy[all.indexOf(v)] ?? null }));
 

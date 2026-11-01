@@ -35,7 +35,7 @@ export async function loadEvalBrief(admin: Admin, runId: string) {
       .maybeSingle(),
     admin
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, relevance, videos(*)")
       .eq("run_id", runId)
       .order("rank"),
     admin.from("relevance_labels").select("item, source, label, reason").eq("run_id", runId),
@@ -66,7 +66,7 @@ export async function loadEvalBrief(admin: Admin, runId: string) {
   const rowsTyped = (labelRows ?? []) as (LabelRow & { reason: string | null })[];
   const reasons = new Map(rowsTyped.filter((r) => r.source === "ai").map((r) => [r.item, r.reason ?? ""]));
   const corrected = new Set(rowsTyped.filter((r) => r.source === "user").map((r) => r.item));
-  return { run: evalRun, videos, clips, labels: effectiveLabels(rowsTyped), reasons, corrected };
+  return { run: evalRun, videos, clips, labels: effectiveLabels(rowsTyped), reasons, corrected, feedback, productId: run.product_id as string | null };
 }
 
 export type EvalBrief = NonNullable<Awaited<ReturnType<typeof loadEvalBrief>>>;

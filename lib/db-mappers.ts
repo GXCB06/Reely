@@ -37,6 +37,7 @@ export type ResultRow = {
   creator_fit?: number | null;
   account_type?: string | null;
   creator_why?: string | null;
+  relevance?: number | null;
   videos: VideoRow | null;
 };
 
@@ -96,5 +97,6 @@ export function videoFromResultRow(r: ResultRow): ScoredVideo | null {
     creatorFit: r.creator_fit ?? null,
     accountType: (r.account_type ?? null) as ScoredVideo["accountType"],
     creatorWhy: r.creator_why ?? null,
+    relevance: r.relevance ?? null,
   };
 }

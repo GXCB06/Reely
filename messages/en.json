@@ -920,7 +920,8 @@
       "igUseful": "IG useful",
       "diversity": "Concentration",
       "cost": "Credits/useful",
-      "seconds": "Seconds"
+      "seconds": "Seconds",
+      "clips": "Clips"
     },
     "targetsHint": "Green = meets the v0.2 target · red = not yet · ▲▼ vs the last snapshot · — = no data yet (credits and time are kept for new researches only)",
     "lastSnapshot": "Last snapshot: {note}",
@@ -959,6 +960,67 @@
     "rerunNoGoal": "This research has no goal (made before goals), so it can’t be re-run",
     "rerunOf": "Re-run of: {title}",
     "judgeAllAgain": "Judge all again ({n})",
-    "judgeAgainConfirm": "Judge all {n} briefs again? (No credits, takes a few minutes.)"
+    "judgeAgainConfirm": "Judge all {n} briefs again? (No credits, takes a few minutes.)",
+    "rowCore": "Core",
+    "rowHoldout": "Hold-out",
+    "holdout": "Hold-out",
+    "holdoutTip": "Hold-out: measured with every search change, never tuned on",
+    "replay": {
+      "open": "Replay orders",
+      "title": "Replay: other orders, same results",
+      "subtitle": "Today's order next to other ways of ordering the SAME stored results and labels. No credits and no run-to-run noise: only the order changes.",
+      "prepare": "Prepare ({n} briefs)",
+      "preparing": "Preparing {done}/{of}…",
+      "prepareFailed": "{n} briefs couldn't be prepared (Gemini busy?), try again",
+      "pendingHint": "{n} briefs still need relevance scores or labels for what the variants surface (AI only, no credits). Their numbers below are incomplete until then.",
+      "note": "Researches made before relevance scores were stored get one from a fresh relevance check, not the one the search made at the time.",
+      "variant": {
+        "live": "Today",
+        "exactFirst": "Exact matches first",
+        "exactInTier": "Exact first within a tier",
+        "exactOnly": "Exact matches only"
+      },
+      "explain": {
+        "live": "label tier (Breakout, Strong), then views × engagement, account fit and your 👍/👎",
+        "exactFirst": "every clip the relevance check scored 2 above every 1, each group in today's order",
+        "exactInTier": "a score-1 clip keeps 60% of its score inside its label tier, so a broad Breakout still beats an exact Strong",
+        "exactOnly": "score-1 clips removed: shows what a strict filter would cost (fewer clips, less IG coverage)"
+      },
+      "group": {
+        "core": "Core briefs",
+        "holdout": "Hold-out briefs",
+        "batch": "Latest re-run batch"
+      }
+    },
+    "check": {
+      "open": "Check the judge",
+      "title": "Judge check",
+      "subtitle": "Label {n} clips yourself without seeing the AI's answer. This measures how far the AI judge (and the search's own relevance score) can be trusted. Your labels also correct the test set.",
+      "progress": "{done} of {of} labelled",
+      "finished": "All done. The numbers are below.",
+      "nothing": "No judged clips yet. Judge the test set first.",
+      "bar": "Trusted when “says 2 → you agree” and “your 2s it finds” are both {bar}% or more.",
+      "judgeTitle": "AI judge vs you",
+      "filterTitle": "The search's relevance score vs you",
+      "disagreements": "Where the judge and you differ ({n})",
+      "youVsAi": "you {you} · AI {ai}",
+      "all": "All",
+      "thai": "Thai captions",
+      "notThai": "Other captions",
+      "n": "Clips",
+      "exact": "Same label",
+      "precision2": "Says 2 → you agree",
+      "recall2": "Your 2s it finds",
+      "kappa": "Kappa",
+      "views": "views",
+      "openClip": "Open on the platform",
+      "noCaption": "(no caption)",
+      "rubric2": "On target: about the product's own problem, category or job. A same-category product's promo, demo or tutorial, or a review or comparison of such products, counts.",
+      "rubric1": "Same audience or the broader field, but not this product's problem or category (e.g. for an AI accounting app: general AI tools, personal finance, general business tips). Also when the caption is too vague to tell.",
+      "rubric0": "Unrelated: other niches, generic entertainment, motivation or news, or the product's own account.",
+      "notSaved": "Not saved, try again",
+      "line": "Judge check ({n} clips): says 2 → you agree {precision} · your 2s it finds {recall} · same label {exact}",
+      "lineProgress": "Judge check: {n} of {of} clips labelled"
+    }
   }
 }

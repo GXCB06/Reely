@@ -8,7 +8,7 @@ import { PlatformIcon } from "@/components/platform-icon";
 import { Thumb } from "@/components/thumb";
 import { Link, useRouter } from "@/i18n/navigation";
 import type { EvalPlatform, Label } from "@/lib/eval";
-import { judgeBriefAction, rerunBriefAction, setCoreAction, setInTestSetAction, setLabelAction } from "./actions";
+import { judgeBriefAction, rerunBriefAction, setCoreAction, setHoldoutAction, setInTestSetAction, setLabelAction } from "./actions";
 
 export type EvalItem = {
   item: string;
@@ -30,6 +30,8 @@ export type BriefView = {
   region: string;
   goal: string | null;
   core: boolean;
+  /** Measured with every change, never tuned on. */
+  holdout: boolean;
   /** The original brief's title when this research is a re-run of it. */
   rerunOf: string | null;
   judged: boolean;
@@ -116,6 +118,17 @@ export function BriefCard({ view }: { view: BriefView }) {
           <Link href={`/app/research/${view.runId}`} className="font-heading font-bold hover:underline">
             {view.title}
           </Link>
+          {!view.rerunOf && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => start(async () => void (await setHoldoutAction(view.runId, !view.holdout), router.refresh()))}
+              title={t("holdoutTip")}
+              className={`mr-2 rounded-full border px-2 py-0.5 text-[10px] font-medium ${view.holdout ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground"}`}
+            >
+              {t("holdout")}
+            </button>
+          )}
           {view.rerunOf && (
             <p className="text-[11px] font-medium text-primary">
               <Repeat2 className="mr-1 inline size-3" />

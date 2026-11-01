@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { modelName } from "@/lib/ai/model";
-import { judgeRelevance } from "@/lib/ai/tasks";
-import { EVAL_PLATFORMS, JUDGE_CLIPS, creatorItem, topClips, topCreators } from "@/lib/eval";
-import { loadEvalBrief } from "@/lib/eval-data";
+import { judgeRelevance, rateRelevance } from "@/lib/ai/tasks";
+import { EVAL_PLATFORMS, type EvalClip, JUDGE_CLIPS, creatorItem, topClips, topCreators } from "@/lib/eval";
+import { type EvalBrief, loadEvalBrief } from "@/lib/eval-data";
+import { replayGaps } from "@/lib/eval-replay";
 import { isGoal } from "@/lib/goals";
 import { isOwner } from "@/lib/limits";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -19,6 +20,8 @@ async function ownerAdmin() {
   if (!isOwner(data?.claims?.email as string | undefined)) return null;
   return createAdminClient();
 }
+
+type Admin = NonNullable<ReturnType<typeof createAdminClient>>;
 
 const runId = z.string().uuid();
 const refresh = () => revalidatePath("/[locale]/app/eval", "page");
@@ -55,13 +58,27 @@ export async function judgeBriefAction(id: string) {
   if (!admin || !parsed.success) return { ok: false as const };
   const brief = await loadEvalBrief(admin, parsed.data);
   if (!brief) return { ok: false as const };
-  const { run, videos, clips } = brief;
-  const byId = new Map(videos.map((v) => [v.dbId!, v]));
+  const { clips } = brief;
+  const res = await judgeItems(
+    admin,
+    brief,
+    EVAL_PLATFORMS.flatMap((p) => topClips(clips, p, JUDGE_CLIPS[p])),
+    EVAL_PLATFORMS.flatMap((p) => topCreators(clips, p)),
+  );
+  refresh();
+  return res;
+}
 
-  const clipList = EVAL_PLATFORMS.flatMap((p) => topClips(clips, p, JUDGE_CLIPS[p]));
+/**
+ * Judges the given clips and creators of one brief (one AI call each, no credits) and stores the AI labels. Creator
+ * lines use captions already stored in the shared videos table.
+ */
+async function judgeItems(admin: Admin, brief: EvalBrief, clipList: EvalClip[], creatorKeys: string[]) {
+  const { run, videos, clips } = brief;
+  if (!clipList.length && !creatorKeys.length) return { ok: true as const, judged: 0, partial: false };
+  const byId = new Map(videos.map((v) => [v.dbId!, v]));
   // The handle as stored (creator keys are lower-cased).
   const handleOf = new Map(clips.map((c) => [creatorItem(c.platform, c.handle), c.handle]));
-  const creatorKeys = EVAL_PLATFORMS.flatMap((p) => topCreators(clips, p));
   const captions = await Promise.all(
     creatorKeys.map(async (key) => {
       const platform = key.slice(0, key.indexOf(":"));
@@ -96,7 +113,7 @@ export async function judgeBriefAction(id: string) {
       captions.map((c) => ({ platform: c.platform, handle: c.handle, text: c.text || "(no captions stored)", views: null })),
     ),
   ]);
-  if (!clipLabels && !creatorLabels) return { ok: false as const };
+  if (!clipLabels && !creatorLabels) return { ok: false as const, judged: 0, partial: true };
 
   const model = modelName();
   const rows = [
@@ -108,10 +125,65 @@ export async function judgeBriefAction(id: string) {
       label: l.label,
       reason: l.reason,
     })),
-  ].map((r) => ({ ...r, run_id: parsed.data, source: "ai", model, reason: r.reason.slice(0, 300), judged_at: new Date().toISOString() }));
-  const { error } = await admin.from("relevance_labels").upsert(rows, { onConflict: "run_id,item,source" });
-  refresh();
+  ].map((r) => ({ ...r, run_id: run.id, source: "ai", model, reason: r.reason.slice(0, 300), judged_at: new Date().toISOString() }));
+  const { error } = rows.length ? await admin.from("relevance_labels").upsert(rows, { onConflict: "run_id,item,source" }) : { error: null };
   return { ok: !error, judged: rows.length, partial: !clipLabels || !creatorLabels };
+}
+
+/**
+ * Gets one brief ready for replay (AI only, never credits): results stored before the search kept its relevance score
+ * get one from a fresh relevance check, then the clips and creators any order variant puts in the judged places are
+ * judged if nobody has yet. A brief with nothing missing makes no AI call.
+ */
+export async function prepareReplayAction(id: string) {
+  const admin = await ownerAdmin();
+  const parsed = runId.safeParse(id);
+  if (!admin || !parsed.success) return { ok: false as const };
+  const brief = await loadEvalBrief(admin, parsed.data);
+  if (!brief) return { ok: false as const };
+  const { run, videos, feedback, labels } = brief;
+  const { unscored } = replayGaps(videos, run.goal, feedback, labels);
+  if (unscored.length) {
+    const rated = await rateRelevance(run.product, unscored, run.goal, feedback?.examples);
+    if (!rated) return { ok: false as const };
+    for (const score of [0, 1, 2]) {
+      const ids = unscored.filter((_, i) => rated.scores[i] === score).map((v) => v.dbId!);
+      if (ids.length) await admin.from("run_results").update({ relevance: score }).eq("run_id", run.id).in("video_id", ids);
+    }
+    unscored.forEach((v, i) => (v.relevance = rated.scores[i]));
+  }
+  // With every score in place, the variants' orders are final: judge what they surface.
+  const gaps = replayGaps(videos, run.goal, feedback, labels);
+  const res = await judgeItems(admin, brief, gaps.clips, gaps.creators);
+  return { ...res, scored: unscored.length };
+}
+
+/** A label the owner gave without seeing the AI judge's (the judge check). It also corrects the brief's metrics. */
+export async function setBlindLabelAction(id: string, item: string, platform: string, label: number) {
+  const admin = await ownerAdmin();
+  const parsed = z
+    .object({ id: runId, item: z.string().regex(/^\d+$/).max(20), platform: z.enum(EVAL_PLATFORMS), label: z.union([z.literal(0), z.literal(1), z.literal(2)]) })
+    .safeParse({ id, item, platform, label });
+  if (!admin || !parsed.success) return { ok: false as const };
+  const d = parsed.data;
+  const { error } = await admin
+    .from("relevance_labels")
+    .upsert(
+      { run_id: d.id, item: d.item, kind: "clip", platform: d.platform, label: d.label, source: "user", blind: true, judged_at: new Date().toISOString() },
+      { onConflict: "run_id,item,source" },
+    );
+  revalidatePath("/[locale]/app/eval", "layout");
+  return { ok: !error };
+}
+
+/** Hold-out briefs are measured with every search change but never tuned on. */
+export async function setHoldoutAction(id: string, holdout: boolean) {
+  const admin = await ownerAdmin();
+  const parsed = runId.safeParse(id);
+  if (!admin || !parsed.success) return { ok: false as const };
+  const { error } = await admin.from("eval_briefs").update({ holdout }).eq("run_id", parsed.data);
+  refresh();
+  return { ok: !error };
 }
 
 /** The owner's correction of one label (null takes the correction back, so the AI label counts again). */

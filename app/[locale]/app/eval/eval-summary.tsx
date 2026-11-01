@@ -1,34 +1,13 @@
 "use client";
 
-import { Camera, Copy, Gavel, Loader2 } from "lucide-react";
+import { Camera, Copy, Gavel, ListChecks, Loader2, Shuffle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { useRouter } from "@/i18n/navigation";
-import { type Summary, summaryMarkdown, TARGETS } from "@/lib/eval";
+import { Link, useRouter } from "@/i18n/navigation";
+import { type Summary, summaryMarkdown } from "@/lib/eval";
 import { judgeBriefAction, saveSnapshotAction } from "./actions";
-
-type Row = { key: string; name: string; s: Summary };
-type Cell = { value: number | null | undefined; target?: number; lowerIsBetter?: boolean; pct?: boolean; digits?: number };
-
-function fmt(c: Cell) {
-  if (c.value === null || c.value === undefined) return "—";
-  return c.pct ? `${Math.round(c.value * 100)}%` : c.value.toFixed(c.digits ?? 1);
-}
-
-function tone(c: Cell) {
-  if (c.value === null || c.value === undefined || c.target === undefined) return "";
-  const ok = c.lowerIsBetter ? c.value <= c.target : c.value >= c.target;
-  return ok ? "text-emerald-700" : "text-rose-700";
-}
-
-/** ▲ / ▼ against the last snapshot (green when it moved the right way). */
-function Delta({ now, before, lowerIsBetter }: { now: number | null | undefined; before: number | null | undefined; lowerIsBetter?: boolean }) {
-  if (now === null || now === undefined || before === null || before === undefined || Math.abs(now - before) < 1e-9) return null;
-  const up = now > before;
-  const good = lowerIsBetter ? !up : up;
-  return <span className={`ml-1 text-[10px] ${good ? "text-emerald-600" : "text-rose-600"}`}>{up ? "▲" : "▼"}</span>;
-}
+import { type MetricRow, MetricTable } from "./metric-table";
 
 /**
  * The metric table (all briefs, Thai, worldwide, both) with v0.2 targets, the last snapshot to compare with, and the
@@ -39,31 +18,21 @@ export function EvalSummary({
   last,
   unjudged,
   all,
+  agreementLine,
 }: {
-  rows: Row[];
+  rows: MetricRow[];
   last: { note: string | null; createdAt: string; all: Summary | null } | null;
   unjudged: string[];
   /** Every brief in the set, for "judge all again" (after the judge itself changes). */
   all: string[];
+  /** How far the AI judge agrees with your blind labels, once you have done the check. */
+  agreementLine: string | null;
 }) {
   const t = useTranslations("eval");
   const router = useRouter();
   const [note, setNote] = useState("");
   const [saving, startSave] = useTransition();
   const [progress, setProgress] = useState<{ done: number; of: number } | null>(null);
-
-  const columns = (s: Summary): Cell[] => [
-    { value: s.precision10.tiktok, target: TARGETS.precision10.tiktok, pct: true },
-    { value: s.precision10.youtube, target: TARGETS.precision10.youtube, pct: true },
-    { value: s.precision10.instagram, target: TARGETS.precision10.instagram, pct: true },
-    { value: s.creatorPrecision5, target: TARGETS.creatorPrecision5, pct: true },
-    { value: s.igCoverage, target: TARGETS.igCoverage },
-    { value: s.diversity, target: TARGETS.diversity, lowerIsBetter: true, pct: true },
-    { value: s.costPerUseful, lowerIsBetter: true },
-    { value: s.seconds, digits: 0, lowerIsBetter: true },
-  ];
-  const head = [t("col.p10", { p: "TikTok" }), t("col.p10", { p: "YouTube" }), t("col.p10", { p: "IG" }), t("col.creators"), t("col.igUseful"), t("col.diversity"), t("col.cost"), t("col.seconds")];
-  const lastCols = last?.all ? columns(last.all) : null;
 
   async function judgeAll(ids: string[]) {
     setProgress({ done: 0, of: ids.length });
@@ -78,46 +47,12 @@ export function EvalSummary({
 
   return (
     <section className="space-y-3 rounded-3xl border bg-card p-4">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead className="text-left text-xs text-muted-foreground">
-            <tr>
-              <th className="py-1.5 pr-3 font-medium" />
-              <th className="py-1.5 pr-3 font-medium">{t("col.briefs")}</th>
-              {head.map((h) => (
-                <th key={h} className="py-1.5 pr-3 font-medium">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.key} className="border-t">
-                <td className="py-1.5 pr-3 font-medium">{r.name}</td>
-                <td className="py-1.5 pr-3">{r.s.briefs}</td>
-                {columns(r.s).map((c, i) => (
-                  <td key={i} className={`py-1.5 pr-3 tabular-nums ${tone(c)}`}>
-                    {fmt(c)}
-                    {r.key === "all" && lastCols && <Delta now={c.value} before={lastCols[i].value} lowerIsBetter={c.lowerIsBetter} />}
-                  </td>
-                ))}
-              </tr>
-            ))}
-            {lastCols && (
-              <tr className="border-t text-muted-foreground">
-                <td className="py-1.5 pr-3 text-xs">{t("lastSnapshot", { note: last?.note ?? "—" })}</td>
-                <td className="py-1.5 pr-3 text-xs">{last?.all?.briefs}</td>
-                {lastCols.map((c, i) => (
-                  <td key={i} className="py-1.5 pr-3 text-xs tabular-nums">
-                    {fmt(c)}
-                  </td>
-                ))}
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <MetricTable
+        rows={rows}
+        compare={last?.all ? { keys: ["all"], against: last.all } : undefined}
+        reference={last?.all ? { name: t("lastSnapshot", { note: last.note ?? "—" }), s: last.all } : undefined}
+      />
+      {agreementLine && <p className="text-xs">{agreementLine}</p>}
       <p className="text-xs text-muted-foreground">{t("targetsHint")}</p>
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -172,6 +107,12 @@ export function EvalSummary({
         >
           <Copy className="size-3.5" /> {t("copyMarkdown")}
         </button>
+        <Link href="/app/eval/replay" className="chip">
+          <Shuffle className="size-3.5" /> {t("replay.open")}
+        </Link>
+        <Link href="/app/eval/check" className="chip">
+          <ListChecks className="size-3.5" /> {t("check.open")}
+        </Link>
       </div>
     </section>
   );

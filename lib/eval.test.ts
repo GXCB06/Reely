@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { briefMetrics, combineJudgements, creatorItem, type EvalClip, effectiveLabels, type Label, summarize, summaryMarkdown, topCreators } from "./eval";
+import { agreement, briefMetrics, combineJudgements, creatorItem, type EvalClip, effectiveLabels, type Label, latestBatch, pickCheckSample, summarize, summaryMarkdown, topCreators } from "./eval";
 
 const clip = (id: number, platform: EvalClip["platform"], handle: string): EvalClip => ({ id, platform, handle });
 
@@ -91,5 +91,55 @@ describe("combineJudgements", () => {
 
   it("uses the one pass that answered", () => {
     expect(combineJudgements(null, [{ i: 0, label: 2, reason: "b" }])).toEqual([{ i: 0, label: 2, reason: "b" }]);
+  });
+});
+
+describe("latestBatch", () => {
+  it("keeps the newest re-runs added within 5 minutes of each other", () => {
+    const row = (id: string, at: string, parent: string | null = "p") => ({ id, parent_run_id: parent, added_at: at });
+    const rows = [
+      row("orig", "2026-11-01T08:00:00Z", null),
+      row("old", "2026-11-01T09:00:00Z"),
+      row("a", "2026-11-01T10:00:00Z"),
+      row("b", "2026-11-01T10:04:00Z"),
+      row("c", "2026-11-01T10:07:00Z"),
+    ];
+    expect(latestBatch(rows).map((r) => r.id)).toEqual(["c", "b", "a"]);
+  });
+});
+
+describe("agreement", () => {
+  const pair = (user: Label, other: Label) => ({ platform: "tiktok" as const, thai: true, user, other });
+  it("measures exact agreement, the 2s that P@10 counts, and kappa", () => {
+    const a = agreement([pair(2, 2), pair(2, 2), pair(2, 1), pair(1, 2), pair(1, 1), pair(0, 0)]);
+    expect(a.n).toBe(6);
+    expect(a.exact).toBeCloseTo(4 / 6);
+    expect(a.precision2).toBeCloseTo(2 / 3);
+    expect(a.recall2).toBeCloseTo(2 / 3);
+    // Chance: user 3/6·2, 2/6·1, 1/6·0; other the same → (9 + 4 + 1) / 36.
+    expect(a.kappa).toBeCloseTo((4 / 6 - 14 / 36) / (1 - 14 / 36));
+  });
+  it("has no numbers without pairs", () => {
+    expect(agreement([])).toEqual({ n: 0, exact: null, precision2: null, recall2: null, kappa: null });
+  });
+});
+
+describe("pickCheckSample", () => {
+  const item = (runId: string, n: number, platform: "tiktok" | "youtube" | "instagram", ai: Label) => ({ runId, item: String(n), platform, ai });
+  it("takes half 2s and half 1/0 per platform, spread over briefs, in a stable order", () => {
+    const items = [
+      ...Array.from({ length: 30 }, (_, i) => item(i % 3 === 0 ? "a" : i % 3 === 1 ? "b" : "c", i, "tiktok", i < 15 ? 2 : 1)),
+      ...Array.from({ length: 4 }, (_, i) => item("a", 100 + i, "youtube", 2)),
+      ...Array.from({ length: 12 }, (_, i) => item("b", 200 + i, "youtube", 0)),
+    ];
+    const s = pickCheckSample(items, 10);
+    const tiktok = s.filter((x) => x.platform === "tiktok");
+    expect(tiktok.filter((x) => x.ai === 2)).toHaveLength(5);
+    expect(new Set(tiktok.map((x) => x.runId)).size).toBe(3);
+    // Only 4 YouTube 2s: the rest comes from the 1/0 side.
+    const youtube = s.filter((x) => x.platform === "youtube");
+    expect(youtube).toHaveLength(10);
+    expect(youtube.filter((x) => x.ai === 2)).toHaveLength(4);
+    expect(pickCheckSample([...items].reverse(), 10).map((x) => x.item)).toEqual(s.map((x) => x.item));
   });
 });

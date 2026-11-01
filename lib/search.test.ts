@@ -55,6 +55,12 @@ describe("searchKeywords with creator relevance", () => {
     expect(result.platforms.tiktok?.dropped.offCreator).toBe(offClips);
     expect(lookups.mock.calls.some(([handle]) => handle === offCreator)).toBe(false);
     expect(result.videos.every((v) => v.creatorFit === 2 && v.creatorWhy === "test")).toBe(true);
+    // What the checks said is kept for replays: every result's own score, and every found clip with why it went.
+    expect(result.videos.every((v) => v.relevance === 1)).toBe(true);
+    expect(result.candidates).toHaveLength(result.platforms.tiktok!.found);
+    expect(result.candidates.filter((c) => c.dropReason === "offCreator")).toHaveLength(offClips);
+    expect(result.candidates.filter((c) => c.dropReason === null)).toHaveLength(result.platforms.tiktok!.kept);
+    expect(result.candidates.find((c) => c.dropReason === "offCreator")).toMatchObject({ relevance: 1, creatorFit: 0 });
     offCreator = "";
   });
 });

@@ -104,6 +104,26 @@ export type ScoredVideo = NormalizedVideo & {
   accountType?: AccountType | null;
   /** What the account mostly posts (shown on the card). */
   creatorWhy?: string | null;
+  /** The relevance check's score for the clip itself: 2 on target, 1 same field. Null when the check didn't run. */
+  relevance?: number | null;
+};
+
+/**
+ * A clip the keyword search found, kept or not (`dropReason` null = kept), with what the checks said. Stored for owner
+ * researches so the test set can replay filter changes without credits. Feed picks are results, not candidates.
+ */
+export type Candidate = {
+  platform: Platform;
+  platformVideoId: string;
+  handle: string;
+  caption: string;
+  views: number | null;
+  followers: number | null;
+  publishedAt: string | null;
+  keyword: string;
+  dropReason: DropReason | null;
+  relevance: number | null;
+  creatorFit: number | null;
 };
 
 export type SearchResult = {
@@ -119,6 +139,8 @@ export type SearchResult = {
   relevanceFailed: boolean;
   /** Similar products' own accounts found in this run (shown in their own section). */
   similarAccounts: SimilarAccount[];
+  /** Everything the keyword search found and why each clip stayed or went (stored for owners only). */
+  candidates: Candidate[];
 };
 
 export type DropReason = "views" | "old" | "language" | "excluded" | "offTopic" | "offCreator";
@@ -316,6 +338,8 @@ export async function searchKeywords(
   const thaiKeywords = new Set(keywords.filter((k) => k.region === "th").map((k) => k.text));
   const stats: Partial<Record<Platform, PlatformStats>> = {};
   const statOf = (p: Platform) => (stats[p] ??= { found: 0, kept: 0, dropped: {} });
+  // Why each found clip went (no entry = kept), for the stored candidate pool.
+  const dropOf = new Map<NormalizedVideo, DropReason>();
   const clean = all.filter((v) => {
     const s = statOf(v.platform);
     s.found++;
@@ -326,7 +350,10 @@ export async function searchKeywords(
       exclusions,
       thaiSearch: thaiKeywords.has(v.keyword),
     });
-    if (reason) s.dropped[reason] = (s.dropped[reason] ?? 0) + 1;
+    if (reason) {
+      s.dropped[reason] = (s.dropped[reason] ?? 0) + 1;
+      dropOf.set(v, reason);
+    }
     return !reason;
   });
   // The user's own account (e.g. @accospro.app for AccOS Pro) is not something to learn from: leave it out quietly.
@@ -338,6 +365,10 @@ export async function searchKeywords(
   // Clips the user marked 👎 for this product never come back.
   const disliked = opts.feedback?.disliked;
   if (disliked?.size) clean.splice(0, clean.length, ...clean.filter((v) => !disliked.has(clipKey(v))));
+  // The pool stored for replays: everything found except the user's own account and 👎 clips (never results anyway).
+  const candidatePool = all.filter(
+    (v) => !(opts.product && isOwnAccount(v.creatorHandle, opts.product.name)) && !disliked?.has(clipKey(v)),
+  );
   // AI relevance check before any paid baseline lookups, so off-topic creators cost nothing.
   // Score 1 ("same audience, not the product") only fills in when there are few clearly on-topic videos.
   // The ACCOUNTS behind the clips are rated at the same time (from a few of their captions: this run's plus posts
@@ -352,9 +383,11 @@ export async function searchKeywords(
   const keep = relevance ? relevanceKeep(relevance) : null;
   let kept = keep ? clean.filter((_, i) => keep[i]) : clean;
   clean.forEach((v, i) => {
-    if (keep && !keep[i]) statOf(v.platform).dropped.offTopic = (statOf(v.platform).dropped.offTopic ?? 0) + 1;
+    if (!keep || keep[i]) return;
+    statOf(v.platform).dropped.offTopic = (statOf(v.platform).dropped.offTopic ?? 0) + 1;
+    dropOf.set(v, "offTopic");
   });
-  const relevanceOf = new Map(clean.map((v, i) => [v, relevance?.[i] ?? null]));
+  const relevanceOf = new Map<NormalizedVideo, number | null>(clean.map((v, i) => [v, relevance?.[i] ?? null]));
 
   // Before any paid lookup: credits go to on-topic accounts, and an unrelated account's clips go unless the clip
   // itself is clearly on topic (only when the clip check worked too, so a failed check never drops anything).
@@ -364,6 +397,7 @@ export async function searchKeywords(
       if (!dropForCreator(fitOf(v)?.fit, relevanceOf.get(v))) return true;
       const s = statOf(v.platform);
       s.dropped.offCreator = (s.dropped.offCreator ?? 0) + 1;
+      dropOf.set(v, "offCreator");
       return false;
     });
   }
@@ -474,6 +508,7 @@ export async function searchKeywords(
       const found = picked.filter((v, i) => (rated?.scores[i] ?? 0) >= minScore);
       found.forEach((v) => {
         copyOf.set(v, rated?.copy[picked.indexOf(v)] ?? null);
+        relevanceOf.set(v, rated?.scores[picked.indexOf(v)] ?? null);
         seen.add(`${v.platform}:${v.platformVideoId}`);
       });
       igFeedClips.push(...found);
@@ -517,6 +552,7 @@ export async function searchKeywords(
       if ((extraRated?.scores[i] ?? 0) < minScore) return;
       extras.push(v);
       copyOf.set(v, extraRated?.copy[i] ?? null);
+      relevanceOf.set(v, extraRated?.scores[i] ?? null);
     });
     extras.forEach((v) => {
       const s = statOf(v.platform);
@@ -553,6 +589,7 @@ export async function searchKeywords(
         creatorFit: fitOf(v)?.fit ?? null,
         accountType: fitOf(v)?.type ?? null,
         creatorWhy: fitOf(v)?.why || null,
+        relevance: relevanceOf.get(v) ?? null,
       };
     })
     // "Best for your goal" (plain best when there is no goal), nudged by the user's 👍/👎.
@@ -569,6 +606,19 @@ export async function searchKeywords(
       const [p, handle] = [key.slice(0, key.indexOf(":")) as Platform, key.slice(key.indexOf(":") + 1)];
       return { platform: p, handle, usualViews: baselines.get(key)?.usualViews ?? null };
     }),
+    candidates: candidatePool.map((v) => ({
+      platform: v.platform,
+      platformVideoId: v.platformVideoId,
+      handle: v.creatorHandle,
+      caption: v.caption.slice(0, 300),
+      views: v.views,
+      followers: v.creatorFollowers,
+      publishedAt: v.publishedAt,
+      keyword: v.keyword,
+      dropReason: dropOf.get(v) ?? null,
+      relevance: relevanceOf.get(v) ?? null,
+      creatorFit: fitOf(v)?.fit ?? null,
+    })),
   };
 }
 
