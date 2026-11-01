@@ -81,8 +81,8 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 1. Only the TikTok and Instagram adapters (ScrapeCreators) make paid calls. Instagram is off by default
    in the composer. Never add another paid provider without asking.
 2. Max 5 keywords per run, 1 page per keyword per platform.
-3. Usual-views lookups only for the top 5 creators per platform in a run (8 Instagram creators when a run searches
-   Reels without TikTok), for tracked accounts, and for the creator of a pasted clip link. Plus up to 2 similar-product
+3. Usual-views lookups only for the top 5 TikTok / YouTube creators per platform in a run (Instagram: the seed accounts
+   of rule 11, within its 25-credit cap), for tracked accounts, and for the creator of a pasted clip link. Plus up to 2 similar-product
    accounts per platform (an app or brand like the user's promoting itself: `brand` from `rateRelevance`, or a handle
    matching a competitor): their standout clips join the results and get their own section ("From similar products").
 4. Before any external call, check the 24-hour cache (`lib/cache.ts`).
@@ -107,16 +107,17 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     test: median 44.6K views vs ~9K from reels search), after up to 2 free rewordings ('… tips', '… ideas'; an empty popular answer costs nothing), falling back to `/v2/instagram/reels/search` only when
     popular is empty. Reels look back at least 365 days (popular is mostly older posts; dates come from the
     media id). Baseline = one page of `/v1/instagram/user/reels` (`trim=true`). No profile calls.
-    Popular has no next page (~12 reels per keyword), so the looked-up creators' feeds also add their own standout
-    reels (2x+ their usual views, max 3 per creator) after a second `rateRelevance` call: no extra credits
-    (`feedPicks` in lib/search.ts, counted as `fromFeeds`). The top 3 Instagram creators get 3 pages of reels (~36,
-    +2 credits each) so older hits count. Thai can't be searched on Instagram (popular is English-only, reels search
-    returns unrelated clips), so with TikTok + Reels and Thai keywords, up to 4 Thai TikTok creators are tried under
-    the same Instagram handle (`instagramReels`; a missing profile is free) and their standout reels join too.
-    Instagram's own account search (`/v1/instagram/search`, 1 credit, ~15 s) does understand Thai: the first 2 Thai
-    keywords are searched alongside the keyword search, `pickRelevantAccounts` (AI) keeps up to 4 accounts in the
-    product's field, and 2 pages of each one's reels are read (max ~10 credits). Their standout reels join with a
-    5K-view floor (Thai Instagram is smaller), counted as `fromAccounts`.
+    Popular has no next page (~12 reels per keyword), so Instagram is **creator-first** (v0.2 1.5, lib/search.ts):
+    seed accounts, best first: known creators (Instagram accounts this user's earlier researches for the product rated
+    fit 2, last 90 days, free), Instagram's own account search (`/v1/instagram/search`, 1 credit, ~15 s, understands
+    Thai; up to 3 keywords, Thai as typed and worldwide ones in English, `pickRelevantAccounts` keeps 4), this run's
+    on-topic Instagram creators, accounts the AI knows for the category (`suggestInstagramAccounts`; a made-up handle
+    is a free 404), then this run's fit-2 TikTok / YouTube accounts under the same handle (4). Each seed's feed is read
+    with 2 pages (`instagramReels`, ~24 reels): 4 accounts first, then up to 10 only when those gave 3+ on-topic Reels
+    and the run is under 55 s, and **never past 25 Instagram credits per research** (`IG_CREDIT_CAP`, keyword and
+    account searches included; `creditsSoFar` in lib/run-context.ts). A reel counts at 2x+ its own account's usual
+    views (from 8+ reels; no absolute floor beyond 1K), up to 4 per account, then a second `rateRelevance` call;
+    counted as `fromFeeds`, with `accountsChecked` and `seeds` by source in the stats.
 12. Run the AI relevance check (`rateRelevance`) BEFORE baseline lookups, so off-topic creators cost nothing.
     Score 1 means "inside the product's field", not just "same audience"; with 15+ clear matches, only score 2 stays.
     At the same time (in parallel, so slow models don't add up) the ACCOUNTS behind the clips are rated (`rateCreators`,

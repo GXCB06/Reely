@@ -425,7 +425,8 @@
         "moreHooks": "Give me 3 more hooks",
         "whatNext": "Which clip should I make next?"
       }
-    }
+    },
+    "igAccounts": "read {n} accounts, found {m} on-topic Reels"
   },
   "card": {
     "save": "Save",

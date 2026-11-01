@@ -128,6 +128,20 @@ async function resolveProduct(supabase: Supabase, input: RunInput): Promise<stri
   return (data?.id as string | undefined) ?? null;
 }
 
+/** Up to 6 Instagram accounts the user's researches for this product rated on topic (fit 2) in the last 90 days. */
+async function knownInstagramAccounts(supabase: Awaited<ReturnType<typeof createClient>>, productId: string) {
+  const { data } = await supabase
+    .from("run_results")
+    .select("videos!inner(platform, creator_handle), research_runs!inner(product_id, created_at)")
+    .eq("creator_fit", 2)
+    .eq("videos.platform", "instagram")
+    .eq("research_runs.product_id", productId)
+    .gte("research_runs.created_at", new Date(Date.now() - 90 * 864e5).toISOString())
+    .limit(60);
+  const handles = ((data ?? []) as unknown as { videos: { creator_handle: string } }[]).map((r) => r.videos.creator_handle);
+  return [...new Set(handles)].slice(0, 6);
+}
+
 const resultRow = (runId: string, v: ScoredVideo, rank: number) => ({
   run_id: runId,
   video_id: v.dbId!,
@@ -214,8 +228,10 @@ export async function startResearch(input: RunInput, onCreated?: (runId: string)
     // What the user taught Reely about this product (👍/👎 on earlier researches).
     const { feedback } = await loadFeedback(supabase, productRowId);
     const searchStarted = Date.now();
+    // Instagram accounts this user's earlier researches for the product found on topic: the first seeds (free).
+    const knownInstagram = platforms.includes("instagram") && productRowId ? await knownInstagramAccounts(supabase, productRowId) : [];
     const { value: result, credits } = await countCredits(() =>
-      searchKeywords(keywords, platforms, exclusions, { product, goal, feedback, locale, ...settings }),
+      searchKeywords(keywords, platforms, exclusions, { product, goal, feedback, locale, knownInstagram, ...settings }),
     );
     const searchSeconds = Math.round((Date.now() - searchStarted) / 100) / 10;
     const rows = result.videos.filter((v) => v.dbId !== undefined).map((v, i) => resultRow(run.id, v, i + 1));

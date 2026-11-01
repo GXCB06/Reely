@@ -22,3 +22,8 @@ export function addCredit(endpoint: string, calls = 1) {
   else if (endpoint.includes("/instagram/")) c.instagram += calls;
   else c.other += calls;
 }
+
+/** Paid calls so far in the research running now (0 outside a research), for budget caps such as Instagram's 25. */
+export function creditsSoFar(platform: "tiktok" | "instagram" | "total" = "total") {
+  return store.getStore()?.[platform] ?? 0;
+}

@@ -106,6 +106,11 @@ export const creatorFitSchema = z.object({
   ),
 });
 
+/** Instagram accounts the AI knows for a product's category (checked by reading their reels; a made-up handle is free). */
+export const igSuggestSchema = z.object({
+  handles: z.array(z.string().max(40)).max(8).describe("Instagram usernames without @, most relevant first"),
+});
+
 /** Relevance test set (owner-only): a strict judge, separate from the search's own relevance check. */
 export const judgeSchema = z.object({
   labels: z.array(

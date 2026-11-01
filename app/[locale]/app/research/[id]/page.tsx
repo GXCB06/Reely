@@ -226,8 +226,15 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
                       {drop && s.kept < s.found && (
                         <span className="text-muted-foreground/80">· {t("mostlyDropped", { reason: t(`dropReason.${drop[0]}`), n: drop[1] })}</span>
                       )}
-                      {!!s.fromFeeds && <span className="text-primary">· {t("fromFeeds", { n: s.fromFeeds })}</span>}
-                      {!!s.fromAccounts && <span className="text-primary">· {t("fromAccounts", { n: s.fromAccounts })}</span>}
+                      {s.accountsChecked !== undefined ? (
+                        // Instagram, creator-first: how many accounts were read and how many on-topic Reels they gave.
+                        <span className="text-primary">· {t("igAccounts", { n: s.accountsChecked, m: s.fromFeeds ?? 0 })}</span>
+                      ) : (
+                        <>
+                          {!!s.fromFeeds && <span className="text-primary">· {t("fromFeeds", { n: s.fromFeeds })}</span>}
+                          {!!s.fromAccounts && <span className="text-primary">· {t("fromAccounts", { n: s.fromAccounts })}</span>}
+                        </>
+                      )}
                     </span>
                   );
                 })}

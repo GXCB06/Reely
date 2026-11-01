@@ -23,11 +23,17 @@ vi.mock("@/lib/ai/tasks", () => ({
     return new Map(creators.map((c) => [c.key, { fit: c.handle === offCreator ? 0 : 2, type: "creator", why: "test" }]));
   }),
   pickRelevantAccounts: vi.fn(async () => []),
+  // The one Instagram account with a saved feed fixture, plus one that doesn't exist (its feed comes back empty).
+  suggestInstagramAccounts: vi.fn(async () => ["nipt.academy", "made.up.handle"]),
 }));
+
+// Set by each test: Instagram credits already spent in the research (the 25-credit cap).
+let igSpent = 0;
+vi.mock("@/lib/run-context", () => ({ creditsSoFar: () => igSpent }));
 
 process.env.USE_FIXTURES = "true";
 const { adapters } = await import("@/lib/adapters");
-const { searchKeywords } = await import("./search");
+const { feedPicks, orderSeeds, searchKeywords } = await import("./search");
 
 const product = { name: "AccOS Pro", whatItIs: "Accounting software for Thai SMEs", audience: "SME owners" };
 
@@ -50,5 +56,52 @@ describe("searchKeywords with creator relevance", () => {
     expect(lookups.mock.calls.some(([handle]) => handle === offCreator)).toBe(false);
     expect(result.videos.every((v) => v.creatorFit === 2 && v.creatorWhy === "test")).toBe(true);
     offCreator = "";
+  });
+});
+
+describe("Instagram creator-first", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    igSpent = 0;
+  });
+
+  it("orders seeds known > search > keyword > suggested > cross, each handle once at its best source", () => {
+    const seeds = orderSeeds([
+      { handle: "c", source: "cross" as const },
+      { handle: "s", source: "suggested" as const },
+      { handle: "k", source: "known" as const },
+      { handle: "S", source: "search" as const },
+      { handle: "w", source: "keyword" as const },
+    ]);
+    // "S" and "s" are the same account: it stays once, as a search result.
+    expect(seeds.map((x) => x.source)).toEqual(["known", "search", "keyword", "cross"]);
+    expect(seeds[1].handle).toBe("S");
+  });
+
+  it("picks reels against the account's own usual views, not an absolute floor", async () => {
+    const reel = (id: string, views: number) => ({ platformVideoId: id, views, platform: "instagram", creatorHandle: "a", caption: "" }) as never;
+    const feed = [reel("hit", 3_000), reel("big", 30_000), ...Array.from({ length: 8 }, (_, i) => reel(`n${i}`, i < 4 ? 700 : 25_000))];
+    const base = { usualViews: null, recent: feed.map((v: { platformVideoId: string; views: number }) => ({ id: v.platformVideoId, views: v.views })), feed };
+    const picks = await feedPicks("instagram", "a", base, () => false, { perCreator: 4, minSample: 8 });
+    // Usual ≈ 700-25K → median ~12.8K: 30K (2.3x) qualifies, 3K doesn't; with a small account the 3K one would.
+    expect(picks.map((v) => v.platformVideoId)).toContain("big");
+    const small = feed.map((v: { views: number }) => ({ ...(v as object), views: v.views === 25_000 ? 600 : v.views === 30_000 ? 800 : v.views })) as never[];
+    const smallBase = { usualViews: null, recent: small.map((v: { platformVideoId: string; views: number }) => ({ id: v.platformVideoId, views: v.views })), feed: small };
+    expect((await feedPicks("instagram", "a", smallBase, () => false, { perCreator: 4, minSample: 8 })).map((v) => v.platformVideoId)).toEqual(["hit"]);
+    // Too few reels to know the account's usual views: nothing.
+    expect(await feedPicks("instagram", "a", { ...smallBase, recent: smallBase.recent.slice(0, 5) }, () => false, { minSample: 8 })).toEqual([]);
+  });
+
+  it("reads seed accounts' feeds, and stops at the credit cap", async () => {
+    // nipt.academy (the one account with a saved feed) as a known creator: read first, ahead of every other seed.
+    const run = () =>
+      searchKeywords([{ text: "nipt test", region: "global", english: "nipt test" }], ["instagram"], [], { product, minViews: 0, knownInstagram: ["nipt.academy"] });
+    const open = await run();
+    expect(open.platforms.instagram?.accountsChecked).toBe(1); // seeds without a feed (e.g. a made-up handle) aren't counted
+    expect(open.platforms.instagram?.seeds?.known).toBe(1);
+
+    igSpent = 24; // one more account (2 pages) would pass 25
+    const capped = await run();
+    expect(capped.platforms.instagram?.accountsChecked).toBe(0);
   });
 });

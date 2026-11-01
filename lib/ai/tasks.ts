@@ -41,6 +41,7 @@ import {
   judgeSchema,
   type AccountType,
   creatorFitSchema,
+  igSuggestSchema,
 } from "./schemas";
 
 // Every task falls back to deterministic sample output when Gemini is not configured or fails,
@@ -824,6 +825,45 @@ export async function pickRelevantAccounts(
     return [...new Set(output.keep)].filter((i) => i < accounts.length).slice(0, max).map((i) => accounts[i].handle);
   } catch (e) {
     console.warn("[ai] pickRelevantAccounts failed", (e as Error).message);
+    return [];
+  }
+}
+
+/**
+ * Instagram accounts the AI knows for the product's specific category: competitors' own accounts first, then creators
+ * who mostly review or teach that kind of product. Unverified: the search reads their reels to check (a handle that
+ * doesn't exist costs nothing) and the relevance check filters what they post. One AI call, no credits.
+ */
+export async function suggestInstagramAccounts(product: ProductBrief, goal: Goal | null | undefined, region: string): Promise<string[]> {
+  const model = getModel();
+  if (!model) return [];
+  try {
+    const { output } = await generateText({
+      ...aiCallOptions(20_000),
+      model,
+      output: Output.object({ schema: igSuggestSchema }),
+      prompt: [
+        "List real Instagram accounts that post short videos a founder could learn from for the product below.",
+        `Product: ${product.name} — ${product.whatItIs}${product.audience ? `. Audience: ${product.audience}` : ""}`,
+        goal ? `The founder ${GOAL_BRIEF[goal]}.` : "",
+        product.competitors?.length ? `Named competitors: ${product.competitors.join(", ")}.` : "",
+        `Market: ${region === "th" ? "Thailand first (Thai accounts), then global" : region === "global" ? "worldwide" : "Thailand and worldwide"}.`,
+        "First: competitors' and same-category products' OFFICIAL accounts. Then creators who mostly review, demo or teach",
+        "this kind of product. Only accounts you are confident exist, with their exact username (no @, no URL). Never the",
+        "product's own account. Never celebrities or big brands from other fields. Up to 8, most relevant first; fewer is fine.",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+    return [
+      ...new Set(
+        output.handles
+          .map((h) => h.trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/\/.*$/, "").toLowerCase())
+          .filter((h) => /^[a-z0-9._]{2,30}$/.test(h)),
+      ),
+    ].slice(0, 8);
+  } catch (e) {
+    console.warn("[ai] suggestInstagramAccounts failed", (e as Error).message);
     return [];
   }
 }

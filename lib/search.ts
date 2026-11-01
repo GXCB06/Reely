@@ -4,11 +4,12 @@ import { INSTAGRAM_MIN_DAYS, instagramReels, instagramSearchAccounts } from "@/l
 import { DEFAULT_WINDOW, type NormalizedVideo, type Platform, type SearchRegion } from "@/lib/adapters/types";
 import type { SearchSettings } from "@/lib/search-settings";
 import type { AccountType } from "@/lib/ai/schemas";
-import { type CreatorFit, pickRelevantAccounts, type ProductBrief, rateCreators, rateRelevance } from "@/lib/ai/tasks";
+import { type CreatorFit, pickRelevantAccounts, type ProductBrief, rateCreators, rateRelevance, suggestInstagramAccounts } from "@/lib/ai/tasks";
 import { getCreatorVideos, getFreshCreator, saveCreator, saveVideos } from "@/lib/cache";
 import { clipKey, type Feedback, withFeedback } from "@/lib/feedback";
 import { type Goal, goalScore } from "@/lib/goals";
 import { captionLanguage } from "@/lib/region";
+import { creditsSoFar } from "@/lib/run-context";
 import { dropForCreator, isBrandAccount, isExcluded, isOwnAccount, relevanceKeep, STRICT_RELEVANCE_AT, withCreatorFit } from "@/lib/results";
 import {
   labelFor,
@@ -20,35 +21,45 @@ import {
 } from "@/lib/scoring";
 
 
-/** Max creators per platform that get a usual-views lookup (CLAUDE.md cost rule 3). */
+/** Max TikTok / YouTube creators per platform that get a usual-views lookup (CLAUDE.md cost rule 3). */
 const BASELINE_CREATORS = 5;
-/** A Reels-only research (no TikTok credits spent) looks up more Instagram creators: 1 credit each. */
-const BASELINE_CREATORS_REELS_ONLY = 8;
 
 /**
- * Instagram search returns only ~12 reels per keyword, so the creators looked up for usual views (their feed is
- * already paid for) also add their own standout reels: at least 2x their usual views, after the same relevance check.
+ * Instagram, creator-first (cost rule 11). Its keyword search is thin, so Reels come from seed accounts' feeds:
+ * 2 pages each (~24 reels, 1 credit a page; a missing profile is free), 4 accounts first and up to 10 when the first
+ * ones gave on-topic Reels and the run is still quick, never past IG_CREDIT_CAP Instagram credits in a research
+ * (keyword and account searches included). A reel counts at 2x+ its own account's usual views (from 8+ reels), with
+ * no absolute floor beyond 1K views; up to 4 per account, then the relevance check.
  */
-const FEED_EXTRA_PLATFORMS: Platform[] = ["instagram"];
-/** The top Instagram creators get 3 pages of reels (~36, +2 credits each), so their older hits are found too. */
-const IG_DEEP_CREATORS = 3;
-const IG_DEEP_PAGES = 3;
-/**
- * Instagram can't be searched in Thai through ScrapeCreators (popular answers nothing, reels search returns
- * unrelated clips; checked 2026-10-27). Thai TikTok creators often use the same handle on Instagram, so up to 4 of
- * them are tried there: a handle that doesn't exist costs nothing, one that does costs 1 credit.
- */
-const IG_FROM_TIKTOK = 4;
-/**
- * Thai Reels through Instagram's own account search (the one endpoint that understands Thai): the first 2 Thai
- * keywords are searched (1 credit each, ~15 s, alongside the keyword search), the AI keeps up to 4 accounts in the
- * product's field, and 2 pages of each one's reels are read (2 credits each). At most 10 credits.
- */
-const IG_ACCOUNT_SEARCHES = 2;
+const IG_CREDIT_CAP = 25;
+const IG_SEED_PAGES = 2;
+const IG_FIRST_STEP = 4;
+const IG_MAX_ACCOUNTS = 10;
+const IG_SECOND_STEP_AFTER = 3;
+const IG_SECOND_STEP_BEFORE_MS = 55_000;
+const IG_PICKS_PER_ACCOUNT = 4;
+const IG_MIN_SAMPLE = 8;
+const IG_SANITY_VIEWS = 1_000;
+/** Instagram's account search (1 credit, ~15 s; understands Thai): up to 3 keywords, AI keeps up to 4 accounts. */
+const IG_ACCOUNT_SEARCHES = 3;
 const IG_ACCOUNTS = 4;
-const IG_ACCOUNT_PAGES = 2;
-/** Thai Instagram is a smaller market: those accounts' reels count from 5K views (what a Strong label needs). */
-const IG_ACCOUNT_MIN_VIEWS = 5_000;
+/** This run's on-topic TikTok / YouTube accounts tried under the same Instagram handle. */
+const IG_CROSS_PLATFORM = 4;
+
+export type SeedSource = "known" | "search" | "keyword" | "suggested" | "cross";
+type Seed = { handle: string; source: SeedSource; keyword: string };
+const SEED_ORDER: SeedSource[] = ["known", "search", "keyword", "suggested", "cross"];
+
+/** Seeds best first (known > search > keyword > suggested > cross), each handle once (its best source wins). */
+export function orderSeeds<T extends { handle: string; source: SeedSource }>(seeds: T[]): T[] {
+  const best = new Map<string, T>();
+  for (const s of seeds) {
+    const key = s.handle.toLowerCase();
+    const had = best.get(key);
+    if (!had || SEED_ORDER.indexOf(s.source) < SEED_ORDER.indexOf(had.source)) best.set(key, s);
+  }
+  return [...best.values()].sort((a, b) => SEED_ORDER.indexOf(a.source) - SEED_ORDER.indexOf(b.source));
+}
 /**
  * Accounts that are themselves a product like the user's (an app or brand promoting itself, flagged by the relevance
  * check or matching a competitor's name): up to 2 per platform get a usual-views lookup even outside the top creators,
@@ -99,8 +110,11 @@ export type PlatformStats = {
   dropped: Partial<Record<DropReason, number>>;
   /** Extra clips from the looked-up creators' own feeds (counted apart from `kept`). */
   fromFeeds?: number;
-  /** Of those, from accounts found by Instagram's account search with Thai keywords. */
+  /** Older researches: of those, from Instagram's account search. */
   fromAccounts?: number;
+  /** Instagram: seed accounts whose reels were read, and where they came from. */
+  accountsChecked?: number;
+  seeds?: Partial<Record<SeedSource, number>>;
 };
 
 /** Why a video did not make it, checked in this order (the first failing rule is the reason). */
@@ -144,21 +158,27 @@ async function creatorBaseline(platform: Platform, handle: string, igPages = 1) 
 
 type Baseline = Awaited<ReturnType<typeof creatorBaseline>>;
 
-/** One looked-up creator's standout clips that the keyword search missed (no paid calls: the feed is already here). */
-async function feedPicks(
+/**
+ * One looked-up creator's standout clips that the keyword search missed (no paid calls: the feed is already here):
+ * 2x+ the creator's usual views, best first. `minSample`: skip creators with fewer reels with views than this (a
+ * median of 3 posts says little).
+ */
+export async function feedPicks(
   platform: Platform,
   handle: string,
   base: Baseline,
   skip: (v: NormalizedVideo) => boolean,
+  { perCreator = FEED_EXTRAS_PER_CREATOR, minSample = 0 }: { perCreator?: number; minSample?: number } = {},
 ): Promise<NormalizedVideo[]> {
   const feed = base.feed ?? (await getCreatorVideos(platform, handle));
   const posts = base.recent ?? feed.map((v) => ({ id: v.platformVideoId, views: v.views }));
+  if (posts.filter((p) => p.views !== null).length < minSample) return [];
   return feed
     .filter((v) => !skip(v))
     .map((v) => ({ v, usual: usualScore(v.views, usualViewsExcluding(posts, v.platformVideoId)) ?? 0 }))
     .filter((x) => x.usual >= FEED_EXTRA_MIN_USUAL)
     .sort((a, b) => b.usual - a.usual)
-    .slice(0, FEED_EXTRAS_PER_CREATOR)
+    .slice(0, perCreator)
     .map((x) => x.v);
 }
 
@@ -213,8 +233,16 @@ export async function searchKeywords(
   keywords: KeywordQuery[],
   platforms: Platform[] = ["tiktok", "youtube"],
   exclusions: string[] = [],
-  opts: SearchSettings & { product?: ProductBrief; goal?: Goal | null; feedback?: Feedback | null; locale?: string } = {},
+  opts: SearchSettings & {
+    product?: ProductBrief;
+    goal?: Goal | null;
+    feedback?: Feedback | null;
+    locale?: string;
+    /** Instagram accounts this user's earlier researches for the product found on topic (seeds, free). */
+    knownInstagram?: string[];
+  } = {},
 ): Promise<SearchResult> {
+  const started = Date.now();
   const days = opts.days ?? DEFAULT_WINDOW;
   const since = Date.now() - days * 864e5;
   const errors: string[] = [];
@@ -238,21 +266,26 @@ export async function searchKeywords(
     }),
   );
 
-  // Thai keywords → Instagram's account search, started now so its ~15 s overlaps the keyword search.
-  const thaiQueries = [...new Set(keywords.filter((k) => k.region === "th").map((k) => k.text))].slice(0, IG_ACCOUNT_SEARCHES);
-  const igAccountsJob =
-    opts.product && platforms.includes("instagram") && thaiQueries.length
-      ? Promise.all(
-          thaiQueries.map((q) =>
-            instagramSearchAccounts(q)
-              .then((list) => list.map((a) => ({ ...a, keyword: q })))
-              .catch((e) => {
-                errors.push(`instagram accounts "${q}": ${(e as Error).message}`);
-                return [];
-              }),
-          ),
-        ).then((lists) => lists.flat())
-      : Promise.resolve([]);
+  // Instagram seed accounts, started now so they overlap the keyword search: Instagram's own account search (it
+  // understands Thai; Thai keywords as typed, worldwide ones in English) and accounts the AI knows for the category.
+  const igOn = !!opts.product && platforms.includes("instagram");
+  const accountQueries = [...new Set(keywords.map((k) => (k.region === "th" ? k.text : k.english || k.text)))].slice(0, IG_ACCOUNT_SEARCHES);
+  const igAccountsJob = igOn
+    ? Promise.all(
+        accountQueries.map((q) =>
+          instagramSearchAccounts(q)
+            .then((list) => list.map((a) => ({ ...a, keyword: q })))
+            .catch((e) => {
+              errors.push(`instagram accounts "${q}": ${(e as Error).message}`);
+              return [];
+            }),
+        ),
+      ).then((lists) => lists.flat())
+    : Promise.resolve([]);
+  const regions = new Set(keywords.map((k) => k.region));
+  const igSuggestJob = igOn
+    ? suggestInstagramAccounts(opts.product!, opts.goal, regions.size > 1 ? "both" : [...regions][0] === "th" ? "th" : "global")
+    : Promise.resolve([] as string[]);
 
   // Dedupe across keywords: the first keyword that found a video keeps it.
   const seen = new Set<string>();
@@ -319,128 +352,157 @@ export async function searchKeywords(
   kept.forEach((v) => statOf(v.platform).kept++);
   const dbIds = await saveVideos(kept);
 
-  // Usual-views lookups, by "platform:handle" (filled below and by the Thai Instagram account job).
+  // Usual-views lookups, by "platform:handle".
   const baselines = new Map<string, Baseline>();
-  // Creators found another way than the keyword search → the keyword their standout clips are filed under.
-  const crossKeyword = new Map<string, string>();
-  // Accounts from Instagram's account search (Thai keywords), kept by the AI: their reels count from fewer views.
-  const fromAccounts = new Set<string>();
-  const accountsWork = (async () => {
-    const accounts = await igAccountsJob;
-    if (!opts.product || !relevance || !accounts.length) return;
-    const fresh = accounts.filter(
-      (a, i) =>
-        accounts.findIndex((b) => b.handle === a.handle) === i &&
-        !baselines.has(`instagram:${a.handle}`) &&
-        !isOwnAccount(a.handle, opts.product!.name),
-    );
-    const picked = await pickRelevantAccounts(opts.product, fresh.slice(0, 30), IG_ACCOUNTS);
-    await Promise.all(
-      picked.map(async (handle) => {
-        const base = await creatorBaseline("instagram", handle, IG_ACCOUNT_PAGES).catch(() => null);
-        if (!base || (base.feed !== null && !base.feed.length)) return;
-        baselines.set(`instagram:${handle}`, base);
-        fromAccounts.add(handle);
-        crossKeyword.set(handle, fresh.find((a) => a.handle === handle)?.keyword ?? "");
-      }),
-    );
-  })();
+  // Same bar for clips found in feeds as for the search results: score 2 only when there were plenty of clear matches.
+  const minScore = relevance && relevance.filter((s) => s === 2).length >= STRICT_RELEVANCE_AT ? 2 : 1;
+  // A feed clip must not repeat a result, a 👎 clip or the product's own account, and must pass the usual rules.
+  const skipWith = (minViews: number) => (v: NormalizedVideo) =>
+    seen.has(`${v.platform}:${v.platformVideoId}`) ||
+    !!disliked?.has(clipKey(v)) ||
+    (!!opts.product && isOwnAccount(v.creatorHandle, opts.product.name)) ||
+    !!dropReason(v, {
+      minViews,
+      sinceMs: v.platform === "instagram" ? igSince : since,
+      language: opts.language,
+      exclusions,
+      thaiSearch: false,
+    });
 
-  // Usual-views baselines for the top creators (by reach, or by views where followers are unknown, as on Instagram),
-  // plus up to 2 similar-product accounts per platform. All platforms at once: Instagram feeds can take ~20 s.
+  // Usual-views baselines for the top TikTok and YouTube creators (on-topic accounts first, then reach), plus up to 2
+  // similar-product accounts per platform. Instagram is found through its accounts instead (below), at the same time.
   const similar = new Set<string>();
-  const reelsOnly = !platforms.includes("tiktok");
-  await Promise.all(
-    platforms.map(async (p) => {
-      // On-topic accounts first (unknown fit counts as 1), then reach; unrelated accounts get no paid lookup.
-      const ranked = kept
-        .filter((v) => v.platform === p && fitOf(v)?.fit !== 0)
-        .sort(
-          (a, b) =>
-            (fitOf(b)?.fit ?? 1) - (fitOf(a)?.fit ?? 1) ||
-            (reachScore(b.views, b.creatorFollowers) ?? 0) - (reachScore(a.views, a.creatorFollowers) ?? 0) ||
-            (b.views ?? 0) - (a.views ?? 0),
+  const otherPlatforms = Promise.all(
+    platforms
+      .filter((p) => p !== "instagram")
+      .map(async (p) => {
+        // Unknown fit counts as 1; unrelated accounts get no paid lookup.
+        const ranked = kept
+          .filter((v) => v.platform === p && fitOf(v)?.fit !== 0)
+          .sort(
+            (a, b) =>
+              (fitOf(b)?.fit ?? 1) - (fitOf(a)?.fit ?? 1) ||
+              (reachScore(b.views, b.creatorFollowers) ?? 0) - (reachScore(a.views, a.creatorFollowers) ?? 0) ||
+              (b.views ?? 0) - (a.views ?? 0),
+          );
+        const isBrand = (v: (typeof ranked)[number]) => brandOf.get(v) || fitOf(v)?.type === "brand";
+        const brands = [...new Set(ranked.filter(isBrand).map((v) => v.creatorHandle))].slice(0, SIMILAR_ACCOUNTS);
+        brands.forEach((h) => similar.add(`${p}:${h}`));
+        const top = [...new Set([...[...new Set(ranked.map((v) => v.creatorHandle))].slice(0, BASELINE_CREATORS), ...brands])];
+        await Promise.all(
+          top.map(async (handle) => {
+            try {
+              baselines.set(`${p}:${handle}`, await creatorBaseline(p, handle));
+            } catch (e) {
+              errors.push(`${p} @${handle}: ${(e as Error).message}`);
+            }
+          }),
         );
-      const isBrand = (v: (typeof ranked)[number]) => brandOf.get(v) || fitOf(v)?.type === "brand";
-      const brands = [...new Set(ranked.filter(isBrand).map((v) => v.creatorHandle))].slice(0, SIMILAR_ACCOUNTS);
-      brands.forEach((h) => similar.add(`${p}:${h}`));
-      const top = [
-        ...new Set([
-          ...[...new Set(ranked.map((v) => v.creatorHandle))].slice(0, p === "instagram" && reelsOnly ? BASELINE_CREATORS_REELS_ONLY : BASELINE_CREATORS),
-          ...brands,
-        ]),
-      ];
-      await Promise.all(
-        top.map(async (handle, n) => {
-          try {
-            baselines.set(`${p}:${handle}`, await creatorBaseline(p, handle, p === "instagram" && n < IG_DEEP_CREATORS ? IG_DEEP_PAGES : 1));
-          } catch (e) {
-            errors.push(`${p} @${handle}: ${(e as Error).message}`);
-          }
-        }),
-      );
-    }),
+      }),
   );
 
-  // Thai Reels that search can't reach: Thai TikTok creators from this run, tried under the same Instagram handle.
-  // The Thai Instagram accounts (started alongside the creator lookups above) are ready by now.
-  await accountsWork;
-  if (opts.product && relevance && platforms.includes("instagram") && platforms.includes("tiktok") && thaiKeywords.size) {
-    const tiktokThai = kept
-      .filter((v) => v.platform === "tiktok" && captionLanguage(v) === "th" && !baselines.has(`instagram:${v.creatorHandle}`))
-      .sort((a, b) => (b.views ?? 0) - (a.views ?? 0));
-    const handles = [...new Set(tiktokThai.map((v) => v.creatorHandle))].slice(0, IG_FROM_TIKTOK);
-    await Promise.all(
-      handles.map(async (handle) => {
-        const base = await creatorBaseline("instagram", handle).catch(() => null);
-        if (!base || (base.feed !== null && !base.feed.length)) return;
-        baselines.set(`instagram:${handle}`, base);
-        crossKeyword.set(handle, tiktokThai.find((v) => v.creatorHandle === handle)?.keyword ?? "");
-      }),
-    );
-  }
+  // Instagram, creator-first: its keyword search is thin (~12 reels a keyword, English only), so Reels come from the
+  // right ACCOUNTS' feeds. Seeds, best first: accounts this user's earlier researches found on topic (free), Instagram's
+  // account search kept by the AI, this run's on-topic Instagram creators, accounts the AI knows for the category (a
+  // made-up handle costs nothing), then this run's on-topic TikTok / YouTube accounts under the same handle.
+  // Read in steps within IG_CREDIT_CAP: 4 accounts first; more only when they gave on-topic Reels and time allows.
+  const igFeedClips: (NormalizedVideo & { keyword: string })[] = [];
+  const igStats = { accountsChecked: 0, seeds: {} as Partial<Record<SeedSource, number>> };
+  const igWork = (async () => {
+    if (!igOn || !relevance) return;
+    const product = opts.product!;
+    const [accounts, suggested] = await Promise.all([igAccountsJob, igSuggestJob]);
+    const fresh = accounts.filter((a, i) => accounts.findIndex((b) => b.handle === a.handle) === i && !isOwnAccount(a.handle, product.name));
+    const searched = fresh.length ? await pickRelevantAccounts(product, fresh.slice(0, 30), IG_ACCOUNTS) : [];
+    const firstKeyword = keywords[0]?.text ?? "";
+    const keywordOf = (p: Platform, handle: string) => kept.find((v) => v.platform === p && v.creatorHandle === handle)?.keyword;
+    const onTopic = (p: Platform) =>
+      [...new Set(kept.filter((v) => v.platform === p && fitOf(v)?.fit === 2).sort((a, b) => (b.views ?? 0) - (a.views ?? 0)).map((v) => v.creatorHandle))];
+    const igKeywordCreators = [
+      ...new Set(
+        kept
+          .filter((v) => v.platform === "instagram" && fitOf(v)?.fit !== 0)
+          .sort((a, b) => (fitOf(b)?.fit ?? 1) - (fitOf(a)?.fit ?? 1) || (b.views ?? 0) - (a.views ?? 0))
+          .map((v) => v.creatorHandle),
+      ),
+    ];
+    const seeds = orderSeeds([
+      ...(opts.knownInstagram ?? []).map((handle) => ({ handle, source: "known" as const, keyword: firstKeyword })),
+      ...searched.map((handle) => ({ handle, source: "search" as const, keyword: fresh.find((a) => a.handle === handle)?.keyword ?? firstKeyword })),
+      ...igKeywordCreators.map((handle) => ({ handle, source: "keyword" as const, keyword: keywordOf("instagram", handle) ?? firstKeyword })),
+      ...suggested.map((handle) => ({ handle, source: "suggested" as const, keyword: firstKeyword })),
+      ...(["tiktok", "youtube"] as const)
+        .flatMap((p) => onTopic(p).map((handle) => ({ handle, source: "cross" as const, keyword: keywordOf(p, handle) ?? firstKeyword })))
+        .slice(0, IG_CROSS_PLATFORM),
+    ]).filter((s) => !isOwnAccount(s.handle, product.name));
 
-  // More clips from the creators just looked up (Instagram creators, and similar-product accounts everywhere).
-  // Needs the relevance check (a product), and drops nothing when it fails.
-  const extras: (NormalizedVideo & { keyword: string })[] = [];
-  if (opts.product && relevance) {
-    const skip = (v: NormalizedVideo) =>
-      seen.has(`${v.platform}:${v.platformVideoId}`) ||
-      !!disliked?.has(clipKey(v)) ||
-      isOwnAccount(v.creatorHandle, opts.product!.name) ||
-      !!dropReason(v, {
-        minViews:
-          v.platform === "instagram" && fromAccounts.has(v.creatorHandle)
-            ? Math.min(opts.minViews ?? 0, IG_ACCOUNT_MIN_VIEWS)
-            : (opts.minViews ?? 0),
-        sinceMs: v.platform === "instagram" ? igSince : since,
-        language: opts.language,
-        exclusions,
-        thaiSearch: false,
+    // Reads a batch of seed accounts (2 pages each, 1 credit a page; a missing profile is free), takes each one's
+    // standout reels (2x+ its own usual views, from 8+ reels; no absolute floor beyond 1K) and keeps the on-topic ones.
+    const skipIg = skipWith(IG_SANITY_VIEWS);
+    const mine = async (batch: Seed[]) => {
+      const picked: (NormalizedVideo & { keyword: string })[] = [];
+      await Promise.all(
+        batch.map(async (s) => {
+          const base = await creatorBaseline("instagram", s.handle, IG_SEED_PAGES).catch(() => null);
+          if (!base || (base.feed !== null && !base.feed.length)) return;
+          baselines.set(`instagram:${s.handle}`, base);
+          igStats.accountsChecked++;
+          igStats.seeds[s.source] = (igStats.seeds[s.source] ?? 0) + 1;
+          const picks = await feedPicks("instagram", s.handle, base, skipIg, { perCreator: IG_PICKS_PER_ACCOUNT, minSample: IG_MIN_SAMPLE }).catch(() => []);
+          picked.push(...picks.map((v) => ({ ...v, keyword: s.keyword })));
+        }),
+      );
+      const rated = picked.length ? await rateRelevance(product, picked, opts.goal, opts.feedback?.examples) : null;
+      const found = picked.filter((v, i) => (rated?.scores[i] ?? 0) >= minScore);
+      found.forEach((v) => {
+        copyOf.set(v, rated?.copy[picked.indexOf(v)] ?? null);
+        seen.add(`${v.platform}:${v.platformVideoId}`);
       });
+      igFeedClips.push(...found);
+      return found.length;
+    };
+    // Accounts still affordable within the cap (cached accounts cost nothing, so this errs on the safe side).
+    const affordable = () => Math.max(0, Math.floor((IG_CREDIT_CAP - creditsSoFar("instagram")) / IG_SEED_PAGES));
+    const step1 = seeds.slice(0, Math.min(IG_FIRST_STEP, affordable()));
+    const found1 = await mine(step1);
+    if (found1 >= IG_SECOND_STEP_AFTER && Date.now() - started < IG_SECOND_STEP_BEFORE_MS) {
+      const room = Math.min(IG_MAX_ACCOUNTS - step1.length, affordable());
+      await mine(seeds.slice(step1.length, step1.length + room));
+    }
+    // Brands among the accounts read count as similar products (their own section on the results page).
+    for (const s of seeds) {
+      const v = kept.find((k) => k.platform === "instagram" && k.creatorHandle === s.handle);
+      if (baselines.has(`instagram:${s.handle}`) && v && (brandOf.get(v) || fitOf(v)?.type === "brand")) similar.add(`instagram:${s.handle}`);
+    }
+  })().catch((e) => void errors.push(`instagram accounts: ${(e as Error).message}`));
+  await Promise.all([otherPlatforms, igWork]);
+
+  // More clips from similar-product accounts on TikTok and YouTube (their feeds are already here; no paid calls).
+  // Needs the relevance check (a product), and drops nothing when it fails.
+  const extras: (NormalizedVideo & { keyword: string })[] = [...igFeedClips];
+  if (opts.product && relevance) {
+    const skip = skipWith(opts.minViews ?? 0);
     const picks = await Promise.all(
       [...baselines].map(async ([key, base]) => {
         const [p, handle] = [key.slice(0, key.indexOf(":")) as Platform, key.slice(key.indexOf(":") + 1)];
-        if (!FEED_EXTRA_PLATFORMS.includes(p) && !similar.has(key)) return [];
+        if (p === "instagram" || !similar.has(key)) return [];
         // Labelled with the keyword that found this creator.
-        const keyword = kept.find((v) => v.platform === p && v.creatorHandle === handle)?.keyword ?? crossKeyword.get(handle) ?? "";
+        const keyword = kept.find((v) => v.platform === p && v.creatorHandle === handle)?.keyword ?? "";
         return (await feedPicks(p, handle, base, skip).catch(() => [])).map((v) => ({ ...v, keyword }));
       }),
     );
     const candidates = picks.flat();
-    const extraRated = candidates.length
-      ? await rateRelevance(opts.product, candidates, opts.goal, opts.feedback?.examples)
-      : null;
-    // Same bar as the search results: score 2 only when there were plenty of clear matches.
-    const minScore = relevance.filter((s) => s === 2).length >= STRICT_RELEVANCE_AT ? 2 : 1;
+    const extraRated = candidates.length ? await rateRelevance(opts.product, candidates, opts.goal, opts.feedback?.examples) : null;
     candidates.forEach((v, i) => {
       if ((extraRated?.scores[i] ?? 0) < minScore) return;
       extras.push(v);
       copyOf.set(v, extraRated?.copy[i] ?? null);
+    });
+    extras.forEach((v) => {
       const s = statOf(v.platform);
       s.fromFeeds = (s.fromFeeds ?? 0) + 1;
-      if (v.platform === "instagram" && fromAccounts.has(v.creatorHandle)) s.fromAccounts = (s.fromAccounts ?? 0) + 1;
     });
+    if (igOn) Object.assign(statOf("instagram"), { accountsChecked: igStats.accountsChecked, seeds: igStats.seeds });
     (await saveVideos(extras)).forEach((id, key) => dbIds.set(key, id));
   }
 
