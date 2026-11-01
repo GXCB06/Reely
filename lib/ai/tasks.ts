@@ -36,6 +36,8 @@ import {
   type Understanding,
   type VideoAnalysis,
   videoAnalysisSchema,
+  type Judged,
+  judgeSchema,
 } from "./schemas";
 
 // Every task falls back to deterministic sample output when Gemini is not configured or fails,
@@ -1099,6 +1101,55 @@ export async function enhanceBrief(text: string, locale: string, link: LinkPrevi
     return output;
   } catch (e) {
     console.warn("[ai] enhanceBrief failed", (e as Error).message);
+    return null;
+  }
+}
+
+export type JudgeItem = { platform: string; handle: string; text: string; views: number | null };
+
+/**
+ * Relevance test set (owner-only): labels clips or creators 0-2 for one brief, strictly and from the founder's side.
+ * Deliberately separate from `rateRelevance` (another prompt and a stricter rubric), so the search is not graded by its
+ * own filter. For creators, `text` is a few of their recent captions. One call per list; null when AI fails.
+ */
+export async function judgeRelevance(
+  product: ProductBrief,
+  goal: Goal | null,
+  region: string,
+  kind: "clip" | "creator",
+  items: JudgeItem[],
+): Promise<Judged | null> {
+  const model = getModel();
+  if (!model || !items.length) return items.length ? null : [];
+  try {
+    const { output } = await generateText({
+      ...aiCallOptions(45_000),
+      model,
+      output: Output.object({ schema: judgeSchema }),
+      prompt: [
+        "You are grading a short-video research tool. A founder asked it for clips to learn from and adapt for their product.",
+        `Product: ${product.name} — ${product.whatItIs}${product.audience ? `. Audience: ${product.audience}` : ""}`,
+        goal ? `The founder ${GOAL_BRIEF[goal]}.` : "The founder wants clips that make people want this product.",
+        `Market: ${region === "th" ? "Thailand" : region === "global" ? "worldwide" : "Thailand and worldwide"}.`,
+        kind === "clip"
+          ? "Label each CLIP (judge only what its caption says, be strict):"
+          : "Label each CREATOR from their recent captions (what the account is mostly about, be strict):",
+        "2 = squarely in the product's field (same problem, category or job to be done) AND something this founder could",
+        "    realistically adapt for this product and goal.",
+        "1 = same audience or an adjacent topic, but not directly usable for this product.",
+        "0 = off-topic, generic viral content, unrelated niche, or the product's own account.",
+        "Do not reward big view counts; a famous but unrelated clip is 0. Return every line with i, label and a short reason.",
+        "",
+        kind === "clip" ? "Clips (i | platform | handle | views | caption):" : "Creators (i | platform | handle | recent captions):",
+        ...items.map(
+          (it, i) =>
+            `${i} | ${it.platform} | @${it.handle}${kind === "clip" ? ` | ${shortViews(it.views)}` : ""} | ${it.text.slice(0, kind === "clip" ? 220 : 600).replace(/\s+/g, " ")}`,
+        ),
+      ].join("\n"),
+    });
+    return output.labels.filter((l) => l.i < items.length);
+  } catch (e) {
+    console.warn("[ai] judgeRelevance failed", (e as Error).message);
     return null;
   }
 }

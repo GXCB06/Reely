@@ -91,6 +91,18 @@ export const relevanceSchema = z.object({
   ),
 });
 
+/** Relevance test set (owner-only): a strict judge, separate from the search's own relevance check. */
+export const judgeSchema = z.object({
+  labels: z.array(
+    z.object({
+      i: z.number().int().min(0),
+      label: z.number().int().min(0).max(2).describe("2 on target and adaptable, 1 same audience or adjacent topic, 0 off-topic"),
+      reason: z.string().max(160).describe("Why, in at most 12 English words"),
+    }),
+  ),
+});
+export type Judged = z.infer<typeof judgeSchema>["labels"];
+
 /** Results page: one "how you'd use this clip" line per top video. */
 export const clipIdeasSchema = z.object({
   ideas: z.array(

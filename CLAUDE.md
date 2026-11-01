@@ -46,6 +46,8 @@ lib/goals.ts                  # what the clips are for (sell / shop / startup / 
 lib/link-preview.ts           # reads a pasted product link (blocks private addresses — keep that check)
 lib/clip-link.ts              # pasted Instagram Reel / TikTok links (client + server); lib/clip-import.ts reads one
 lib/ask.ts                    # Ask Reely answer and thread types, thread memory (lib/scripts.ts writes and saves scripts)
+lib/eval.ts                   # relevance test set metrics (precision@10, creators@5, IG useful, cost per useful clip); data in lib/eval-data.ts, owner page app/[locale]/app/eval
+lib/run-context.ts            # credits counted per research (stats.credits)
 lib/events.ts                 # client_events names and sources (lib/event-log.ts writes them); never what users typed
 lib/export.ts                 # research export: CSV (Excel), Markdown (for Claude / ChatGPT), JSON; data from lib/export-data.ts, served by app/api/research/[id]/export
 lib/embed.ts                  # official TikTok / YouTube / Instagram embed players (components/clip-player.tsx: hover preview + in-app player)
@@ -140,6 +142,10 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     hooks (quoted from captions or transcripts already read, never invented), or a script from one clip (`writeScript` in
     lib/scripts.ts, one AI call, saved to `scripts`). The thread is stored in `research_followups`; the last 4 turns go into
     the prompt so "hook 2" resolves. No credits beyond a pasted link.
+
+21. Relevance test set (`/app/eval`, owners in `REELY_OWNER_EMAILS` only): judges stored results with `judgeRelevance`
+    (2 AI calls per brief, never credits) and stores labels in `relevance_labels`. **Every change to the search (keywords,
+    relevance, Instagram, ranking) runs the test set and saves a snapshot before it ships**; report the before/after.
 
 ## Security rules
 

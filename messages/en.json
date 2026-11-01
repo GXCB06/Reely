@@ -590,7 +590,8 @@
     "weak": "Use at least {n} characters.",
     "error": "Couldn't save the password. Try again.",
     "usageUnlimited": "No daily limit while we collect feedback: research as much as you like, and tell us what to improve.",
-    "failures": "Failed sends, last 7 days: {n} (plan {plan} · research {research} · Ask Reely {ask})"
+    "failures": "Failed sends, last 7 days: {n} (plan {plan} · research {research} · Ask Reely {ask})",
+    "evalLink": "Search relevance test set (owners only)"
   },
   "tracking": {
     "title": "Competitor tracking",
@@ -899,5 +900,50 @@
     "other": "Back",
     "research": "Go to the research",
     "home": "Home"
+  },
+  "eval": {
+    "title": "Search relevance test set",
+    "subtitle": "How well each research's results match its brief. A strict AI judge labels them (2 on target · 1 same audience · 0 off) and you can correct any label in one tap. No credits. Save a snapshot before and after every search change.",
+    "rowAll": "All",
+    "region": {
+      "th": "Thailand",
+      "global": "Worldwide",
+      "both": "Thailand + worldwide"
+    },
+    "col": {
+      "briefs": "Briefs",
+      "p10": "P@10 {p}",
+      "creators": "Creators@5",
+      "igUseful": "IG useful",
+      "diversity": "Concentration",
+      "cost": "Credits/useful",
+      "seconds": "Seconds"
+    },
+    "targetsHint": "Green = meets the v0.2 target · red = not yet · ▲▼ vs the last snapshot · — = no data yet (credits and time are kept for new researches only)",
+    "lastSnapshot": "Last snapshot: {note}",
+    "judgeAll": "Judge the rest ({n})",
+    "judgingAll": "Judging {done}/{of}…",
+    "snapshotNote": "Note, e.g. before 1.4",
+    "saveSnapshot": "Save snapshot",
+    "snapshotSaved": "Snapshot saved",
+    "snapshotFailed": "Not saved",
+    "copyMarkdown": "Copy as Markdown",
+    "copied": "Copied",
+    "copyFailed": "Couldn't copy",
+    "setTitle": "Test set ({n} briefs · {core} core)",
+    "empty": "No briefs in the test set yet. Add some from the list below.",
+    "addTitle": "Add researches to the test set",
+    "addSuggested": "Add the suggested set of {n} (as core)",
+    "add": "Add",
+    "addFailed": "Couldn't add",
+    "judge": "Judge",
+    "rejudge": "Judge again",
+    "judged": "Judged {n} items",
+    "judgeFailed": "Judging failed, try again",
+    "notJudged": "Not judged yet",
+    "costLine": "{n} credits/useful clip",
+    "coreTip": "Core: re-run after big search changes",
+    "remove": "Remove from the test set",
+    "topClips": "Top {n} clips + top creators"
   }
 }

@@ -22,6 +22,7 @@ import { parseClipLink } from "@/lib/clip-link";
 import { type AskAnswer, type AskClip, type AskScript, type AskTurn, threadMemory } from "@/lib/ask";
 import { writeScript } from "@/lib/scripts";
 import { createClient } from "@/lib/supabase/server";
+import { countCredits } from "@/lib/run-context";
 import { persistThumbnails } from "@/lib/thumbs";
 
 const MAX_PRODUCTS = 5;
@@ -199,7 +200,11 @@ export async function runResearchAction(input: RunInput) {
     };
     // What the user taught Reely about this product (👍/👎 on earlier researches).
     const { feedback } = await loadFeedback(supabase, productRowId);
-    const result = await searchKeywords(keywords, platforms, exclusions, { product, goal, feedback, ...settings });
+    const searchStarted = Date.now();
+    const { value: result, credits } = await countCredits(() =>
+      searchKeywords(keywords, platforms, exclusions, { product, goal, feedback, ...settings }),
+    );
+    const searchSeconds = Math.round((Date.now() - searchStarted) / 100) / 10;
     const rows = result.videos.filter((v) => v.dbId !== undefined).map((v, i) => resultRow(run.id, v, i + 1));
     after(() => persistThumbnails(result.videos));
     if (rows.length) {
@@ -220,6 +225,8 @@ export async function runResearchAction(input: RunInput) {
           feedback: feedback ? { liked: feedback.liked.size, disliked: feedback.disliked.size } : undefined,
           relevanceFailed: result.relevanceFailed || undefined,
           similarAccounts: result.similarAccounts.length ? result.similarAccounts : undefined,
+          credits,
+          timings: { search: searchSeconds },
         },
         finished_at: new Date().toISOString(),
       })
