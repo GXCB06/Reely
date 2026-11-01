@@ -74,7 +74,40 @@ Built as planned:
 - Core and Hold-out rows on /app/eval;
 - `run_results.relevance` and `run_candidates`.
 
-Results go here once measured.
+Migration 0018 is applied and the code is live. The first replay ran on all 35 briefs (relevance scores filled from a
+fresh check, newly surfaced clips judged; AI only). It is saved as the snapshot "replay baseline (S0)".
+
+| Order (11 core briefs) | TikTok P@10 | YouTube P@10 | IG P@10 | Creators@5 | Concentration | Clips per brief |
+|---|---|---|---|---|---|---|
+| Today | 59% | 55% | 43% | 39% | 27% | 32 |
+| Exact matches first | 65% | 55% | 48% | 43% | 27% | 32 |
+| Exact first within a tier | 60% | 55% | 43% | 39% | 27% | 32 |
+| Exact matches only | 82% | 76% | 68% | 54% | 40% | 23 |
+
+Latest re-run batch (6 briefs), same orders:
+
+| Order | TikTok P@10 | YouTube P@10 | IG P@10 | Creators@5 | Concentration | Clips per brief |
+|---|---|---|---|---|---|---|
+| Today | 60% | 76% | 44% | 38% | 33% | 39 |
+| Exact matches first | 73% | 78% | 51% | 48% | 34% | 39 |
+| Exact first within a tier | 60% | 76% | 44% | 39% | 33% | 39 |
+| Exact matches only | 89% | 89% | 76% | 50% | 45% | 30 |
+
+What this tells us:
+- **"Exact first within a tier" does nothing.** Label tiers dominate the top 10.
+- **"Exact matches first" helps** (TikTok +6–13, IG +5–7, creators +4–10) and keeps every clip.
+- **"Exact matches only" reaches or nears the targets,** but costs ~25% of the clips and pushes concentration to
+  40–45%, past the 40% target.
+- **All of it depends on the search's relevance score matching a human.** The judge and the score are both Gemini, so
+  these gains are only trusted after the blind check.
+- **IG "useful" for "exact only" (6.2 vs 5.5) is an artifact:** briefs left with no Instagram clips drop out of that
+  average.
+
+Still to do:
+- **Blind check:** 60 clips, the owner's time.
+- **Hold-out briefs:** the owner's other researches are all the same 5 products, so there are no distinct hold-out
+  candidates there yet.
+- **Candidate pool:** `run_candidates` fills from the next owner research.
 
 - **Store the candidate pool.** Store every candidate a research saw, kept or dropped, in a new table `run_candidates`.
   Each row holds:
