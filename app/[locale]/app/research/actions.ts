@@ -145,6 +145,14 @@ const resultRow = (runId: string, v: ScoredVideo, rank: number) => ({
 
 /** Creates a research run, searches, saves ranked results and the AI insight card. Returns the run id. */
 export async function runResearchAction(input: RunInput) {
+  return startResearch(input);
+}
+
+/**
+ * runResearchAction's body. `onCreated` runs as soon as the research row exists (the test set links a re-run to its
+ * original there, so a run that outlasts the page's time limit is still linked).
+ */
+export async function startResearch(input: RunInput, onCreated?: (runId: string) => Promise<unknown>) {
   const parsed = runSchema.safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
   const { text, url, imageThumb, understanding, exclusions, platforms, region, goal, settings, locale } = parsed.data;
@@ -194,6 +202,7 @@ export async function runResearchAction(input: RunInput) {
     console.error(`[req ${requestId ?? "-"}] research not saved`, runError?.message);
     return { ok: false as const, error: "save" };
   }
+  await onCreated?.(run.id as string);
 
   try {
     const product = {

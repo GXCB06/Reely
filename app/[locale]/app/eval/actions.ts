@@ -10,7 +10,7 @@ import { isGoal } from "@/lib/goals";
 import { isOwner } from "@/lib/limits";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { runResearchAction } from "../research/actions";
+import { startResearch } from "../research/actions";
 
 /** Every action here is for owners only (REELY_OWNER_EMAILS) and uses the service role after that check. */
 async function ownerAdmin() {
@@ -187,7 +187,10 @@ export async function rerunBriefAction(id: string, lang: string) {
     english: ((run.keyword_english as string[] | null) ?? [])[i] || undefined,
   }));
   const settings = (run.settings ?? {}) as { days?: number; minViews?: number; language?: string };
-  const res = await runResearchAction({
+  // Linked the moment the research row exists, so the link survives a run that outlasts this page's time limit.
+  const link = async (newId: string) =>
+    admin.from("eval_briefs").upsert({ run_id: newId, parent_run_id: parsed.data.id, core: false }, { onConflict: "run_id" });
+  const res = await startResearch({
     requestId: crypto.randomUUID(),
     text: (input.text ?? run.brief ?? "").slice(0, 1000),
     url: input.url ?? "",
@@ -211,12 +214,11 @@ export async function rerunBriefAction(id: string, lang: string) {
     },
     productId: (run.product_id as string | null) ?? null,
     locale: parsed.data.lang,
-  }).catch((e: Error) => {
+  }, link).catch((e: Error) => {
     console.error("[eval] re-run failed", e.message);
     return null;
   });
   if (!res?.runId) return { ok: false as const, error: (res && "error" in res ? res.error : "failed") as string };
-  await admin.from("eval_briefs").upsert({ run_id: res.runId, parent_run_id: parsed.data.id, core: false }, { onConflict: "run_id" });
   refresh();
   return { ok: true as const, runId: res.runId };
 }

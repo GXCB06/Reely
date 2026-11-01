@@ -119,8 +119,8 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     5K-view floor (Thai Instagram is smaller), counted as `fromAccounts`.
 12. Run the AI relevance check (`rateRelevance`) BEFORE baseline lookups, so off-topic creators cost nothing.
     Score 1 means "inside the product's field", not just "same audience"; with 15+ clear matches, only score 2 stays.
-    Then the ACCOUNTS behind the kept clips are rated (`rateCreators`, up to 80, from up to 6 captions each: this run's
-    plus posts already cached; 1 AI call per 40, no credits): a fit-0 account gets no usual-views lookup or feed picks, and
+    At the same time (in parallel, so slow models don't add up) the ACCOUNTS behind the clips are rated (`rateCreators`,
+    up to 80, from up to 6 captions each: this run's plus posts already cached; 1 AI call per 40, no credits): a fit-0 account gets no usual-views lookup or feed picks, and
     its clips are dropped unless the clip itself scored 2 (`dropForCreator`, counted as `offCreator`). Lookups go to
     on-topic accounts first; the "best" order (`bestOrder` in lib/ranking.ts, used everywhere results are ranked) weighs
     the account's fit inside each label tier. Fit, account type and a one-line "why" are stored on `run_results`.

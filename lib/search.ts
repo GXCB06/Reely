@@ -167,17 +167,17 @@ const CREATORS_RATED = 80;
 const CAPTIONS_PER_CREATOR = 6;
 
 /**
- * Rates the accounts behind the kept clips (one AI call per 40, no credits). Each account is shown with up to 6 captions:
- * its clips in this run first, then its other posts already in the shared cache (no fetch).
+ * Rates the accounts behind a run's clips (one AI call per 40, no credits; runs alongside the clip check). Each account
+ * is shown with up to 6 captions: its clips in this run first, then its other posts already in the shared cache.
  */
 async function creatorFits(
-  kept: (NormalizedVideo & { keyword: string })[],
+  clips: (NormalizedVideo & { keyword: string })[],
   product: ProductBrief,
   goal: Goal | null | undefined,
   locale = "th",
 ): Promise<Map<string, CreatorFit> | null> {
   const byCreator = new Map<string, { platform: Platform; handle: string; captions: string[]; views: number }>();
-  for (const v of kept) {
+  for (const v of clips) {
     const key = `${v.platform}:${v.creatorHandle}`;
     const c = byCreator.get(key) ?? { platform: v.platform, handle: v.creatorHandle, captions: [], views: 0 };
     if (v.caption.trim() && c.captions.length < CAPTIONS_PER_CREATOR) c.captions.push(v.caption);
@@ -289,7 +289,12 @@ export async function searchKeywords(
   if (disliked?.size) clean.splice(0, clean.length, ...clean.filter((v) => !disliked.has(clipKey(v))));
   // AI relevance check before any paid baseline lookups, so off-topic creators cost nothing.
   // Score 1 ("same audience, not the product") only fills in when there are few clearly on-topic videos.
-  const rated = opts.product ? await rateRelevance(opts.product, clean, opts.goal, opts.feedback?.examples) : null;
+  // The ACCOUNTS behind the clips are rated at the same time (from a few of their captions: this run's plus posts
+  // already cached), so the two AI calls overlap instead of adding up when the models are slow.
+  const [rated, fits] = await Promise.all([
+    opts.product ? rateRelevance(opts.product, clean, opts.goal, opts.feedback?.examples) : null,
+    opts.product ? creatorFits(clean, opts.product, opts.goal, opts.locale) : null,
+  ]);
   const relevance = rated?.scores ?? null;
   const copyOf = new Map(clean.map((v, i) => [v, rated?.copy[i] ?? null]));
   const brandOf = new Map(clean.map((v, i) => [v, !!rated?.brand[i] || isBrandAccount(v.creatorHandle, opts.product?.competitors)]));
@@ -300,12 +305,10 @@ export async function searchKeywords(
   });
   const relevanceOf = new Map(clean.map((v, i) => [v, relevance?.[i] ?? null]));
 
-  // The ACCOUNTS behind the kept clips, judged from a few of their captions (this run's plus posts already cached),
-  // before any paid lookup: credits go to on-topic accounts, and an unrelated account's clips go unless the clip
-  // itself is clearly on topic. Runs alongside saving the kept clips.
-  const [dbIds, fits] = await Promise.all([saveVideos(kept), opts.product && relevance ? creatorFits(kept, opts.product, opts.goal, opts.locale) : null]);
+  // Before any paid lookup: credits go to on-topic accounts, and an unrelated account's clips go unless the clip
+  // itself is clearly on topic (only when the clip check worked too, so a failed check never drops anything).
   const fitOf = (v: { platform: Platform; creatorHandle: string }) => fits?.get(`${v.platform}:${v.creatorHandle}`) ?? null;
-  if (fits) {
+  if (fits && relevance) {
     kept = kept.filter((v) => {
       if (!dropForCreator(fitOf(v)?.fit, relevanceOf.get(v))) return true;
       const s = statOf(v.platform);
@@ -314,6 +317,7 @@ export async function searchKeywords(
     });
   }
   kept.forEach((v) => statOf(v.platform).kept++);
+  const dbIds = await saveVideos(kept);
 
   // Usual-views lookups, by "platform:handle" (filled below and by the Thai Instagram account job).
   const baselines = new Map<string, Baseline>();
