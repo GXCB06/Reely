@@ -1135,7 +1135,8 @@ export async function judgeRelevance(
           ? "Label each CLIP (judge only what its caption says, be strict):"
           : "Label each CREATOR from their recent captions (what the account is mostly about, be strict):",
         "2 = squarely in the product's field (same problem, category or job to be done) AND something this founder could",
-        "    realistically adapt for this product and goal.",
+        "    realistically adapt for this product and goal. A competitor's or same-category product's own promo, and a",
+        "    review or demo of a competing product, are 2 too: they show what works for this kind of product.",
         "1 = same audience or an adjacent topic, but not directly usable for this product.",
         "0 = off-topic, generic viral content, unrelated niche, or the product's own account.",
         "Do not reward big view counts; a famous but unrelated clip is 0. Return every line with i, label and a short reason.",
