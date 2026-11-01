@@ -33,7 +33,7 @@ vi.mock("@/lib/run-context", () => ({ creditsSoFar: () => igSpent }));
 
 process.env.USE_FIXTURES = "true";
 const { adapters } = await import("@/lib/adapters");
-const { feedPicks, firstStep, orderSeeds, searchKeywords } = await import("./search");
+const { feedPicks, orderSeeds, searchKeywords, secondStep } = await import("./search");
 
 const product = { name: "AccOS Pro", whatItIs: "Accounting software for Thai SMEs", audience: "SME owners" };
 
@@ -78,16 +78,19 @@ describe("Instagram creator-first", () => {
     expect(seeds[1].handle).toBe("S");
   });
 
-  it("mixes sources in the first step, so one weak source can't take it all", () => {
+  it("reads more of the best when the first step worked, and other sources when it didn't", () => {
     const seeds = orderSeeds([
-      ...["s1", "s2", "s3", "s4"].map((handle) => ({ handle, source: "search" as const })),
+      ...["s1", "s2", "s3", "s4", "s5", "s6"].map((handle) => ({ handle, source: "search" as const })),
+      { handle: "w1", source: "keyword" as const },
       { handle: "g1", source: "suggested" as const },
+      { handle: "g2", source: "suggested" as const },
       { handle: "c1", source: "cross" as const },
-      { handle: "k1", source: "known" as const },
     ]);
-    expect(firstStep(seeds, 4).map((s) => s.handle)).toEqual(["k1", "s1", "g1", "c1"]);
-    // Only one source: it fills the step.
-    expect(firstStep(orderSeeds(["a", "b", "c", "d", "e"].map((handle) => ({ handle, source: "search" as const }))), 4)).toHaveLength(4);
+    const first = seeds.slice(0, 4);
+    const rest = seeds.slice(4);
+    expect(secondStep(rest, first, true, 3).map((s) => s.handle)).toEqual(["s5", "s6", "w1"]);
+    // The first 4 were all account-search results and gave little: try keyword, suggested and cross accounts.
+    expect(secondStep(rest, first, false, 4).map((s) => s.handle)).toEqual(["w1", "g1", "c1", "g2"]);
   });
 
   it("picks reels against the account's own usual views, not an absolute floor", async () => {

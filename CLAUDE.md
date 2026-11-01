@@ -113,9 +113,10 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     Thai; up to 3 keywords, Thai as typed and worldwide ones in English, `pickRelevantAccounts` keeps 4), this run's
     on-topic Instagram creators, accounts the AI knows for the category (`suggestInstagramAccounts`; a made-up handle
     is a free 404), then this run's fit-2 TikTok / YouTube accounts under the same handle (4). Each seed's feed is read
-    with 2 pages (`instagramReels`, ~24 reels): 4 accounts first (`firstStep`: known creators, then one per source in
-    turn, so one weak source can't take the step), then up to 10 only when those gave 2+ on-topic Reels
-    and the run is under 55 s, and **never past 25 Instagram credits per research** (`IG_CREDIT_CAP`, keyword and
+    with 2 pages (`instagramReels`, ~24 reels): the 4 best seeds first, then (`secondStep`) up to 10 by priority when
+    those gave 2+ on-topic Reels, or 4 from the sources the first step didn't use when they didn't (a mixed first step
+    was measured worse), only while the run is under 55 s
+    and **never past 25 Instagram credits per research** (`IG_CREDIT_CAP`, keyword and
     account searches included; `creditsSoFar` in lib/run-context.ts). A reel counts at 2x+ its own account's usual
     views (from 8+ reels; no absolute floor beyond 1K), up to 4 per account, then a second `rateRelevance` call;
     counted as `fromFeeds`, with `accountsChecked` and `seeds` by source in the stats.

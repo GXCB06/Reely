@@ -21,7 +21,7 @@ import { EvalSummary } from "./eval-summary";
 const SUGGESTED = 12;
 // "Re-run" runs a whole research from this page.
 export const maxDuration = 120;
-const RERUN_GAP_MS = 20 * 60_000;
+const RERUN_GAP_MS = 5 * 60_000;
 
 /**
  * Owner-only: the relevance test set. Each brief's stored results are judged (strict AI, correctable in one tap) and
@@ -105,7 +105,7 @@ export default async function EvalPage({ params }: PageProps<"/[locale]/app/eval
 
   const originals = metrics.filter((m) => !parentOf.has(m.runId));
   // The latest batch of re-runs, compared with their originals: each search change is measured once, not mixed with
-  // re-runs made for an earlier change. A batch = re-runs added one after another, each within 20 minutes of the next.
+  // re-runs made for an earlier change. A batch = re-runs added one after another, each within 5 minutes of the next.
   const rerunRows = (set ?? []).filter((b) => b.parent_run_id).sort((a, b) => (a.added_at < b.added_at ? 1 : -1));
   const batch = rerunRows.filter(
     (b, i) => i === 0 || rerunRows.slice(0, i + 1).every((x, k) => k === 0 || new Date(rerunRows[k - 1].added_at as string).getTime() - new Date(x.added_at as string).getTime() < RERUN_GAP_MS),
