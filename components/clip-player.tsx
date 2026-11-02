@@ -1,13 +1,15 @@
 "use client";
 
-import { Play } from "lucide-react";
+import { ExternalLink, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { embedUrl, type EmbedPlatform } from "@/lib/embed";
 import { Thumb } from "./thumb";
 
 /** Height of the profile bar at the top of Instagram's post embed. */
 const IG_HEADER_PX = 54;
+/** A TikTok player that hasn't started its video by then gets a "watch on TikTok" link. */
+const TIKTOK_STALL_MS = 7000;
 
 /**
  * A clip that plays inside Reely: the cover with a play button; pressing it swaps in the platform's own player
@@ -18,15 +20,45 @@ export function ClipPlayer({
   platformVideoId,
   thumbnailUrl,
   videoId,
+  url,
 }: {
   platform: EmbedPlatform | null;
   platformVideoId: string | null;
   thumbnailUrl: string | null;
   videoId?: number;
+  /** The clip on its platform: offered when the embedded player can't play it. */
+  url?: string | null;
 }) {
   const t = useTranslations("card");
   const [playing, setPlaying] = useState(false);
+  const [stalled, setStalled] = useState(false);
+  const frame = useRef<HTMLIFrameElement>(null);
   const src = platform && platformVideoId ? embedUrl(platform, platformVideoId) : null;
+
+  // TikTok's player reports its play time; some clips (ads, some Shop clips) never start in any embed, and the player
+  // just stays black. When nothing has played after a few seconds, offer the clip on TikTok instead.
+  const watchTikTok = playing && !!src && platform === "tiktok";
+  useEffect(() => {
+    if (!watchTikTok) return;
+    const timer = setTimeout(() => setStalled(true), TIKTOK_STALL_MS);
+    const onMessage = (e: MessageEvent) => {
+      if (e.source !== frame.current?.contentWindow || typeof e.data !== "string") return;
+      try {
+        const msg = JSON.parse(e.data) as { type?: string; value?: { currentTime?: number } };
+        if (msg.type === "onCurrentTime" && (msg.value?.currentTime ?? 0) > 0) {
+          clearTimeout(timer);
+          setStalled(false);
+        }
+      } catch {
+        // Not a player message.
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("message", onMessage);
+    };
+  }, [watchTikTok]);
 
   if (playing && src && platform === "instagram") {
     // Instagram's embed is a whole post (profile header, likes, comments). Show only its video: the media is a 4:5
@@ -49,13 +81,26 @@ export function ClipPlayer({
   }
   if (playing && src) {
     return (
-      <iframe
-        src={src}
-        title={t("play")}
-        className="size-full border-0 bg-black"
-        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-        allowFullScreen
-      />
+      <div className="relative size-full">
+        <iframe
+          ref={frame}
+          src={src}
+          title={t("play")}
+          className="size-full border-0 bg-black"
+          allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+          allowFullScreen
+        />
+        {stalled && (
+          <div className="absolute inset-x-2 top-1/3 rounded-2xl bg-black/80 p-3 text-center text-xs text-white backdrop-blur-sm">
+            <p>{t("cantPlay")}</p>
+            {url && (
+              <a href={url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 font-medium text-black">
+                <ExternalLink className="size-3.5" /> {t("watchOnTikTok")}
+              </a>
+            )}
+          </div>
+        )}
+      </div>
     );
   }
   return (

@@ -69,6 +69,7 @@ export function PlanDays({ days, productId }: { days: PlanDay[]; productId: stri
               platformVideoId={d.platformVideoId}
               thumbnailUrl={d.thumbnailUrl}
               videoId={d.videoId}
+              url={d.url}
             />
           </div>
           {d.handle && <p className="mt-2 text-center text-xs text-muted-foreground">{t("from", { handle: d.handle })}</p>}

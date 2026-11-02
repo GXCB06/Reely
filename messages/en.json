@@ -436,7 +436,9 @@
     "downTip": "Not useful: the next research leaves this clip out and looks for fewer like it",
     "learned": "Reely will remember: the next research for this product uses it as an example",
     "voteFailed": "Couldn't save that. Try again.",
-    "play": "Play clip"
+    "play": "Play clip",
+    "cantPlay": "TikTok won't play this clip here (it does this for ads and some Shop clips).",
+    "watchOnTikTok": "Watch on TikTok"
   },
   "video": {
     "openOriginal": "Open original",

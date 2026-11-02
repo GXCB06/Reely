@@ -176,7 +176,7 @@ export default async function VideoPage({ params, searchParams }: PageProps<"/[l
           <div className="mx-auto w-full max-w-60 overflow-hidden rounded-2xl border bg-muted lg:max-w-none">
             <div className="aspect-[9/14] w-full">
               {/* Plays here with sound; "Open original" is only needed for comments and the creator's profile. */}
-              <ClipPlayer platform={video.platform} platformVideoId={video.platform_video_id} thumbnailUrl={video.thumbnail_url} videoId={video.id} />
+              <ClipPlayer platform={video.platform} platformVideoId={video.platform_video_id} thumbnailUrl={video.thumbnail_url} videoId={video.id} url={video.url} />
             </div>
           </div>
           <div className="flex items-center justify-between">

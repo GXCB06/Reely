@@ -33,7 +33,7 @@ export function ClipLabelCard({
   return (
     <article className="grid gap-4 rounded-3xl border bg-card p-4 md:grid-cols-[220px_1fr]">
       <div className="aspect-[9/16] w-full max-w-[220px] overflow-hidden rounded-2xl bg-muted">
-        <ClipPlayer key={clip.videoId} platform={platform} platformVideoId={clip.platformVideoId} thumbnailUrl={clip.thumbnailUrl} videoId={clip.videoId} />
+        <ClipPlayer key={clip.videoId} platform={platform} platformVideoId={clip.platformVideoId} thumbnailUrl={clip.thumbnailUrl} videoId={clip.videoId} url={clip.url} />
       </div>
       <div className="min-w-0 space-y-3">
         <div className="rounded-2xl bg-muted/60 p-3 text-xs">
