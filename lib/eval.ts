@@ -319,3 +319,43 @@ export function pickCheckSample<T extends { runId: string; item: string; platfor
 export function checkHalf(runId: string, item: string): "dev" | "test" {
   return stableHash(`half:${runId}:${item}`) % 2 === 0 ? "dev" : "test";
 }
+
+/**
+ * Splits the test set's briefs into dev (a new version is tuned on them) and test (measured once): by BRIEF, so a
+ * version has to prove itself on products it never saw, like a new user's research. Balanced and stable.
+ */
+export function familyHalves(families: string[]): Map<string, "dev" | "test"> {
+  const sorted = [...new Set(families)].sort((a, b) => stableHash(`family:${a}`) - stableHash(`family:${b}`));
+  return new Map(sorted.map((f, i) => [f, i % 2 === 0 ? "dev" : "test"]));
+}
+
+/** A labelled clip that can teach a relevance check how strictly the owner judges (from another product). */
+export type CalibrationExample = { product: string; caption: string; label: Label };
+
+/**
+ * Examples of the owner's judgement for a relevance check: `perLabel` each of 2, 1 and 0, from the given (dev) briefs
+ * only, spread over as many briefs as possible, in a stable order.
+ */
+export function pickExamples<T extends { family: string; item: string; label: Label; product: string; caption: string }>(
+  items: T[],
+  families: Set<string>,
+  perLabel = 4,
+): CalibrationExample[] {
+  const out: CalibrationExample[] = [];
+  for (const label of [2, 1, 0] as Label[]) {
+    // Round-robin over briefs, each brief's clips in a stable random order.
+    const byFamily = new Map<string, T[]>();
+    for (const i of items
+      .filter((x) => families.has(x.family) && x.label === label && x.caption.trim().length >= 20)
+      .sort((x, y) => stableHash(`ex:${x.family}:${x.item}`) - stableHash(`ex:${y.family}:${y.item}`))) {
+      byFamily.set(i.family, [...(byFamily.get(i.family) ?? []), i]);
+    }
+    const queues = [...byFamily.values()];
+    const picked: T[] = [];
+    for (let round = 0; picked.length < perLabel && queues.some((q) => round < q.length); round++) {
+      for (const q of queues) if (round < q.length && picked.length < perLabel) picked.push(q[round]);
+    }
+    out.push(...picked.map((i) => ({ product: i.product, caption: i.caption.slice(0, 160).replace(/s+/g, " "), label })));
+  }
+  return out;
+}

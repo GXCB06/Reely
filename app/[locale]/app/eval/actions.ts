@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { modelName } from "@/lib/ai/model";
-import { JUDGE_VERSION, JUDGE_VERSIONS, judgeRelevance, rateRelevance } from "@/lib/ai/tasks";
+import { JUDGE_VERSION, JUDGE_VERSIONS, judgeRelevance, RELEVANCE_VERSIONS, rateRelevance } from "@/lib/ai/tasks";
 import { EVAL_PLATFORMS, type EvalClip, JUDGE_CLIPS, creatorItem, topClips, topCreators } from "@/lib/eval";
 import { type EvalBrief, loadEvalBrief } from "@/lib/eval-data";
 import { replayGaps } from "@/lib/eval-replay";
@@ -188,6 +188,36 @@ export async function trialJudgeAction(id: string, items: string[], version: str
   );
   if (!labels) return { ok: false as const };
   return { ok: true as const, labels: labels.map((l) => ({ item: list[l.i], label: l.label, reason: l.reason.slice(0, 300) })) };
+}
+
+/**
+ * Tries a relevance-check version on some of one brief's labelled clips and returns its scores WITHOUT storing them,
+ * so a new check is compared with the owner's labels before the search uses it. AI only, no credits.
+ */
+export async function trialRelevanceAction(id: string, items: string[], version: string, calibration: unknown) {
+  const admin = await ownerAdmin();
+  const parsed = z
+    .object({
+      id: runId,
+      items: z.array(z.string().regex(/^\d+$/).max(20)).min(1).max(120),
+      version: z.enum(RELEVANCE_VERSIONS),
+      calibration: z
+        .array(z.object({ product: z.string().max(100), caption: z.string().max(200), label: z.union([z.literal(0), z.literal(1), z.literal(2)]) }))
+        .max(15),
+    })
+    .safeParse({ id, items, version, calibration });
+  if (!admin || !parsed.success) return { ok: false as const };
+  const brief = await loadEvalBrief(admin, parsed.data.id);
+  if (!brief) return { ok: false as const };
+  const byId = new Map(brief.videos.map((v) => [String(v.dbId), v]));
+  const list = parsed.data.items.filter((i) => byId.has(i));
+  const rated = await rateRelevance(brief.run.product, list.map((i) => byId.get(i)!), brief.run.goal, brief.feedback?.examples, {
+    version: parsed.data.version,
+    brief: brief.run.brief,
+    calibration: parsed.data.calibration,
+  });
+  if (!rated) return { ok: false as const };
+  return { ok: true as const, scores: list.map((item, i) => ({ item, score: rated.scores[i] })) };
 }
 
 /** A label the owner gave without seeing the AI judge's (the judge check). It also corrects the brief's metrics. */

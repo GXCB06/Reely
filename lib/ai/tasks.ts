@@ -6,7 +6,7 @@ import type { LinkPreview } from "@/lib/link-preview";
 import { firstSeconds, type Segment } from "@/lib/transcript";
 import { keywordRegions, type RegionChoice } from "@/lib/region";
 import { formatMultiplier } from "@/lib/scoring";
-import { combineJudgements } from "@/lib/eval";
+import { type CalibrationExample, combineJudgements } from "@/lib/eval";
 import { aiCallOptions, getModel, languageName } from "./model";
 import {
   MAX_KEYWORDS,
@@ -361,6 +361,51 @@ export type ProductBrief = { name: string; whatItIs: string; audience: string; c
 
 const RELEVANCE_BATCH = 80;
 
+export const RELEVANCE_VERSIONS = ["v1", "v2", "v3"] as const;
+export type RelevanceVersion = (typeof RELEVANCE_VERSIONS)[number];
+/** The relevance check the search uses. v2 / v3 are on trial against the owner's labels (search quality S1b). */
+export const RELEVANCE_VERSION: RelevanceVersion = "v1";
+
+/**
+ * The relevance rubric. v1: the product's field. v2 (after the owner's 391 labels): a stricter 2 (the product's own
+ * category or job), neighbouring tools and advice about the field as 1, the founder's brief as context. v3: v2 plus
+ * examples of how the owner judges, from other products.
+ */
+function relevanceRubric(version: RelevanceVersion, brief: string, calibration: CalibrationExample[]): string[] {
+  if (version === "v1") {
+    return [
+      "First name the product's FIELD in 2-4 words (e.g. accounting & tax for SMEs). Then score:",
+      "2: about the product's category, the problem it solves, or a named competitor.",
+      "1: not about the product, but squarely inside its field (e.g. for accounting software: tax tips,",
+      "bookkeeping, invoices, payroll, SME cash flow).",
+      "0: anything outside the field, even if loosely related: generic AI, app or tech tutorials, social",
+      "media tips, other software categories, entertainment, school life, other industries. Also 0 when a",
+      "word only matches by accident (a brand that shares a word, 'account' meaning a social media account,",
+      "'บัญชี' meaning a bank or TikTok account) or the caption is empty or too vague to tell.",
+    ];
+  }
+  return [
+    brief ? `What the founder wrote (context only; style wishes such as "no hard selling" are not relevance): ${brief.slice(0, 600).replace(/\s+/g, " ")}` : "",
+    "First name the product's CATEGORY (what it is, 2-4 words) and the JOB it does for its buyer. Then score:",
+    "2: about that category or job: a product like it (any brand, incl. a named competitor) shown, reviewed, compared",
+    "or promoting itself, or a tutorial of one; or the exact problem it solves shown or complained about, even with no",
+    "product (for a language app: 'why is Japanese so hard').",
+    "1: inside the product's field but not its category or job: neighbouring tools the same buyer uses for a different",
+    "job (for accounting software: general AI chat tools, ERP systems, tax news), tips, advice or courses about the",
+    "field, or the right category for a clearly different market (e.g. government offices for a small-business tool).",
+    "0: outside the field; jokes, memes or lifestyle content about the audience's work; general productivity, money or",
+    "business advice; other software categories, entertainment, other industries. Also 0 when a word only matches by",
+    "accident ('account' meaning a social media account, 'บัญชี' meaning a bank or TikTok account) or the caption is",
+    "empty or too vague to tell.",
+    ...(version === "v3" && calibration.length
+      ? [
+          "How this founder judges, shown on clips for OTHER products (learn the strictness, not the topics):",
+          ...calibration.map((e) => `- ${e.label} for "${e.product}": ${e.caption}`),
+        ]
+      : []),
+  ];
+}
+
 /**
  * Rates each search result 0-2 for relevance to the product, and 0-2 for how easily a small business could film a
  * similar clip with a phone, from its caption (one Gemini call per 80 videos, run in parallel). Returns null when
@@ -371,7 +416,11 @@ export async function rateRelevance(
   videos: { caption: string; creatorHandle: string }[],
   goal?: Goal | null,
   examples?: Feedback["examples"] | null,
+  opts: { version?: RelevanceVersion; brief?: string; calibration?: CalibrationExample[] } = {},
 ): Promise<{ scores: number[]; copy: (number | null)[]; brand: boolean[] } | null> {
+  const version = opts.version ?? RELEVANCE_VERSION;
+  // v2+ read the caption up to 300 characters (the hashtags at the end say a lot).
+  const captionChars = version === "v1" ? 160 : 300;
   // The user's own 👍/👎 for this product: the clearest signal of what "relevant" means to them.
   const example = (c: { creatorHandle: string; caption: string }) => `- @${c.creatorHandle} | ${c.caption.slice(0, 120).replace(/\s+/g, " ")}`;
   const taught = [
@@ -397,14 +446,7 @@ export async function rateRelevance(
             "A founder wants short videos they can learn from for their product. Rate every video below.",
             `Product: ${product.name} — ${product.whatItIs}`,
             product.audience ? `Audience: ${product.audience}` : "",
-            "First name the product's FIELD in 2-4 words (e.g. accounting & tax for SMEs). Then score:",
-            "2: about the product's category, the problem it solves, or a named competitor.",
-            "1: not about the product, but squarely inside its field (e.g. for accounting software: tax tips,",
-            "bookkeeping, invoices, payroll, SME cash flow).",
-            "0: anything outside the field, even if loosely related: generic AI, app or tech tutorials, social",
-            "media tips, other software categories, entertainment, school life, other industries. Also 0 when a",
-            "word only matches by accident (a brand that shares a word, 'account' meaning a social media account,",
-            "'บัญชี' meaning a bank or TikTok account) or the caption is empty or too vague to tell.",
+            ...relevanceRubric(version, opts.brief ?? "", opts.calibration ?? []),
             "For a business (B2B) product, personal/consumer topics are outside the field (personal debt, home loans,",
             "personal budgeting or investing, motivation and mindset clips).",
             goal ? GOAL_RELEVANCE[goal] : "",
@@ -418,7 +460,7 @@ export async function rateRelevance(
             "only review, use or talk about products are false.",
             "Return score, copy and brand for every line number.",
             "",
-            ...batch.map((v, i) => `${i} | @${v.creatorHandle} | ${v.caption.slice(0, 160).replace(/\s+/g, " ") || "(no caption)"}`),
+            ...batch.map((v, i) => `${i} | @${v.creatorHandle} | ${v.caption.slice(0, captionChars).replace(/\s+/g, " ") || "(no caption)"}`),
           ].join("\n");
         const { output } = await ask(prompt).catch((e) => {
           console.warn("[ai] rateRelevance batch failed, retrying", b, (e as Error).message);

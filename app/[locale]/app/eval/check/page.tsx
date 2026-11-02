@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { AGREEMENT_BAR, type Agreement, type AgreementPair, agreement, EVAL_PLATFORMS } from "@/lib/eval";
+import { AGREEMENT_BAR, type Agreement, type AgreementPair, agreement, EVAL_PLATFORMS, pickExamples } from "@/lib/eval";
 import { loadCheck } from "@/lib/eval-check";
 import { loadEvalBrief } from "@/lib/eval-data";
 import { isOwner } from "@/lib/limits";
@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Link } from "@/i18n/navigation";
 import { looksThai } from "@/lib/region";
 import { CheckCard } from "./check-card";
+import { RelevanceTrial } from "./relevance-trial";
 import { TrialRunner } from "./trial-runner";
 
 /**
@@ -94,6 +95,14 @@ export default async function CheckPage({ params, searchParams }: PageProps<"/[l
         {/* Numbers only once every clip is labelled, so they can't sway the labels still to come. */}
         {!next && done > 0 && (
           <>
+            <RelevanceTrial
+              final={final}
+              items={check.relevanceItems}
+              calibration={pickExamples(
+                check.relevanceItems.map((r) => ({ family: r.family, item: r.item, label: r.user, product: r.product, caption: r.caption })),
+                new Set(check.relevanceItems.filter((r) => r.half === "dev").map((r) => r.family)),
+              )}
+            />
             <TrialRunner
               version="v4"
               final={final}

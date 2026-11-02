@@ -1058,6 +1058,14 @@
       "finished": "Every clip is labelled. Thank you!",
       "seeResults": "See how the AI compares",
       "loadingMore": "Loading the next clips…"
+    },
+    "relTrial": {
+      "title": "Try the search's relevance check v2 / v3 on your labels",
+      "hint": "Scores every clip you labelled with two new versions of the search's relevance check (AI only, nothing stored) and compares them with today's stored score. v2: a stricter 2 and the brief as context; v3: v2 plus {examples} examples of your judgement from the dev briefs. Dev briefs: what they are tuned on. Test briefs: other products, measured once.",
+      "today": "Today's check · {half}",
+      "version": "Check {version} · {half}",
+      "misses": "Where v3 still differs from you (dev briefs, {n})",
+      "youVs": "you {you} · today {today} · v2 {v2} · v3 {v3}"
     }
   }
 }

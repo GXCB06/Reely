@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agreement, briefMetrics, checkHalf, humanLabels, combineJudgements, creatorItem, type EvalClip, effectiveLabels, type Label, latestBatch, pickCheckSample, summarize, summaryMarkdown, topCreators } from "./eval";
+import { agreement, briefMetrics, checkHalf, familyHalves, humanLabels, pickExamples, combineJudgements, creatorItem, type EvalClip, effectiveLabels, type Label, latestBatch, pickCheckSample, summarize, summaryMarkdown, topCreators } from "./eval";
 
 const clip = (id: number, platform: EvalClip["platform"], handle: string): EvalClip => ({ id, platform, handle });
 
@@ -169,5 +169,31 @@ describe("human labels", () => {
     // Only the one labelled place counts: P@10 is measured on it alone.
     expect(m.platforms.tiktok!.precision10).toEqual({ value: 0, judged: 1, of: 2 });
     expect(m.platforms.youtube!.precision10.value).toBeNull();
+  });
+});
+
+describe("familyHalves and pickExamples", () => {
+  it("splits briefs evenly and stably", () => {
+    const fams = Array.from({ length: 11 }, (_, i) => `f${i}`);
+    const halves = familyHalves(fams);
+    expect([...halves.values()].filter((h) => h === "dev")).toHaveLength(6);
+    expect(familyHalves([...fams].reverse())).toEqual(halves);
+  });
+  it("takes examples of each label from dev briefs only, spread over briefs", () => {
+    const item = (family: string, n: number, label: Label) => ({ family, item: String(n), label, product: family, caption: `caption number ${n} long enough` });
+    const items = [
+      ...Array.from({ length: 6 }, (_, n) => item("a", n, 2)),
+      item("b", 10, 2),
+      item("c", 11, 2),
+      item("test", 12, 2),
+      item("a", 20, 1),
+      item("b", 21, 0),
+    ];
+    const ex = pickExamples(items, new Set(["a", "b", "c"]), 4);
+    const twos = ex.filter((e) => e.label === 2);
+    expect(twos).toHaveLength(4);
+    expect(new Set(twos.map((e) => e.product))).toEqual(new Set(["a", "b", "c"]));
+    expect(ex.some((e) => e.product === "test")).toBe(false);
+    expect(ex.filter((e) => e.label === 1)).toHaveLength(1);
   });
 });

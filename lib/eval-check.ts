@@ -1,5 +1,5 @@
 import "server-only";
-import { type AgreementPair, CHECK_PER_PLATFORM, checkHalf, type EvalPlatform, JUDGE_CLIPS, type Label, pickCheckSample, topClips } from "@/lib/eval";
+import { type AgreementPair, CHECK_PER_PLATFORM, checkHalf, familyHalves, type EvalPlatform, JUDGE_CLIPS, type Label, pickCheckSample, topClips } from "@/lib/eval";
 import type { EvalBrief } from "@/lib/eval-data";
 import { looksThai } from "@/lib/region";
 import type { createAdminClient } from "@/lib/supabase/admin";
@@ -115,6 +115,35 @@ export async function loadCheck(admin: Admin, set: { run_id: string; parent_run_
     }
   }
   const all = [...everything.values()];
+
+  // Every clip you labelled blind with the search's stored relevance score (no AI judge needed), once per brief, split
+  // by brief into dev / test for trying a new relevance check.
+  const halves = familyHalves(set.filter((r) => !r.parent_run_id).map((r) => r.run_id));
+  const scored = new Map<string, RelevanceItem>();
+  for (const b of briefs) {
+    const family = familyOf.get(b.run.id) ?? b.run.id;
+    const byId = new Map(b.videos.map((v) => [String(v.dbId), v]));
+    for (const mine of rows.filter((r) => r.run_id === b.run.id && r.source === "user" && r.blind)) {
+      const v = byId.get(mine.item);
+      const key = `${family}:${mine.item}`;
+      const prev = scored.get(key);
+      if (!v || (prev && (addedAt.get(prev.runId) ?? "") > (addedAt.get(b.run.id) ?? ""))) continue;
+      scored.set(key, {
+        runId: b.run.id,
+        family,
+        item: mine.item,
+        half: halves.get(family) ?? "dev",
+        platform: v.platform as RelevanceItem["platform"],
+        thai: looksThai(v.caption),
+        user: mine.label as Label,
+        today: (v.relevance ?? null) as Label | null,
+        product: b.run.title,
+        handle: v.creatorHandle,
+        caption: v.caption.slice(0, 220),
+      });
+    }
+  }
+  const relevanceItems = [...scored.values()];
   return {
     sample,
     judge: done.map((s) => pair(s, s.ai)),
@@ -123,8 +152,27 @@ export async function loadCheck(admin: Admin, set: { run_id: string; parent_run_
     /** Every clip you labelled blind, once per brief. */
     all,
     judgeAll: all.map((s) => pair(s, s.ai)),
-    filterAll: all.filter((s) => s.relevance !== null).map((s) => pair(s, s.relevance!)),
+    /** The search's relevance score vs every clip you labelled (not only the ones the AI judge saw). */
+    filterAll: relevanceItems
+      .filter((r) => r.today !== null)
+      .map((r) => ({ platform: r.platform, thai: r.thai, user: r.user, other: r.today! })),
+    relevanceItems,
     /** Your first answer vs the hidden repeat (platform unknown here: counted overall). */
     consistency: [...repeats.values()].map((r) => ({ platform: "tiktok" as const, thai: false, user: r.label, other: r.repeat })),
   };
 }
+
+/** A clip you labelled, with the search's stored relevance score: what a new relevance check is tried on. */
+export type RelevanceItem = {
+  runId: string;
+  family: string;
+  item: string;
+  half: "dev" | "test";
+  platform: "tiktok" | "youtube" | "instagram";
+  thai: boolean;
+  user: Label;
+  today: Label | null;
+  product: string;
+  handle: string;
+  caption: string;
+};
