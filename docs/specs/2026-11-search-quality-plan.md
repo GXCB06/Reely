@@ -109,6 +109,42 @@ Still to do:
   candidates there yet.
 - **Candidate pool:** `run_candidates` fills from the next owner research.
 
+#### Blind check and judge v4 (2026-11-02)
+
+The owner labelled 60 clips blind (20 per platform). Today's judge (v3) against the owner:
+
+| | Same label | Says 2 → you agree | Your 2s it finds | Kappa |
+|---|---|---|---|---|
+| Judge v3, all 60 | 52% | 73% | 67% | 0.22 |
+| Search's relevance score, all 60 | 57% | 68% | 76% | 0.25 |
+
+Judge v4 added:
+- the goal's own definition of 2;
+- "the problem shown on screen" and gear for the same job;
+- the brief as context.
+
+It was tuned on a dev half (31 clips, 2 rounds) and measured once on a test half (29 clips):
+
+| | Dev: says 2 → agree | Dev: 2s found | Test: says 2 → agree | Test: 2s found | Test kappa |
+|---|---|---|---|---|---|
+| Judge v3 (today) | 88% | 75% | 54% | 54% | 0.01 |
+| Judge v4 (round 2) | 80–84% | 80% | 54% | 54% | 0.11 |
+
+Round 1 was worse even on the dev half (71% / 75%). It read the brief's style wishes ("no hard sell") as relevance,
+and general advice as "the pain".
+
+**Verdict: v4 is not adopted; v3 stays the judge.**
+- **On the 2s that P@10 counts, v4 is no better on the test half.**
+- **The two halves disagree wildly** (v3: 88% vs 54%). With 30 clips per half, these numbers swing too much to tune a
+  prompt on. The gap is not mainly wording.
+- **Two likely causes remain, and neither is tested yet:**
+  - the judge reads only captions, while the owner could watch the clip;
+  - the owner's own labels have a ceiling: nobody agrees with themselves 100% on borderline clips.
+
+**Until then:**
+- P@10 numbers from the AI judge are rough. Treat differences under ~10 points as noise.
+- S1 stays on hold.
+
 - **Store the candidate pool.** Store every candidate a research saw, kept or dropped, in a new table `run_candidates`.
   Each row holds:
   - the clip, its platform and keyword;
