@@ -985,13 +985,15 @@
         "live": "Today",
         "exactFirst": "Exact matches first",
         "exactInTier": "Exact first within a tier",
-        "exactOnly": "Exact matches only"
+        "exactOnly": "Exact matches only (main list)",
+        "beforeS1": "Before S1 (label first)"
       },
       "explain": {
-        "live": "label tier (Breakout, Strong), then views × engagement, account fit and your 👍/👎",
+        "live": "exact matches first, then label tier, views × engagement, account fit and your 👍/👎 (S1)",
         "exactFirst": "every clip the relevance check scored 2 above every 1, each group in today's order",
         "exactInTier": "a score-1 clip keeps 60% of its score inside its label tier, so a broad Breakout still beats an exact Strong",
-        "exactOnly": "score-1 clips removed: shows what a strict filter would cost (fewer clips, less IG coverage)"
+        "exactOnly": "only clips scored 2: what the results page's main list shows now that broader clips have their own section",
+        "beforeS1": "the order before S1: label tier first, so a broader Breakout beat an exact Strong"
       },
       "group": {
         "core": "Core briefs",
@@ -1082,17 +1084,6 @@
       "progress": "Repeat round: {done} of {total} ({before} repeats from the queue already count)",
       "hint": "Every clip is labelled. These are clips you labelled earlier, shown again: label each one fresh, as if new. Your first answer is never shown. Comparing the two measures how consistent the labels are, the realistic ceiling for any automatic check.",
       "finished": "Repeat round done. Thank you!"
-    }
-  },
-  "replay": {
-    "variant": {
-      "beforeS1": "Before S1 (label first)",
-      "exactOnly": "Exact matches only (main list)"
-    },
-    "explain": {
-      "live": "exact matches first, then label tier, views × engagement, account fit and your 👍/👎 (S1)",
-      "beforeS1": "the order before S1: label tier first, so a broader Breakout beat an exact Strong",
-      "exactOnly": "only clips scored 2: what the results page's main list shows now that broader clips have their own section"
     }
   }
 }
