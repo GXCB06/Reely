@@ -145,6 +145,44 @@ and general advice as "the pain".
 - P@10 numbers from the AI judge are rough. Treat differences under ~10 points as noise.
 - S1 stays on hold.
 
+#### Human-labelled test set (2026-11-02)
+
+The owner labelled every clip the test set reads: **391 clips**, once per brief, blind. Your labels now cover 92% of
+the core briefs' top-10 places and 100% of the latest re-run batch's.
+
+Replay on the owner's labels only (snapshot "human labels baseline"):
+
+| Order (core, 11 briefs) | TikTok P@10 | YouTube P@10 | IG P@10 | Concentration | Clips per brief |
+|---|---|---|---|---|---|
+| Today | 53% | 62% | 60% | 27% | 32 |
+| Exact matches first | 60% | 62% | 62% | 27% | 32 |
+| Exact first within a tier | 54% | 62% | 62% | 27% | 32 |
+| Exact matches only | 71% | 73% | 86% | 40% | 23 |
+
+Latest re-run batch (6 briefs):
+- Today: 56% / 71% / 46%.
+- Exact matches first: 63% / 71% / 46%.
+- Exact matches only: 71% / 78% / 63%.
+
+What this tells us:
+- **On the owner's labels, today's top 10 is 53–62% on target** on TikTok and YouTube, and 46–60% on Instagram.
+  The AI judge had said 59% / 55% / 43%.
+- **"Exact matches first" is a small, consistent gain** (TikTok +7 in both groups, IG +0–2) and costs nothing.
+- **"Exact matches only" looks much better, but mostly because its lists are shorter.**
+  - "Exact first" puts the same clips on top. It only differs by filling the rest of the top 10 with clips the search
+    scored 1, and you mostly reject those.
+  - So the product version is: exact matches first, with score-1 clips in their own section below ("Same audience,
+    broader topic"). The main list then reads like "exact only", and nothing is thrown away.
+- **The AI judge can't stand in for you.** On the 112 clips both of you labelled, when it says 2 you agree 55% of the
+  time; it finds 70% of your 2s; kappa is 0.13. New re-runs need your labels (the queue picks up their new clips),
+  not the judge's.
+- **The search's own relevance score is the weak spot.** On those 112 clips, when it says 2 you agree only 49% of the
+  time; it finds 77% of your 2s. It lets through many clips you call 0 or 1. Aligning it with your labels is the
+  biggest lever left for accuracy. It needs hold-out briefs to measure honestly.
+- **Creators@5 can't be read on your labels yet:** only clips were labelled, not accounts.
+- **Your own consistency:** only 4 hidden repeats came up (20 are needed). A short dedicated repeat round would give
+  the ceiling.
+
 - **Store the candidate pool.** Store every candidate a research saw, kept or dropped, in a new table `run_candidates`.
   Each row holds:
   - the clip, its platform and keyword;
