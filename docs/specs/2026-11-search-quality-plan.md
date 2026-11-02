@@ -274,7 +274,26 @@ What this tells us:
   - The eval page shows how often the AI judge agrees with you.
   - If agreement on "2" is under ~80%, fix the judge prompt before trusting any further gains.
 
-### S1 — Exact matches first (0 credits; needs S0's stored relevance)
+### S1 — Exact matches first (0 credits; needs S0's stored relevance) — shipped 2026-11-03
+
+Shipped:
+- `bestOrder` puts exact matches (relevance 2, or not scored) first everywhere results are ranked.
+- The results page's best 10 come from exact matches only, with up to 6 broader clips in a "Same audience, broader
+  topic" section below.
+- "Show all" tags broader clips.
+
+Measured on the owner's labels only (snapshot "after S1"):
+
+| Core briefs | TikTok | YouTube | IG |
+|---|---|---|---|
+| Before S1 (label first) | 53% | 62% | 60% |
+| After S1, top 10 per platform | 60% | 62% | 62% |
+| After S1, main list (exact only) | 71% | 73% | 86% |
+
+On the latest re-run batch, TikTok went 56% → 63%, and the main list reads 71% / 78% / 63%.
+
+On a real research (GoChek), 11 of 32 clips are exact matches. The broader section shows the big creator-gear and
+Insta360 clips the owner had rejected.
 
 - Store each clip's relevance score on `run_results` (same migration).
 - In `bestOrder`, use relevance as the first tier: 2 above 1, then label tier, then views × engagement, then creator fit.
