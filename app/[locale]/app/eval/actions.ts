@@ -194,7 +194,7 @@ export async function trialJudgeAction(id: string, items: string[], version: str
  * Tries a relevance-check version on some of one brief's labelled clips and returns its scores WITHOUT storing them,
  * so a new check is compared with the owner's labels before the search uses it. AI only, no credits.
  */
-export async function trialRelevanceAction(id: string, items: string[], version: string, calibration: unknown, votes?: unknown) {
+export async function trialRelevanceAction(id: string, items: string[], version: string, calibration: unknown, votes?: unknown, covers = false) {
   const admin = await ownerAdmin();
   const parsed = z
     .object({
@@ -213,6 +213,7 @@ export async function trialRelevanceAction(id: string, items: string[], version:
         .nullable(),
     })
     .safeParse({ id, items, version, calibration, votes: votes ?? null });
+  const withCovers = covers === true;
   if (!admin || !parsed.success) return { ok: false as const };
   const brief = await loadEvalBrief(admin, parsed.data.id);
   if (!brief) return { ok: false as const };
@@ -226,6 +227,7 @@ export async function trialRelevanceAction(id: string, items: string[], version:
     version: parsed.data.version,
     brief: brief.run.brief,
     calibration: parsed.data.calibration,
+    covers: withCovers,
   });
   if (!rated) return { ok: false as const };
   return { ok: true as const, scores: list.map((item, i) => ({ item, score: rated.scores[i] })) };

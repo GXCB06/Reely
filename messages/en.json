@@ -1084,6 +1084,13 @@
       "progress": "Repeat round: {done} of {total} ({before} repeats from the queue already count)",
       "hint": "Every clip is labelled. These are clips you labelled earlier, shown again: label each one fresh, as if new. Your first answer is never shown. Comparing the two measures how consistent the labels are, the realistic ceiling for any automatic check.",
       "finished": "Repeat round done. Thank you!"
+    },
+    "coversTrial": {
+      "title": "Cover images: does the picture help?",
+      "hint": "Every clip you labelled, scored by today's relevance check twice: from the caption alone, and from the caption plus the clip's cover image (batches of 20 either way). AI only, nothing stored. Clips whose cover can't be loaded are judged from the caption.",
+      "today": "Stored score · {group}",
+      "text": "Caption only · {group}",
+      "covers": "Caption + cover · {group}"
     }
   }
 }

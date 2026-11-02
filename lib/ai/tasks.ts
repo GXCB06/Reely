@@ -360,6 +360,8 @@ export async function englishKeywords(phrases: string[]): Promise<string[] | nul
 export type ProductBrief = { name: string; whatItIs: string; audience: string; competitors?: string[] };
 
 const RELEVANCE_BATCH = 80;
+/** Lines per call when cover images are sent too. */
+const RELEVANCE_COVER_BATCH = 20;
 
 export const RELEVANCE_VERSIONS = ["v1", "v2", "v3"] as const;
 export type RelevanceVersion = (typeof RELEVANCE_VERSIONS)[number];
@@ -413,10 +415,10 @@ function relevanceRubric(version: RelevanceVersion, brief: string, calibration: 
  */
 export async function rateRelevance(
   product: ProductBrief,
-  videos: { caption: string; creatorHandle: string }[],
+  videos: { caption: string; creatorHandle: string; thumbnailUrl?: string | null }[],
   goal?: Goal | null,
   examples?: Feedback["examples"] | null,
-  opts: { version?: RelevanceVersion; brief?: string; calibration?: CalibrationExample[] } = {},
+  opts: { version?: RelevanceVersion; brief?: string; calibration?: CalibrationExample[]; covers?: boolean } = {},
 ): Promise<{ scores: number[]; copy: (number | null)[]; brand: boolean[] } | null> {
   const version = opts.version ?? RELEVANCE_VERSION;
   // v2+ read the caption up to 300 characters (the hashtags at the end say a lot).
@@ -433,15 +435,34 @@ export async function rateRelevance(
   ];
   const model = getModel();
   if (!model || !videos.length) return null;
-  const batches = Array.from({ length: Math.ceil(videos.length / RELEVANCE_BATCH) }, (_, b) =>
-    videos.slice(b * RELEVANCE_BATCH, (b + 1) * RELEVANCE_BATCH),
-  );
+  // With cover images the model also looks at each clip's cover (on trial: does the picture carry what the caption
+  // doesn't?), in smaller batches.
+  const batchSize = opts.covers ? RELEVANCE_COVER_BATCH : RELEVANCE_BATCH;
+  const batches = Array.from({ length: Math.ceil(videos.length / batchSize) }, (_, b) => videos.slice(b * batchSize, (b + 1) * batchSize));
   try {
     const results = await Promise.all(
       batches.map(async (batch, b) => {
         // One busy batch used to throw the whole check away (a run then kept every off-topic clip): retry it once.
+        const covers = opts.covers ? await Promise.all(batch.map((v) => imageForAi(v.thumbnailUrl ?? null))) : [];
         const ask = (prompt: string) =>
-          generateText({ ...aiCallOptions(40_000), model, output: Output.object({ schema: relevanceSchema }), prompt });
+          covers.length
+            ? generateText({
+                ...aiCallOptions(60_000),
+                model,
+                output: Output.object({ schema: relevanceSchema }),
+                messages: [
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text" as const, text: prompt },
+                      ...covers.flatMap((img, i) =>
+                        img ? [{ type: "text" as const, text: `Cover of line ${i}:` }, { type: "file" as const, mediaType: img.mediaType, data: img.data }] : [],
+                      ),
+                    ],
+                  },
+                ],
+              })
+            : generateText({ ...aiCallOptions(40_000), model, output: Output.object({ schema: relevanceSchema }), prompt });
         const prompt = [
             "A founder wants short videos they can learn from for their product. Rate every video below.",
             `Product: ${product.name} — ${product.whatItIs}`,
@@ -458,6 +479,9 @@ export async function rateRelevance(
             "Also mark brand: true when the ACCOUNT itself is a product, app, tool or brand of the same kind as the user's product",
             "(or a named competitor) posting its own promo, demo or tips (e.g. @liftoff_app for a fitness app). Creators who",
             "only review, use or talk about products are false.",
+            covers.length
+              ? "Each line's cover image follows the list, labelled with its line number. The cover often shows what the caption doesn't (the product on screen, the setting, the format): use it to judge what the clip is about."
+              : "",
             "Return score, copy and brand for every line number.",
             "",
             ...batch.map((v, i) => `${i} | @${v.creatorHandle} | ${v.caption.slice(0, captionChars).replace(/\s+/g, " ") || "(no caption)"}`),
@@ -1116,9 +1140,12 @@ async function imageForAi(url: string | null): Promise<{ data: string; mediaType
   if (!url) return null;
   try {
     // Only vendor CDNs we store thumbnails from: never fetch an arbitrary address server-side.
-    const { protocol, hostname } = new URL(url);
+    const { protocol, hostname, pathname } = new URL(url);
     const cdn = /(^|\.)(tiktokcdn\.com|tiktokcdn-us\.com|ytimg\.com|cdninstagram\.com|fbcdn\.net)$/.test(hostname);
-    if (protocol !== "https:" || !cdn) return null;
+    // Or our own copy of a cover (the public thumbs bucket in this project's Supabase storage).
+    const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname : null;
+    const ours = hostname === supabaseHost && pathname.startsWith("/storage/v1/object/public/thumbs/");
+    if (protocol !== "https:" || !(cdn || ours)) return null;
     const res = await fetch(url, { signal: AbortSignal.timeout(5000), cache: "no-store" });
     const type = res.headers.get("content-type")?.split(";")[0] ?? "";
     if (!res.ok || !["image/jpeg", "image/png", "image/webp"].includes(type)) return null;
