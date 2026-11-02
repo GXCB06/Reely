@@ -27,20 +27,15 @@ const videos = [
 const ids = (list: ScoredVideo[]) => list.map((v) => v.platformVideoId);
 
 describe("replayOrder", () => {
-  it("live keeps today's order: label tier, then views", () => {
-    expect(ids(replayOrder("live", videos, null, null))).toEqual(["broadBreakout", "broadStrongBig", "exactStrong", "broadStrongSmall", "exactPlain"]);
+  it("live is today's order: exact matches first, each group by label tier then views", () => {
+    expect(ids(replayOrder("live", videos, null, null))).toEqual(["exactStrong", "exactPlain", "broadBreakout", "broadStrongBig", "broadStrongSmall"]);
   });
 
-  it("exactFirst puts every clip scored 2 first, each group in today's order", () => {
-    expect(ids(replayOrder("exactFirst", videos, null, null))).toEqual(["exactStrong", "exactPlain", "broadBreakout", "broadStrongBig", "broadStrongSmall"]);
+  it("beforeS1 is the label-first order", () => {
+    expect(ids(replayOrder("beforeS1", videos, null, null))).toEqual(["broadBreakout", "broadStrongBig", "exactStrong", "broadStrongSmall", "exactPlain"]);
   });
 
-  it("exactInTier only reorders inside a label tier", () => {
-    // 60K × 0.6 = 36K < 40K: the exact Strong passes the broad one; the broad Breakout stays on top.
-    expect(ids(replayOrder("exactInTier", videos, null, null))).toEqual(["broadBreakout", "exactStrong", "broadStrongBig", "broadStrongSmall", "exactPlain"]);
-  });
-
-  it("exactOnly leaves the clips scored 2; unknown relevance counts as 1", () => {
+  it("exactOnly leaves the clips scored 2; unknown relevance counts as broader here", () => {
     expect(ids(replayOrder("exactOnly", [...videos, clip("unknown", "breakout", 900_000, null)], null, null))).toEqual(["exactStrong", "exactPlain"]);
   });
 });

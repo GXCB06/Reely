@@ -21,7 +21,7 @@ import type { RunSummary } from "@/lib/ai/schemas";
 import type { AskAnswer, AskTurn } from "@/lib/ask";
 import { bestOrder } from "@/lib/ranking";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
-import { applyFilters, diverseTop, parseFilters, type PlatformTab } from "@/lib/results";
+import { applyFilters, diverseTop, parseFilters, type PlatformTab, topSplit } from "@/lib/results";
 import { loadFeedback } from "@/lib/feedback-store";
 import { isGoal } from "@/lib/goals";
 import type { RegionChoice } from "@/lib/region";
@@ -62,7 +62,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
       .maybeSingle(),
     supabase
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, added_at, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, relevance, added_at, videos(*)")
       .eq("run_id", id)
       .order("rank"),
     supabase.from("saved_videos").select("video_id"),
@@ -96,7 +96,9 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   // Default view: the 10 best. "Show all" (?all=1) opens every result with filters and sorting.
   const showAll = sp.all === "1";
   const shown = applyFilters(all, filters, undefined, score);
-  const top = diverseTop(all, 10, 2, score);
+  // The best 10 from exact matches only; clips the relevance check called "same field, broader topic" get their own
+  // section below (search quality S1: on the owner's labels the main list went from 53-62% to 71-86% on target).
+  const { top, broader } = topSplit(all, score);
   const summary = run.summary as RunSummary | null;
   const ideaOf = new Map((summary?.ideas ?? []).map((x) => [x.videoId, x.idea]));
   const stats = run.stats as {
@@ -277,6 +279,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
                     isNew={!!v.dbId && newIds.has(v.dbId)}
                     idea={v.dbId ? ideaOf.get(v.dbId) : null}
                     feedback={feedbackFor(v)}
+                    markBroader
                   />
                 ))}
               </div>
@@ -316,6 +319,26 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
               )}
             </section>
           )
+        )}
+
+        {!showAll && broader.length > 0 && (
+          <section className="space-y-4">
+            <div>
+              <h3 className="font-heading text-lg font-bold">{t("broaderTitle")}</h3>
+              <p className="text-xs text-muted-foreground">{t("broaderHint")}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {broader.map((v) => (
+                <OutlierCard
+                  key={`${v.platform}:${v.platformVideoId}`}
+                  video={v}
+                  saved={v.dbId ? saved.has(v.dbId) : false}
+                  isNew={!!v.dbId && newIds.has(v.dbId)}
+                  feedback={feedbackFor(v)}
+                />
+              ))}
+            </div>
+          </section>
         )}
 
         {!showAll && similarClips.length > 0 && (

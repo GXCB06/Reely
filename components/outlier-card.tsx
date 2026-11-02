@@ -9,6 +9,7 @@ import { CountryFlag } from "@/components/country-flag";
 import { FeedbackButtons } from "@/components/feedback-buttons";
 import type { Vote } from "@/lib/feedback";
 import { engagementFactor, engagementRate, formatMultiplier, keepRate } from "@/lib/scoring";
+import { isBroader } from "@/lib/results";
 import type { ScoredVideo } from "@/lib/search";
 
 const LABEL_STYLE = {
@@ -27,6 +28,7 @@ export async function OutlierCard({
   isNew = false,
   idea = null,
   feedback,
+  markBroader = false,
 }: {
   video: ScoredVideo;
   saved?: boolean;
@@ -37,6 +39,8 @@ export async function OutlierCard({
   idea?: string | null;
   /** 👍/👎 for the research's product (research pages only). */
   feedback?: { productId: string; vote: Vote | null };
+  /** Tag a clip the relevance check called "inside the field, not the product" (the "Show all" list). */
+  markBroader?: boolean;
 }) {
   const t = await getTranslations("search");
   const tl = await getTranslations("labels");
@@ -70,6 +74,11 @@ export async function OutlierCard({
         {isNew && (
           <span className="inline-flex h-5 items-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
             {t("new")}
+          </span>
+        )}
+        {markBroader && isBroader(video) && (
+          <span title={t("broaderTip")} className="inline-flex h-5 items-center rounded-full bg-black/70 px-1.5 text-[10px] font-medium text-white">
+            {t("broader")}
           </span>
         )}
         {video.hasShop && (

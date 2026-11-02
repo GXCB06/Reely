@@ -6,11 +6,12 @@ import type { SearchSettings } from "@/lib/search-settings";
 import type { AccountType } from "@/lib/ai/schemas";
 import { type CreatorFit, pickRelevantAccounts, type ProductBrief, rateCreators, rateRelevance, suggestInstagramAccounts } from "@/lib/ai/tasks";
 import { getCreatorVideos, getFreshCreator, saveCreator, saveVideos } from "@/lib/cache";
-import { clipKey, type Feedback, withFeedback } from "@/lib/feedback";
-import { type Goal, goalScore } from "@/lib/goals";
+import { clipKey, type Feedback } from "@/lib/feedback";
+import type { Goal } from "@/lib/goals";
+import { bestOrder } from "@/lib/ranking";
 import { captionLanguage } from "@/lib/region";
 import { creditsSoFar } from "@/lib/run-context";
-import { dropForCreator, isBrandAccount, isExcluded, isOwnAccount, relevanceKeep, STRICT_RELEVANCE_AT, withCreatorFit } from "@/lib/results";
+import { dropForCreator, isBrandAccount, isExcluded, isOwnAccount, relevanceKeep, STRICT_RELEVANCE_AT } from "@/lib/results";
 import {
   labelFor,
   type OutlierLabel,
@@ -562,11 +563,8 @@ export async function searchKeywords(
     (await saveVideos(extras)).forEach((id, key) => dbIds.set(key, id));
   }
 
-  // "Best for your goal", then the account's fit for the product, then the user's 👍/👎.
-  const rank = withFeedback(
-    withCreatorFit((v: ScoredVideo) => goalScore(v, opts.goal), (v) => v.creatorFit),
-    opts.feedback ?? null,
-  );
+  // The shared "best" order: exact matches first, then best for the goal, account fit and the user's 👍/👎.
+  const rank = bestOrder(opts.goal, opts.feedback ?? null);
   const videos = [...kept, ...extras]
     .map((v): ScoredVideo => {
       const base = baselines.get(`${v.platform}:${v.creatorHandle}`);
@@ -592,7 +590,7 @@ export async function searchKeywords(
         relevance: relevanceOf.get(v) ?? null,
       };
     })
-    // "Best for your goal" (plain best when there is no goal), nudged by the user's 👍/👎.
+    // The shared "best" order (lib/ranking.ts).
     .sort((a, b) => rank(b) - rank(a));
 
   return {

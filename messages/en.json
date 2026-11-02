@@ -276,7 +276,9 @@
     "hardToCopyTip": "From the caption, AI thinks a small business would struggle to film this (celebrity, TV/movie footage, re-uploads or big production). Good for ideas, hard to copy as is.",
     "engagement": "{p}% engaged",
     "engagementHigh": "High engagement {p}%",
-    "engagementTip": "Likes + comments + saves + shares per 100 views (saved/shared {keep}%) · {x}x a typical clip on this platform. Also used in the \"best\" order."
+    "engagementTip": "Likes + comments + saves + shares per 100 views (saved/shared {keep}%) · {x}x a typical clip on this platform. Also used in the \"best\" order.",
+    "broader": "Broader topic",
+    "broaderTip": "The relevance check rated this clip as inside your field but not your product exactly"
   },
   "labels": {
     "breakout": "Breakout",
@@ -426,7 +428,9 @@
         "whatNext": "Which clip should I make next?"
       }
     },
-    "igAccounts": "read {n} accounts, found {m} on-topic Reels"
+    "igAccounts": "read {n} accounts, found {m} on-topic Reels",
+    "broaderTitle": "Same audience, broader topic",
+    "broaderHint": "Inside your field but not exactly your product. Good for ideas."
   },
   "card": {
     "save": "Save",
@@ -1078,6 +1082,17 @@
       "progress": "Repeat round: {done} of {total} ({before} repeats from the queue already count)",
       "hint": "Every clip is labelled. These are clips you labelled earlier, shown again: label each one fresh, as if new. Your first answer is never shown. Comparing the two measures how consistent the labels are, the realistic ceiling for any automatic check.",
       "finished": "Repeat round done. Thank you!"
+    }
+  },
+  "replay": {
+    "variant": {
+      "beforeS1": "Before S1 (label first)",
+      "exactOnly": "Exact matches only (main list)"
+    },
+    "explain": {
+      "live": "exact matches first, then label tier, views × engagement, account fit and your 👍/👎 (S1)",
+      "beforeS1": "the order before S1: label tier first, so a broader Breakout beat an exact Strong",
+      "exactOnly": "only clips scored 2: what the results page's main list shows now that broader clips have their own section"
     }
   }
 }

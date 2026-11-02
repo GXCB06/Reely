@@ -25,7 +25,7 @@ export async function researchExport(supabase: Supabase, id: string, scope: "top
       .maybeSingle(),
     supabase
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, relevance, videos(*)")
       .eq("run_id", id)
       .order("rank"),
   ]);

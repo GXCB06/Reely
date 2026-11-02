@@ -10,7 +10,7 @@ import { bestOrder } from "@/lib/ranking";
 import type { Feedback } from "@/lib/feedback";
 import { loadFeedback } from "@/lib/feedback-store";
 import { GOALS, type Goal, isGoal } from "@/lib/goals";
-import { diverseTop, relevanceKeep } from "@/lib/results";
+import { relevanceKeep, topSplit } from "@/lib/results";
 import { looksThai } from "@/lib/region";
 import { engagementRate, keepRate } from "@/lib/scoring";
 import { type Candidate, type PlatformStats, type ScoredVideo, searchKeywords } from "@/lib/search";
@@ -317,7 +317,8 @@ async function summaryFor(
   feedback: Feedback | null,
   locale: "th" | "en",
 ) {
-  const top10 = diverseTop(videos, 10, 2, bestOrder(goal, feedback));
+  // The same best 10 as the results page (exact matches only), so the summary and idea lines match what is shown.
+  const top10 = topSplit(videos, bestOrder(goal, feedback)).top;
   const top = [...top10, ...videos.filter((v) => !top10.includes(v))].slice(0, 15);
   return summarizeRun(
     {
@@ -363,7 +364,7 @@ export async function recheckRelevanceAction(id: string, lang: string) {
     supabase.from("research_runs").select("id, keywords, goal, input, stats, product_id").eq("id", parsed.data.id).maybeSingle(),
     supabase
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, relevance, videos(*)")
       .eq("run_id", parsed.data.id)
       .order("rank"),
   ]);
@@ -427,7 +428,7 @@ export async function writeIdeasAction(id: string, lang: string) {
     supabase.from("research_runs").select("id, goal, input, summary, product_id").eq("id", parsed.data.id).maybeSingle(),
     supabase
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, relevance, videos(*)")
       .eq("run_id", parsed.data.id)
       .order("rank"),
   ]);
@@ -439,7 +440,7 @@ export async function writeIdeasAction(id: string, lang: string) {
   // The same 10 the page shows first.
   const all = ((rows ?? []) as unknown as ResultRow[]).map(videoFromResultRow).filter((v): v is ScoredVideo => v !== null);
   const { feedback } = await loadFeedback(supabase, run.product_id as string | null);
-  const top10 = diverseTop(all, 10, 2, bestOrder(run.goal, feedback));
+  const top10 = topSplit(all, bestOrder(run.goal, feedback)).top;
   const ideas = await ideasForClips(
     { name: input.productName, whatItIs: input.whatItIs ?? "", audience: input.audience ?? "" },
     run.goal,
@@ -604,7 +605,7 @@ export async function followUpAction(id: string, question: string, lang: string,
     supabase.from("research_runs").select("id, goal, input, brief, region, product_id").eq("id", parsed.data.id).maybeSingle(),
     supabase
       .from("run_results")
-      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, videos(*)")
+      .select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, relevance, videos(*)")
       .eq("run_id", parsed.data.id)
       .order("rank"),
     supabase

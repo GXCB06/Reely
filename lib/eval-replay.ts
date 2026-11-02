@@ -3,39 +3,22 @@
 import { EVAL_PLATFORMS, type EvalClip, type EvalPlatform, JUDGE_CLIPS, type Label, topClips, topCreators } from "./eval";
 import type { Feedback } from "./feedback";
 import type { Goal } from "./goals";
-import { bestOrder } from "./ranking";
+import { bestOrder, labelOrder } from "./ranking";
 import type { ScoredVideo } from "./search";
 
-export const REPLAY_VARIANTS = ["live", "exactFirst", "exactInTier", "exactOnly"] as const;
+export const REPLAY_VARIANTS = ["live", "beforeS1", "exactOnly"] as const;
 export type ReplayVariant = (typeof REPLAY_VARIANTS)[number];
-
-/** Above every label tier ("best" scores are tiered in steps of 1e12). */
-const EXACT_TIER = 1e14;
-/** exactInTier: how much of its within-tier score a clip keeps, by its relevance score (unknown counts as 1). */
-export const IN_TIER_FACTOR: Record<number, number> = { 2: 1, 1: 0.6, 0: 0.4 };
 
 /**
  * The results in a variant's order:
- * - live: today's "best" (label tier, views × engagement, account fit, 👍/👎);
- * - exactFirst: clips the relevance check scored 2 above the rest, then today's order;
- * - exactInTier: the score nudged by relevance inside its label tier, like the account-fit nudge;
- * - exactOnly: only clips scored 2 (what a strict filter would leave).
- * A clip with no relevance score (an older research not replayed yet) counts as 1.
+ * - live: today's "best" (exact matches first since S1, then label tier, views × engagement, account fit, 👍/👎);
+ * - beforeS1: the order before exact matches came first (label tier first), for the before/after;
+ * - exactOnly: only clips scored 2, i.e. the results page's main list now that broader clips have their own section.
+ * In exactOnly a clip with no relevance score counts as broader (every test-set result has one after Replay's prepare).
  */
 export function replayOrder(variant: ReplayVariant, videos: ScoredVideo[], goal: Goal | null, feedback: Feedback | null): ScoredVideo[] {
-  const best = bestOrder(goal, feedback);
-  const rel = (v: ScoredVideo) => v.relevance ?? 1;
-  const score: (v: ScoredVideo) => number =
-    variant === "exactFirst"
-      ? (v) => (rel(v) === 2 ? EXACT_TIER : 0) + best(v)
-      : variant === "exactInTier"
-        ? (v) => {
-            const s = best(v);
-            const tier = Math.floor(s / 1e12) * 1e12;
-            return tier + (s - tier) * (IN_TIER_FACTOR[rel(v)] ?? 1);
-          }
-        : best;
-  const list = variant === "exactOnly" ? videos.filter((v) => rel(v) === 2) : videos;
+  const score = variant === "beforeS1" ? labelOrder(goal, feedback) : bestOrder(goal, feedback);
+  const list = variant === "exactOnly" ? videos.filter((v) => v.relevance === 2) : videos;
   return [...list].sort((a, b) => score(b) - score(a));
 }
 

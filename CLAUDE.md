@@ -49,7 +49,7 @@ lib/ask.ts                    # Ask Reely answer and thread types, thread memory
 lib/eval.ts                   # relevance test set metrics (precision@10, creators@5, IG useful, cost per useful clip), judge-check agreement; data in lib/eval-data.ts, owner page app/[locale]/app/eval
 lib/eval-replay.ts            # order variants replayed on stored results (/app/eval/replay); lib/eval-check.ts = blind judge check (/app/eval/check)
 lib/eval-queue.ts             # labelling queue (/app/eval/label): every judged clip once per brief, hidden repeats; data in lib/eval-queue-data.ts
-lib/ranking.ts                # the "best" order (goal, account fit, 👍/👎) used by the search and every page that ranks results
+lib/ranking.ts                # the "best" order (exact matches first, goal, account fit, 👍/👎) used by the search and every page that ranks results
 lib/run-context.ts            # credits counted per research (stats.credits)
 lib/events.ts                 # client_events names and sources (lib/event-log.ts writes them); never what users typed
 lib/export.ts                 # research export: CSV (Excel), Markdown (for Claude / ChatGPT), JSON; data from lib/export-data.ts, served by app/api/research/[id]/export
@@ -182,9 +182,11 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 - All user-facing text goes in `messages/th.json` and `messages/en.json` — no hard-coded strings.
 - Show the numbers behind every score label ("usually ~510 views → 41.3K").
 - A label needs real views too: Breakout = 5x+ AND 10K+ views; Strong = 2x+ AND 5K+ views. Views ÷ followers
-  only counts for accounts with 1K+ followers. Default order is "best": label, then views weighted by engagement
+  only counts for accounts with 1K+ followers. Default order is "best" (`bestOrder`, lib/ranking.ts): exact matches
+  first (relevance 2, or not scored), then label, then views weighted by engagement
   (likes + 3x comments + 5x saves and shares per view, versus a typical clip on that platform: `engagementFactor`,
-  `bestScore` in lib/scoring.ts). Cards show the plain engagement % (likes + comments + saves + shares per view).
+  `bestScore` in lib/scoring.ts), account fit and 👍/👎. The results page's best 10 come from exact matches only;
+  clips scored 1 get their own section, "Same audience, broader topic" (`topSplit` in lib/results.ts; search quality S1). Cards show the plain engagement % (likes + comments + saves + shares per view).
 - Design: Peekly-inspired — near-black sidebar, light content panel with rounded corners,
   lavender `page-wash` header, purple primary, rounded-2xl cards, pill buttons. Virlo is the
   reference for flows (brief → keywords → results, outlier cards with views + multiplier).

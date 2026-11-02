@@ -44,7 +44,7 @@ export async function buildPlan(supabase: Supabase, productId: string, locale: s
   const [{ data: picked }, { data: resultRows }] = await Promise.all([
     likedIds.length + savedIds.length ? supabase.from("videos").select("*").in("id", [...likedIds, ...savedIds]) : Promise.resolve({ data: [] }),
     lastRun
-      ? supabase.from("run_results").select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, videos(*)").eq("run_id", lastRun.id).order("rank")
+      ? supabase.from("run_results").select("keyword, reach_score, usual_score, usual_views, label, copyable, creator_fit, account_type, creator_why, relevance, videos(*)").eq("run_id", lastRun.id).order("rank")
       : Promise.resolve({ data: [] }),
   ]);
   const byId = new Map(((picked ?? []) as VideoRow[]).map((v) => [v.id, v]));

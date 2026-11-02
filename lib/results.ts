@@ -41,6 +41,34 @@ export function relevanceKeep(scores: number[], strictAt = STRICT_RELEVANCE_AT):
   return scores.map((s) => s >= minScore);
 }
 
+/** Above every label tier ("best" scores are tiered in steps of 1e12): exact matches before broader clips. */
+export const EXACT_TIER = 1e14;
+
+/**
+ * A result the relevance check scored "inside the field, not the product" (1, or 0 when it was kept anyway). Not
+ * scored (older researches, or the check failed) counts as exact, so nothing is demoted for lack of a score.
+ */
+export const isBroader = (r: { relevance?: number | null }) => r.relevance === 1 || r.relevance === 0;
+
+/** Exact matches first, each group in the given order (search quality S1: measured on the owner's 391 labels). */
+export function withExactFirst<T extends { relevance?: number | null }>(score: (v: T) => number): (v: T) => number {
+  return (v) => (isBroader(v) ? 0 : EXACT_TIER) + score(v);
+}
+
+/** Broader clips shown under the best 10 ("Same audience, broader topic"). */
+export const BROADER_SHOWN = 6;
+
+/**
+ * The results page's default view: the best 10 from exact matches only (fewer when there are fewer, never padded with
+ * broader clips), and up to BROADER_SHOWN broader clips for their own section.
+ */
+export function topSplit<T extends FilterableResult>(rows: T[], score: (r: T) => number, n = 10) {
+  return {
+    top: diverseTop(rows.filter((r) => !isBroader(r)), n, 2, score),
+    broader: diverseTop(rows.filter(isBroader), BROADER_SHOWN, 1, score),
+  };
+}
+
 /** How much a result's account fitting the product (creator fit 0-2) weighs in the "best" order. */
 // Measured on the test set (2026-11-01): 0.85 / 0.6 bunched the top results on a few broad "fit 2" accounts
 // (concentration 27% → 38%), so the nudge is gentler.
@@ -103,6 +131,8 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
 
 export type FilterableResult = {
   platform: string;
+  /** The relevance check's score for the clip (2 exact, 1 broader); null when it never ran. */
+  relevance?: number | null;
   views: number | null;
   likes?: number | null;
   comments?: number | null;
