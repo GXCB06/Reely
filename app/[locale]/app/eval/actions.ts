@@ -194,7 +194,7 @@ export async function trialJudgeAction(id: string, items: string[], version: str
  * Tries a relevance-check version on some of one brief's labelled clips and returns its scores WITHOUT storing them,
  * so a new check is compared with the owner's labels before the search uses it. AI only, no credits.
  */
-export async function trialRelevanceAction(id: string, items: string[], version: string, calibration: unknown) {
+export async function trialRelevanceAction(id: string, items: string[], version: string, calibration: unknown, votes?: unknown) {
   const admin = await ownerAdmin();
   const parsed = z
     .object({
@@ -204,14 +204,25 @@ export async function trialRelevanceAction(id: string, items: string[], version:
       calibration: z
         .array(z.object({ product: z.string().max(100), caption: z.string().max(200), label: z.union([z.literal(0), z.literal(1), z.literal(2)]) }))
         .max(15),
+      // Stand-in 👍/👎 for the product (the learning-from-votes trial); null keeps the product's own.
+      votes: z
+        .object({
+          liked: z.array(z.object({ handle: z.string().max(100), caption: z.string().max(200) })).max(8),
+          disliked: z.array(z.object({ handle: z.string().max(100), caption: z.string().max(200) })).max(8),
+        })
+        .nullable(),
     })
-    .safeParse({ id, items, version, calibration });
+    .safeParse({ id, items, version, calibration, votes: votes ?? null });
   if (!admin || !parsed.success) return { ok: false as const };
   const brief = await loadEvalBrief(admin, parsed.data.id);
   if (!brief) return { ok: false as const };
   const byId = new Map(brief.videos.map((v) => [String(v.dbId), v]));
   const list = parsed.data.items.filter((i) => byId.has(i));
-  const rated = await rateRelevance(brief.run.product, list.map((i) => byId.get(i)!), brief.run.goal, brief.feedback?.examples, {
+  const v = parsed.data.votes;
+  const asVoted = (side: { handle: string; caption: string }[], vote: 1 | -1) =>
+    side.map((c) => ({ platform: "tiktok", platformVideoId: "", creatorHandle: c.handle, caption: c.caption, vote }));
+  const examples = v ? { liked: asVoted(v.liked, 1), disliked: asVoted(v.disliked, -1) } : brief.feedback?.examples;
+  const rated = await rateRelevance(brief.run.product, list.map((i) => byId.get(i)!), brief.run.goal, examples, {
     version: parsed.data.version,
     brief: brief.run.brief,
     calibration: parsed.data.calibration,

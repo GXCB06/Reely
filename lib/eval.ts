@@ -359,3 +359,23 @@ export function pickExamples<T extends { family: string; item: string; label: La
   }
   return out;
 }
+
+/**
+ * Learning from votes, measured fairly: inside each brief, half the owner's labels "teach" (they become the product's
+ * 👍/👎) and the other half is scored. Stable per clip.
+ */
+export function voteHalf(family: string, item: string): "teach" | "score" {
+  return stableHash(`vote:${family}:${item}`) % 2 === 0 ? "teach" : "score";
+}
+
+/** Votes per side the relevance check sees, as in the product (MAX_EXAMPLES in lib/feedback.ts). */
+export const TEACH_VOTES = 8;
+
+/** The 👍 (labelled 2) and 👎 (labelled 0) a brief's teaching half gives, at most TEACH_VOTES each, in a stable order. */
+export function teachVotes<T extends { family: string; item: string; user: Label; handle: string; caption: string }>(items: T[], family: string) {
+  const teach = items
+    .filter((i) => i.family === family && voteHalf(i.family, i.item) === "teach")
+    .sort((a, b) => stableHash(`t:${a.item}`) - stableHash(`t:${b.item}`));
+  const side = (label: Label) => teach.filter((i) => i.user === label).slice(0, TEACH_VOTES).map((i) => ({ handle: i.handle, caption: i.caption.slice(0, 160) }));
+  return { liked: side(2), disliked: side(0) };
+}

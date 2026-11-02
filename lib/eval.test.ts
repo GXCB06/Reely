@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agreement, briefMetrics, checkHalf, familyHalves, humanLabels, pickExamples, combineJudgements, creatorItem, type EvalClip, effectiveLabels, type Label, latestBatch, pickCheckSample, summarize, summaryMarkdown, topCreators } from "./eval";
+import { agreement, briefMetrics, checkHalf, familyHalves, humanLabels, pickExamples, teachVotes, voteHalf, combineJudgements, creatorItem, type EvalClip, effectiveLabels, type Label, latestBatch, pickCheckSample, summarize, summaryMarkdown, topCreators } from "./eval";
 
 const clip = (id: number, platform: EvalClip["platform"], handle: string): EvalClip => ({ id, platform, handle });
 
@@ -195,5 +195,18 @@ describe("familyHalves and pickExamples", () => {
     expect(new Set(twos.map((e) => e.product))).toEqual(new Set(["a", "b", "c"]));
     expect(ex.some((e) => e.product === "test")).toBe(false);
     expect(ex.filter((e) => e.label === 1)).toHaveLength(1);
+  });
+});
+
+describe("teachVotes", () => {
+  it("teaches only with the brief's teaching half: 2s as 👍, 0s as 👎, at most 8 each", () => {
+    const items = Array.from({ length: 60 }, (_, n) => ({ family: n < 50 ? "a" : "b", item: String(n), user: (n % 3) as Label, handle: `h${n}`, caption: `c${n}` }));
+    const votes = teachVotes(items, "a");
+    const teachIds = new Set(items.filter((i) => i.family === "a" && voteHalf("a", i.item) === "teach").map((i) => `h${i.item}`));
+    expect(votes.liked.length).toBeLessThanOrEqual(8);
+    expect([...votes.liked, ...votes.disliked].every((v) => teachIds.has(v.handle))).toBe(true);
+    expect(votes.liked.every((v) => Number(v.handle.slice(1)) % 3 === 2)).toBe(true);
+    expect(votes.disliked.every((v) => Number(v.handle.slice(1)) % 3 === 0)).toBe(true);
+    expect([...votes.liked, ...votes.disliked].some((v) => Number(v.handle.slice(1)) >= 50)).toBe(false);
   });
 });

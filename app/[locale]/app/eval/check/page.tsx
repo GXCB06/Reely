@@ -11,6 +11,7 @@ import { looksThai } from "@/lib/region";
 import { CheckCard } from "./check-card";
 import { RelevanceTrial } from "./relevance-trial";
 import { TrialRunner } from "./trial-runner";
+import { VotesTrial } from "./votes-trial";
 
 /**
  * Owner-only judge check (search quality S0): you label a fixed sample of 60 judged clips without seeing the AI's
@@ -95,6 +96,7 @@ export default async function CheckPage({ params, searchParams }: PageProps<"/[l
         {/* Numbers only once every clip is labelled, so they can't sway the labels still to come. */}
         {!next && done > 0 && (
           <>
+            <VotesTrial items={check.relevanceItems} />
             <RelevanceTrial
               final={final}
               items={check.relevanceItems}

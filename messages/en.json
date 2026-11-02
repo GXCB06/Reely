@@ -1066,6 +1066,13 @@
       "version": "Check {version} · {half}",
       "misses": "Where v3 still differs from you (dev briefs, {n})",
       "youVs": "you {you} · today {today} · v2 {v2} · v3 {v3}"
+    },
+    "votesTrial": {
+      "title": "Learning from your votes",
+      "hint": "Inside each brief, half your labels teach the search's relevance check, the way the product's 👍/👎 do (your 2s as 👍, your 0s as 👎, up to 8 each), and the other half is scored: once without votes, once with them. AI only, nothing stored. Shows what Reely gains once a founder has voted on a few clips of their product.",
+      "today": "Stored score · {group}",
+      "plain": "Check, no votes · {group}",
+      "votes": "Check with your votes · {group}"
     }
   }
 }
