@@ -1235,23 +1235,26 @@ function judgeRubric(version: JudgeVersion, kind: "clip" | "creator", goal: Goal
       "a plain same-category app demo is still 2. When a caption is too vague to tell, use 1.",
     ];
   }
+  // v4, round 2: today's rubric plus only what the owner's blind labels showed it missing (the goal's own definition of
+  // on target, the pain shown on screen, gear for the same job). Round 1 also applied the brief's style wishes (no hard
+  // sell, not too technical) as relevance and counted general advice as "the pain": both made it worse.
   return [
-    brief ? `What the founder asked for, in their own words: ${brief.slice(0, 600).replace(/\s+/g, " ")}` : "",
-    "The question for every line: would THIS founder learn something they can use for THIS product from it?",
+    brief ? `What the founder wrote about the product (context only): ${brief.slice(0, 600).replace(/\s+/g, " ")}` : "",
     kind === "clip" ? "Label each CLIP by what its caption says it is about:" : "Label each CREATOR by what their recent captions are mostly about:",
-    "2 = yes. Any of: the product's own problem, category or job to be done; the pain or everyday situation it solves,",
-    "    even when no product is shown (for a budgeting app: 'why I'm always broke before payday'); tools, gear or",
-    "    skills the same buyer uses for that same job (for a camera: lenses, lighting for video); a same-category or",
-    "    competitor product's own posts, promo, demo or tutorial; reviews or comparisons of such products.",
+    "2 = about the product's own problem, category or job to be done. Includes a competitor's or same-category",
+    "    product's own posts, promo, demo or tutorial, and reviews or comparisons of such products. Also 2:",
+    "    - the problem itself shown or complained about, even with no product (for a language app: 'why is Japanese",
+    "      so hard'); but tips, advice or motivation ABOUT the field are not the problem (see 1 and 0);",
+    "    - gear or skills for the very same job (for a coffee grinder: beans, brewing, espresso machines; not kitchen",
+    "      knives).",
     goal ? `    For this founder's goal, also 2: ${GOAL_RELEVANCE[goal]}` : "",
-    "1 = partly: on topic but against what the founder asked for (e.g. a hard sell when they asked for no hard",
-    "    selling, or a clearly different market such as government offices for a small-business tool), or a",
-    "    neighbouring product the same buyer uses for a DIFFERENT job. Also 1 when a caption is too vague to tell.",
-    "0 = no: clips that only share the audience's world (jokes, memes or lifestyle about their work, general",
-    "    productivity, money or business advice with no link to the problem), other niches, entertainment, news,",
-    "    or the product's own account.",
-    "Judge the TOPIC only. Do not judge hook strength, production quality, virality or views: a plain same-category",
-    "demo is still 2.",
+    "1 = same audience or the broader field, but not this product's problem or category (e.g. for an AI accounting",
+    "    app: general AI tools, tax basics, general business tips).",
+    "0 = unrelated: other niches, generic entertainment, memes or lifestyle content, general productivity or",
+    "    motivation advice, news, or the product's own account.",
+    "Judge relevance ONLY. Style wishes in the founder's text (no hard selling, not too technical) are not relevance.",
+    "Do not judge hook strength, production quality, virality or views: a plain same-category app demo is still 2.",
+    "When a caption is too vague to tell, use 1.",
   ];
 }
 
