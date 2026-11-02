@@ -220,6 +220,28 @@ The caption-only ceiling seems to be about here (about two-thirds on "2").
   with half of a brief's labels and scoring the other half. This mirrors real use after a founder has voted on a few
   clips.
 
+#### Learning from votes (2026-11-02)
+
+Inside each brief, half the owner's labels were turned into the product's 👍/👎 (2s as 👍, 0s as 👎, up to 8 each),
+and the other half (189 clips) was scored by today's check without and with those votes:
+
+| 189 scored clips | Same label | Says 2 → you agree | Your 2s it finds | Kappa |
+|---|---|---|---|---|
+| Today's check, no votes | 54% | 65% | 82% | 0.15 |
+| Today's check, with your votes | 61% | 68% | 90% | 0.28 |
+| (stored scores, for reference) | 59% | 68% | 85% | 0.24 |
+
+The dev and test briefs moved the same way.
+
+What this shows:
+- **Votes help:** overall agreement 54% → 61%, kappa nearly doubles, and 90% of your 2s are found.
+- **They don't help where the top 10 needs it.** "Says 2 → you agree" moves only 65% → 68%, within noise for 189
+  clips.
+- **Every approach so far lands at about two-thirds on "2":** today's check, v2, v3, with votes, and the AI judge.
+  That points to a ceiling in what captions carry, or in label consistency (16 hidden repeats so far, 20 needed to
+  read it), rather than in the prompt.
+- **Votes are already used in the product (👍/👎), so nothing new ships here.**
+
 - **Store the candidate pool.** Store every candidate a research saw, kept or dropped, in a new table `run_candidates`.
   Each row holds:
   - the clip, its platform and keyword;
