@@ -228,6 +228,8 @@ export async function trialRelevanceAction(id: string, items: string[], version:
     brief: brief.run.brief,
     calibration: parsed.data.calibration,
     covers: withCovers,
+    // Trials compare prompts: one model, no fallback, so no batch is answered by a different model.
+    singleModel: true,
   });
   if (!rated) return { ok: false as const };
   return { ok: true as const, scores: list.map((item, i) => ({ item, score: rated.scores[i] })) };

@@ -82,3 +82,12 @@ export function aiCallOptions(timeoutMs = Number(process.env.AI_TIMEOUT_MS) || 2
     providerOptions: { google: { thinkingConfig: { thinkingLevel: "minimal" as const } } },
   };
 }
+
+/**
+ * The main model alone, with no fallback (null when no key is set). For test-set trials that compare two prompts: a
+ * fallback would answer some batches with another model and make the comparison unfair.
+ */
+export function getSingleModel() {
+  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) return null;
+  return google(modelName());
+}

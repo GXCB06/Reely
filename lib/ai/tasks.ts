@@ -7,7 +7,7 @@ import { firstSeconds, type Segment } from "@/lib/transcript";
 import { keywordRegions, type RegionChoice } from "@/lib/region";
 import { formatMultiplier } from "@/lib/scoring";
 import { type CalibrationExample, combineJudgements } from "@/lib/eval";
-import { aiCallOptions, getModel, languageName } from "./model";
+import { aiCallOptions, getModel, getSingleModel, languageName } from "./model";
 import {
   MAX_KEYWORDS,
   planSchema,
@@ -418,7 +418,7 @@ export async function rateRelevance(
   videos: { caption: string; creatorHandle: string; thumbnailUrl?: string | null }[],
   goal?: Goal | null,
   examples?: Feedback["examples"] | null,
-  opts: { version?: RelevanceVersion; brief?: string; calibration?: CalibrationExample[]; covers?: boolean } = {},
+  opts: { version?: RelevanceVersion; brief?: string; calibration?: CalibrationExample[]; covers?: boolean; singleModel?: boolean } = {},
 ): Promise<{ scores: number[]; copy: (number | null)[]; brand: boolean[] } | null> {
   const version = opts.version ?? RELEVANCE_VERSION;
   // v2+ read the caption up to 300 characters (the hashtags at the end say a lot).
@@ -433,7 +433,9 @@ export async function rateRelevance(
       ? ["The user marked these clips NOT useful for this product. Give 0 to clips like them:", ...examples.disliked.map(example)]
       : []),
   ];
-  const model = getModel();
+  // Trials comparing two prompts use one model only, with more time (see getSingleModel).
+  const model = opts.singleModel ? getSingleModel() : getModel();
+  const timeout = opts.singleModel ? 90_000 : null;
   if (!model || !videos.length) return null;
   // With cover images the model also looks at each clip's cover (on trial: does the picture carry what the caption
   // doesn't?), in smaller batches.
@@ -447,7 +449,7 @@ export async function rateRelevance(
         const ask = (prompt: string) =>
           covers.length
             ? generateText({
-                ...aiCallOptions(60_000),
+                ...aiCallOptions(timeout ?? 60_000),
                 model,
                 output: Output.object({ schema: relevanceSchema }),
                 messages: [
@@ -462,7 +464,7 @@ export async function rateRelevance(
                   },
                 ],
               })
-            : generateText({ ...aiCallOptions(40_000), model, output: Output.object({ schema: relevanceSchema }), prompt });
+            : generateText({ ...aiCallOptions(timeout ?? 40_000), model, output: Output.object({ schema: relevanceSchema }), prompt });
         const prompt = [
             "A founder wants short videos they can learn from for their product. Rate every video below.",
             `Product: ${product.name} — ${product.whatItIs}`,
