@@ -242,6 +242,23 @@ What this shows:
   read it), rather than in the prompt.
 - **Votes are already used in the product (👍/👎), so nothing new ships here.**
 
+#### Label consistency (2026-11-02)
+
+The same clip was labelled twice, unmarked (46 pairs: 16 hidden in the queue, 30 in a repeat round):
+
+| | Same label | Second "2" matches the first | First 2s given again | Kappa |
+|---|---|---|---|---|
+| Owner vs owner | 74% | 84% | 96% | 0.49 |
+
+What this tells us:
+- **"2" is stable for the owner, while 1 vs 0 is not.** The 2s come back 84–96% of the time, but a quarter of all
+  labels change, mostly between 1 and 0. So "same label" and kappa have a low ceiling. "Says 2 → you agree" is the
+  number to tune.
+- **The realistic ceiling for "says 2 → you agree" is about 84%** (± ~7 with 46 pairs). Every automatic check is at
+  66–68%, so about 16 points of headroom remain. The two-thirds plateau is not the owner's noise.
+- **The likely gap is what the caption can't show:** the owner watched the clips. The next free test is the cover
+  image alongside the caption. Transcripts would cost credits (rule 6).
+
 - **Store the candidate pool.** Store every candidate a research saw, kept or dropped, in a new table `run_candidates`.
   Each row holds:
   - the clip, its platform and keyword;
