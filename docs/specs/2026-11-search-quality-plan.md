@@ -183,6 +183,43 @@ What this tells us:
 - **Your own consistency:** only 4 hidden repeats came up (20 are needed). A short dedicated repeat round would give
   the ceiling.
 
+**Correction (same day).** The check page read at most 1,000 label rows, so it compared only 112 of the 391 labels.
+Fixed by reading in pages. On all 391:
+
+| | Same label | Says 2 → you agree | Your 2s it finds | Kappa |
+|---|---|---|---|---|
+| AI judge (v3) | 52% | 68% | 72% | 0.19 |
+| Search's relevance score (today) | 57% | 67% | 84% | 0.23 |
+
+The relevance score is weak, but not as weak as the 49% above suggested.
+
+#### Relevance check v2 / v3 (S1b, 2026-11-02)
+
+Tried on every labelled clip, split by brief. The dev briefs (6 briefs, 250 clips):
+
+| | Says 2 → you agree | Your 2s it finds | Kappa |
+|---|---|---|---|
+| Today's check | 66% | 85% | 0.19 |
+| v2: stricter 2, the brief, 300-character captions | 67% | 75% | 0.29 |
+| v3: v2 + 12 examples of your judgement | 67% | 78% | 0.27 |
+
+**No precision gain**, so the test briefs were not opened and nothing ships. Today's check stays.
+
+The misses show why rewording can't fix it:
+- **The same kind of caption gets opposite labels across products.**
+  - Pain shown is 2 for a language app ("why is German so hard"), but month-end memes for accountants are 0.
+  - A competitor's own promo can be 0 ("Meet Rillet").
+  - Developer tools are 2 for a productivity SaaS.
+- **Some of your labels come from what the video shows,** not the caption.
+
+The caption-only ceiling seems to be about here (about two-thirds on "2").
+
+**What could still move it (free, AI only):**
+- **The cover image** alongside the caption: tests whether the picture carries what the caption lacks.
+- **Learning from your own votes on the same product:** the 👍/👎 the check already reads, measured fairly by teaching
+  with half of a brief's labels and scoring the other half. This mirrors real use after a founder has voted on a few
+  clips.
+
 - **Store the candidate pool.** Store every candidate a research saw, kept or dropped, in a new table `run_candidates`.
   Each row holds:
   - the clip, its platform and keyword;
