@@ -7,14 +7,18 @@ import { isOwner } from "@/lib/limits";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { Link } from "@/i18n/navigation";
+import { looksThai } from "@/lib/region";
 import { CheckCard } from "./check-card";
+import { TrialRunner } from "./trial-runner";
 
 /**
  * Owner-only judge check (search quality S0): you label a fixed sample of 60 judged clips without seeing the AI's
  * answer; the page then shows how far the AI judge (and the search's own relevance score) agrees with you.
  */
-export default async function CheckPage({ params }: PageProps<"/[locale]/app/eval/check">) {
+export default async function CheckPage({ params, searchParams }: PageProps<"/[locale]/app/eval/check">) {
   const { locale } = await params;
+  // The new judge's test-half numbers show only when asked for (?final=1): it is measured on them once, at the end.
+  const final = (await searchParams).final === "1";
   setRequestLocale(locale);
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
@@ -90,6 +94,24 @@ export default async function CheckPage({ params }: PageProps<"/[locale]/app/eva
         {/* Numbers only once every clip is labelled, so they can't sway the labels still to come. */}
         {!next && done > 0 && (
           <>
+            <TrialRunner
+              version="v4"
+              final={final}
+              items={check.sample
+                .filter((s) => s.user !== null)
+                .map((s) => ({
+                  runId: s.runId,
+                  item: s.item,
+                  half: s.half,
+                  platform: s.platform,
+                  thai: looksThai(s.clip.caption),
+                  user: s.user!,
+                  ai: s.ai,
+                  title: s.brief.title,
+                  handle: s.clip.handle,
+                  caption: s.clip.caption.slice(0, 220),
+                }))}
+            />
             <p className="text-xs text-muted-foreground">{t("check.bar", { bar: Math.round(AGREEMENT_BAR * 100) })}</p>
             {table(t("check.judgeTitle"), splits(check.judge))}
             {table(t("check.filterTitle"), splits(check.filter))}

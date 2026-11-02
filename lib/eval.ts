@@ -295,3 +295,11 @@ export function pickCheckSample<T extends { runId: string; item: string; platfor
   }
   return sample.sort((a, b) => key(a) - key(b));
 }
+
+/**
+ * Which half of the judge check a clip falls in: a new judge is tuned on "dev" and measured once on "test", so it is
+ * never scored on the very labels it was tuned on.
+ */
+export function checkHalf(runId: string, item: string): "dev" | "test" {
+  return stableHash(`half:${runId}:${item}`) % 2 === 0 ? "dev" : "test";
+}

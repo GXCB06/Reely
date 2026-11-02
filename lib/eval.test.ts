@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agreement, briefMetrics, combineJudgements, creatorItem, type EvalClip, effectiveLabels, type Label, latestBatch, pickCheckSample, summarize, summaryMarkdown, topCreators } from "./eval";
+import { agreement, briefMetrics, checkHalf, combineJudgements, creatorItem, type EvalClip, effectiveLabels, type Label, latestBatch, pickCheckSample, summarize, summaryMarkdown, topCreators } from "./eval";
 
 const clip = (id: number, platform: EvalClip["platform"], handle: string): EvalClip => ({ id, platform, handle });
 
@@ -141,5 +141,15 @@ describe("pickCheckSample", () => {
     expect(youtube).toHaveLength(10);
     expect(youtube.filter((x) => x.ai === 2)).toHaveLength(4);
     expect(pickCheckSample([...items].reverse(), 10).map((x) => x.item)).toEqual(s.map((x) => x.item));
+  });
+});
+
+describe("checkHalf", () => {
+  it("splits clips into two stable, roughly even halves", () => {
+    const halves = Array.from({ length: 200 }, (_, i) => checkHalf("run", String(i)));
+    const dev = halves.filter((h) => h === "dev").length;
+    expect(dev).toBeGreaterThan(70);
+    expect(dev).toBeLessThan(130);
+    expect(checkHalf("run", "7")).toBe(checkHalf("run", "7"));
   });
 });

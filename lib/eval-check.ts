@@ -1,5 +1,5 @@
 import "server-only";
-import { type AgreementPair, type EvalPlatform, JUDGE_CLIPS, type Label, pickCheckSample, topClips } from "@/lib/eval";
+import { type AgreementPair, CHECK_PER_PLATFORM, checkHalf, type EvalPlatform, JUDGE_CLIPS, type Label, pickCheckSample, topClips } from "@/lib/eval";
 import type { EvalBrief } from "@/lib/eval-data";
 import { looksThai } from "@/lib/region";
 import type { createAdminClient } from "@/lib/supabase/admin";
@@ -10,6 +10,8 @@ export type CheckItem = {
   runId: string;
   item: string;
   platform: EvalPlatform;
+  /** Dev (a new judge is tuned on it) or test (measured once). */
+  half: "dev" | "test";
   /** The AI judge's label (hidden until the check is done). */
   ai: Label;
   aiReason: string;
@@ -59,6 +61,7 @@ export async function loadCheck(admin: Admin, set: { run_id: string; parent_run_
           runId: b.run.id,
           item: String(c.id),
           platform: p,
+          half: checkHalf(b.run.id, String(c.id)),
           ai: judged.label as Label,
           aiReason: judged.reason ?? "",
           relevance: v.relevance ?? null,
@@ -69,7 +72,10 @@ export async function loadCheck(admin: Admin, set: { run_id: string; parent_run_
       }
     }
   }
-  const sample = pickCheckSample(items);
+  // Once the check is complete, the clips you labelled ARE the sample: re-judging (a new judge) changes the AI labels the
+  // sample is drawn by, and must not swap your labelled clips for new ones.
+  const labelled = items.filter((i) => i.user !== null);
+  const sample = labelled.length >= CHECK_PER_PLATFORM * 3 ? labelled : pickCheckSample(items);
   const done = sample.filter((s) => s.user !== null);
   const pair = (s: CheckItem, other: number): AgreementPair => ({ platform: s.platform, thai: looksThai(s.clip.caption), user: s.user!, other: other as Label });
   return {

@@ -1021,6 +1021,18 @@
       "notSaved": "Not saved, try again",
       "line": "Judge check ({n} clips): says 2 → you agree {precision} · your 2s it finds {recall} · same label {exact}",
       "lineProgress": "Judge check: {n} of {of} clips labelled"
+    },
+    "trial": {
+      "title": "Try judge {version} on your labels",
+      "hint": "Runs the new judge on the clips you labelled (AI only, nothing stored) and compares it with today's judge. Dev half: what the new judge is tuned on. Test half: measured once, at the end.",
+      "run": "Try it ({n} clips)",
+      "running": "Judging {done}/{of}…",
+      "today": "Today's judge · {half}",
+      "new": "Judge {version} · {half}",
+      "dev": "dev half",
+      "test": "test half",
+      "misses": "Where the new judge still differs from you (dev half, {n})",
+      "youVsNew": "you {you} · today {now} · new {next}"
     }
   }
 }

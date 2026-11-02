@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { modelName } from "@/lib/ai/model";
-import { judgeRelevance, rateRelevance } from "@/lib/ai/tasks";
+import { JUDGE_VERSION, JUDGE_VERSIONS, judgeRelevance, rateRelevance } from "@/lib/ai/tasks";
 import { EVAL_PLATFORMS, type EvalClip, JUDGE_CLIPS, creatorItem, topClips, topCreators } from "@/lib/eval";
 import { type EvalBrief, loadEvalBrief } from "@/lib/eval-data";
 import { replayGaps } from "@/lib/eval-replay";
@@ -104,6 +104,7 @@ async function judgeItems(admin: Admin, brief: EvalBrief, clipList: EvalClip[], 
         const v = byId.get(c.id)!;
         return { platform: c.platform, handle: c.handle, text: v.caption || "(no caption)", views: v.views };
       }),
+      { brief: run.brief },
     ),
     judgeRelevance(
       run.product,
@@ -111,11 +112,13 @@ async function judgeItems(admin: Admin, brief: EvalBrief, clipList: EvalClip[], 
       run.region,
       "creator",
       captions.map((c) => ({ platform: c.platform, handle: c.handle, text: c.text || "(no captions stored)", views: null })),
+      { brief: run.brief },
     ),
   ]);
   if (!clipLabels && !creatorLabels) return { ok: false as const, judged: 0, partial: true };
 
-  const model = modelName();
+  // Which judge gave the label, so labels from different judges are never mixed up.
+  const model = `${modelName()} · judge ${JUDGE_VERSION}`;
   const rows = [
     ...(clipLabels ?? []).map((l) => ({ item: String(clipList[l.i].id), kind: "clip", platform: clipList[l.i].platform, label: l.label, reason: l.reason })),
     ...(creatorLabels ?? []).map((l) => ({
@@ -156,6 +159,35 @@ export async function prepareReplayAction(id: string) {
   const gaps = replayGaps(videos, run.goal, feedback, labels);
   const res = await judgeItems(admin, brief, gaps.clips, gaps.creators);
   return { ...res, scored: unscored.length };
+}
+
+/**
+ * Tries a judge version on some of one brief's clips (the judge check's sample) and returns its labels WITHOUT storing
+ * them, so a new judge is compared with the owner's blind labels before it replaces anything. AI only, no credits.
+ */
+export async function trialJudgeAction(id: string, items: string[], version: string) {
+  const admin = await ownerAdmin();
+  const parsed = z
+    .object({ id: runId, items: z.array(z.string().regex(/^\d+$/).max(20)).min(1).max(40), version: z.enum(JUDGE_VERSIONS) })
+    .safeParse({ id, items, version });
+  if (!admin || !parsed.success) return { ok: false as const };
+  const brief = await loadEvalBrief(admin, parsed.data.id);
+  if (!brief) return { ok: false as const };
+  const byId = new Map(brief.videos.map((v) => [String(v.dbId), v]));
+  const list = parsed.data.items.filter((i) => byId.has(i));
+  const labels = await judgeRelevance(
+    brief.run.product,
+    brief.run.goal,
+    brief.run.region,
+    "clip",
+    list.map((i) => {
+      const v = byId.get(i)!;
+      return { platform: v.platform, handle: v.creatorHandle, text: v.caption || "(no caption)", views: v.views };
+    }),
+    { brief: brief.run.brief, version: parsed.data.version },
+  );
+  if (!labels) return { ok: false as const };
+  return { ok: true as const, labels: labels.map((l) => ({ item: list[l.i], label: l.label, reason: l.reason.slice(0, 300) })) };
 }
 
 /** A label the owner gave without seeing the AI judge's (the judge check). It also corrects the brief's metrics. */

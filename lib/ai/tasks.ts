@@ -1212,10 +1212,53 @@ export async function enhanceBrief(text: string, locale: string, link: LinkPrevi
 
 export type JudgeItem = { platform: string; handle: string; text: string; views: number | null };
 
+export const JUDGE_VERSIONS = ["v3", "v4"] as const;
+export type JudgeVersion = (typeof JUDGE_VERSIONS)[number];
+/** The judge the test set labels with. v4 is on trial against the owner's blind labels (search quality S0). */
+export const JUDGE_VERSION: JudgeVersion = "v3";
+
+/**
+ * The judge's rubric. v3: relevance to the product's problem or category. v4 (after the owner's blind check): the same
+ * question as the founder asks, "would I learn something for THIS product from this clip", with the founder's own
+ * brief and the goal's definition of on target (the one the search's relevance check uses).
+ */
+function judgeRubric(version: JudgeVersion, kind: "clip" | "creator", goal: Goal | null, brief: string): string[] {
+  if (version === "v3") {
+    return [
+      kind === "clip" ? "Label each CLIP by what its caption says it is about:" : "Label each CREATOR by what their recent captions are mostly about:",
+      "2 = about the product's own problem, category or job to be done. Includes a competitor's or same-category",
+      "    product's own promo, demo or tutorial, and reviews or comparisons of such products.",
+      "1 = same audience or the broader field, but not this product's problem or category (e.g. for an AI accounting",
+      "    app: general AI tools, personal finance, general business tips).",
+      "0 = unrelated: other niches, generic entertainment, motivation or news, or the product's own account.",
+      "Judge relevance ONLY. Do not judge hook strength, production quality, virality, views or how simple the clip is:",
+      "a plain same-category app demo is still 2. When a caption is too vague to tell, use 1.",
+    ];
+  }
+  return [
+    brief ? `What the founder asked for, in their own words: ${brief.slice(0, 600).replace(/\s+/g, " ")}` : "",
+    "The question for every line: would THIS founder learn something they can use for THIS product from it?",
+    kind === "clip" ? "Label each CLIP by what its caption says it is about:" : "Label each CREATOR by what their recent captions are mostly about:",
+    "2 = yes. Any of: the product's own problem, category or job to be done; the pain or everyday situation it solves,",
+    "    even when no product is shown (for a budgeting app: 'why I'm always broke before payday'); tools, gear or",
+    "    skills the same buyer uses for that same job (for a camera: lenses, lighting for video); a same-category or",
+    "    competitor product's own posts, promo, demo or tutorial; reviews or comparisons of such products.",
+    goal ? `    For this founder's goal, also 2: ${GOAL_RELEVANCE[goal]}` : "",
+    "1 = partly: on topic but against what the founder asked for (e.g. a hard sell when they asked for no hard",
+    "    selling, or a clearly different market such as government offices for a small-business tool), or a",
+    "    neighbouring product the same buyer uses for a DIFFERENT job. Also 1 when a caption is too vague to tell.",
+    "0 = no: clips that only share the audience's world (jokes, memes or lifestyle about their work, general",
+    "    productivity, money or business advice with no link to the problem), other niches, entertainment, news,",
+    "    or the product's own account.",
+    "Judge the TOPIC only. Do not judge hook strength, production quality, virality or views: a plain same-category",
+    "demo is still 2.",
+  ];
+}
+
 /**
  * Relevance test set (owner-only): labels clips or creators 0-2 for one brief, strictly and from the founder's side.
- * Deliberately separate from `rateRelevance` (another prompt and a stricter rubric), so the search is not graded by its
- * own filter. For creators, `text` is a few of their recent captions. One call per list; null when AI fails.
+ * Deliberately separate from `rateRelevance` (another prompt), so the search is not graded by its own filter. For
+ * creators, `text` is a few of their recent captions. One call per list; null when AI fails.
  */
 export async function judgeRelevance(
   product: ProductBrief,
@@ -1223,7 +1266,9 @@ export async function judgeRelevance(
   region: string,
   kind: "clip" | "creator",
   items: JudgeItem[],
+  opts: { brief?: string; version?: JudgeVersion } = {},
 ): Promise<Judged | null> {
+  const version = opts.version ?? JUDGE_VERSION;
   const model = getModel();
   if (!model || !items.length) return items.length ? null : [];
   // Two passes, the second with the list reversed (list order sways labels), combined conservatively.
@@ -1239,16 +1284,7 @@ export async function judgeRelevance(
         `Product: ${product.name} — ${product.whatItIs}${product.audience ? `. Audience: ${product.audience}` : ""}`,
         goal ? `The founder ${GOAL_BRIEF[goal]}.` : "The founder wants clips that make people want this product.",
         `Market: ${region === "th" ? "Thailand" : region === "global" ? "worldwide" : "Thailand and worldwide"}.`,
-        kind === "clip"
-          ? "Label each CLIP by what its caption says it is about:"
-          : "Label each CREATOR by what their recent captions are mostly about:",
-        "2 = about the product's own problem, category or job to be done. Includes a competitor's or same-category",
-        "    product's own promo, demo or tutorial, and reviews or comparisons of such products.",
-        "1 = same audience or the broader field, but not this product's problem or category (e.g. for an AI accounting",
-        "    app: general AI tools, personal finance, general business tips).",
-        "0 = unrelated: other niches, generic entertainment, motivation or news, or the product's own account.",
-        "Judge relevance ONLY. Do not judge hook strength, production quality, virality, views or how simple the clip is:",
-        "a plain same-category app demo is still 2. When a caption is too vague to tell, use 1.",
+        ...judgeRubric(version, kind, goal, opts.brief ?? ""),
         "Return every line with i, label and a short reason.",
         "",
         kind === "clip" ? "Clips (i | platform | handle | caption):" : "Creators (i | platform | handle | recent captions):",
