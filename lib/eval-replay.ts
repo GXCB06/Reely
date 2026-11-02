@@ -48,14 +48,24 @@ export const evalClipsOf = (videos: ScoredVideo[]): EvalClip[] =>
  * variant puts in the judged places (top 10 per platform, every Reel up to 25, top 5 creators) with no label yet.
  */
 export function replayGaps(videos: ScoredVideo[], goal: Goal | null, feedback: Feedback | null, labels: Map<string, Label>) {
+  const places = judgedPlaces(videos, goal, feedback);
+  return {
+    unscored: videos.filter((v) => v.relevance === null || v.relevance === undefined),
+    clips: places.clips.filter((c) => !labels.has(String(c.id))),
+    creators: places.creators.filter((key) => !labels.has(key)),
+  };
+}
+
+/** Every clip and creator that today's order or any variant puts in a judged place (what the metrics read). */
+export function judgedPlaces(videos: ScoredVideo[], goal: Goal | null, feedback: Feedback | null) {
   const clips = new Map<number, EvalClip>();
   const creators = new Set<string>();
   for (const variant of REPLAY_VARIANTS) {
     const order = evalClipsOf(replayOrder(variant, videos, goal, feedback));
     for (const p of EVAL_PLATFORMS) {
-      for (const c of topClips(order, p, JUDGE_CLIPS[p])) if (!labels.has(String(c.id))) clips.set(c.id, c);
-      for (const key of topCreators(order, p)) if (!labels.has(key)) creators.add(key);
+      for (const c of topClips(order, p, JUDGE_CLIPS[p])) clips.set(c.id, c);
+      for (const key of topCreators(order, p)) creators.add(key);
     }
   }
-  return { unscored: videos.filter((v) => v.relevance === null || v.relevance === undefined), clips: [...clips.values()], creators: [...creators] };
+  return { clips: [...clips.values()], creators: [...creators] };
 }

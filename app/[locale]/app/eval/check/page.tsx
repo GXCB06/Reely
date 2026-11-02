@@ -97,7 +97,7 @@ export default async function CheckPage({ params, searchParams }: PageProps<"/[l
             <TrialRunner
               version="v4"
               final={final}
-              items={check.sample
+              items={check.all
                 .filter((s) => s.user !== null)
                 .map((s) => ({
                   runId: s.runId,
@@ -113,8 +113,15 @@ export default async function CheckPage({ params, searchParams }: PageProps<"/[l
                 }))}
             />
             <p className="text-xs text-muted-foreground">{t("check.bar", { bar: Math.round(AGREEMENT_BAR * 100) })}</p>
-            {table(t("check.judgeTitle"), splits(check.judge))}
-            {table(t("check.filterTitle"), splits(check.filter))}
+            {/* Every clip you labelled blind (the check and the labelling queue), once per brief. */}
+            <p className="text-sm font-medium">{t("check.allLabels", { n: check.all.length })}</p>
+            {table(t("check.judgeTitle"), splits(check.judgeAll))}
+            {table(t("check.filterTitle"), splits(check.filterAll))}
+            {check.consistency.length >= 20 ? (
+              table(t("check.consistencyTitle"), [{ key: "all", name: t("check.all"), a: agreement(check.consistency) }])
+            ) : (
+              <p className="text-xs text-muted-foreground">{t("check.consistencyWait", { n: check.consistency.length })}</p>
+            )}
             {check.disagreements.length > 0 && (
               <section className="space-y-2 rounded-3xl border bg-card p-4">
                 <h2 className="font-heading text-lg font-bold">{t("check.disagreements", { n: check.disagreements.length })}</h2>

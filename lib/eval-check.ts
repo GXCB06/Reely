@@ -37,10 +37,14 @@ export async function loadCheck(admin: Admin, set: { run_id: string; parent_run_
     if (!cur || r.added_at > cur.at) newest.set(original, { runId: r.run_id, at: r.added_at });
   }
   const runIds = [...newest.values()].map((n) => n.runId);
-  const { data } = runIds.length
-    ? await admin.from("relevance_labels").select("run_id, item, label, source, blind, reason").eq("kind", "clip").in("run_id", runIds)
+  const { data } = set.length
+    ? await admin
+        .from("relevance_labels")
+        .select("run_id, item, label, source, blind, reason, repeat_label")
+        .eq("kind", "clip")
+        .in("run_id", set.map((r) => r.run_id))
     : { data: [] };
-  const rows = (data ?? []) as { run_id: string; item: string; label: number; source: "ai" | "user"; blind: boolean; reason: string | null }[];
+  const rows = (data ?? []) as { run_id: string; item: string; label: number; source: "ai" | "user"; blind: boolean; reason: string | null; repeat_label: number | null }[];
   const at = (r: { run_id: string; item: string }) => `${r.run_id}:${r.item}`;
   const ai = new Map(rows.filter((r) => r.source === "ai").map((r) => [at(r), r]));
   const user = new Map(rows.filter((r) => r.source === "user").map((r) => [at(r), r]));
@@ -78,10 +82,49 @@ export async function loadCheck(admin: Admin, set: { run_id: string; parent_run_
   const sample = labelled.length >= CHECK_PER_PLATFORM * 3 ? labelled : pickCheckSample(items);
   const done = sample.filter((s) => s.user !== null);
   const pair = (s: CheckItem, other: number): AgreementPair => ({ platform: s.platform, thai: looksThai(s.clip.caption), user: s.user!, other: other as Label });
+
+  // Every clip you labelled blind (the check and the labelling queue), once per brief: the AI judge and the search's
+  // relevance score against all of them, and your own repeats (how consistent the labels are).
+  const familyOf = new Map(set.map((r) => [r.run_id, r.parent_run_id ?? r.run_id]));
+  const addedAt = new Map(set.map((r) => [r.run_id, r.added_at]));
+  const everything = new Map<string, CheckItem>();
+  const repeats = new Map<string, { label: Label; repeat: Label }>();
+  for (const b of briefs) {
+    const family = familyOf.get(b.run.id) ?? b.run.id;
+    const byId = new Map(b.videos.map((v) => [String(v.dbId), v]));
+    for (const mine of rows.filter((r) => r.run_id === b.run.id && r.source === "user" && r.blind)) {
+      const key = `${family}:${mine.item}`;
+      if (mine.repeat_label !== null) repeats.set(key, { label: mine.label as Label, repeat: mine.repeat_label as Label });
+      const judged = ai.get(at(mine));
+      const v = byId.get(mine.item);
+      if (!judged || !v) continue;
+      const prev = everything.get(key);
+      if (prev && (addedAt.get(prev.runId) ?? "") > (addedAt.get(b.run.id) ?? "")) continue;
+      everything.set(key, {
+        runId: b.run.id,
+        item: mine.item,
+        platform: v.platform as CheckItem["platform"],
+        half: checkHalf(b.run.id, mine.item),
+        ai: judged.label as Label,
+        aiReason: judged.reason ?? "",
+        relevance: v.relevance ?? null,
+        user: mine.label as Label,
+        brief: { title: b.run.title, whatItIs: b.run.product.whatItIs, audience: b.run.product.audience, goal: b.run.goal, region: b.run.region },
+        clip: { handle: v.creatorHandle, caption: v.caption, views: v.views, thumbnailUrl: v.thumbnailUrl, platformVideoId: v.platformVideoId, videoId: v.dbId!, url: v.url },
+      });
+    }
+  }
+  const all = [...everything.values()];
   return {
     sample,
     judge: done.map((s) => pair(s, s.ai)),
     filter: done.filter((s) => s.relevance !== null).map((s) => pair(s, s.relevance!)),
     disagreements: done.filter((s) => s.user !== s.ai),
+    /** Every clip you labelled blind, once per brief. */
+    all,
+    judgeAll: all.map((s) => pair(s, s.ai)),
+    filterAll: all.filter((s) => s.relevance !== null).map((s) => pair(s, s.relevance!)),
+    /** Your first answer vs the hidden repeat (platform unknown here: counted overall). */
+    consistency: [...repeats.values()].map((r) => ({ platform: "tiktok" as const, thai: false, user: r.label, other: r.repeat })),
   };
 }

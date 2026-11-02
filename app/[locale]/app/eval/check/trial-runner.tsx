@@ -31,14 +31,18 @@ export function TrialRunner({ items, version, final }: { items: TrialItem[]; ver
   const [trial, setTrial] = useState<Map<string, { label: Label; reason: string }> | null>(null);
 
   async function run() {
-    const runs = [...new Set(items.map((i) => i.runId))];
+    // One call per research, at most 40 clips each (the judge's list size).
+    const calls = [...new Set(items.map((i) => i.runId))].flatMap((runId) => {
+      const ids = items.filter((i) => i.runId === runId).map((i) => i.item);
+      return Array.from({ length: Math.ceil(ids.length / 40) }, (_, k) => ({ runId, ids: ids.slice(k * 40, (k + 1) * 40) }));
+    });
     const out = new Map<string, { label: Label; reason: string }>();
-    setProgress({ done: 0, of: runs.length });
-    for (const [n, runId] of runs.entries()) {
-      const res = await trialJudgeAction(runId, items.filter((i) => i.runId === runId).map((i) => i.item), version).catch(() => null);
+    setProgress({ done: 0, of: calls.length });
+    for (const [n, { runId, ids }] of calls.entries()) {
+      const res = await trialJudgeAction(runId, ids, version).catch(() => null);
       if (res?.ok) for (const l of res.labels) out.set(`${runId}:${l.item}`, { label: l.label as Label, reason: l.reason });
       else toast.error(t("judgeFailed"));
-      setProgress({ done: n + 1, of: runs.length });
+      setProgress({ done: n + 1, of: calls.length });
     }
     setProgress(null);
     setTrial(out);

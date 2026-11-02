@@ -19,6 +19,11 @@ export type LabelRow = { item: string; source: "ai" | "user"; label: number };
 
 export const creatorItem = (platform: string, handle: string) => `${platform}:${handle.toLowerCase()}`;
 
+/** Only the owner's labels (the human-labelled test set), for numbers that don't rest on the AI judge at all. */
+export function humanLabels(rows: LabelRow[]): Map<string, Label> {
+  return new Map(rows.filter((r) => r.source === "user").map((r) => [r.item, r.label as Label]));
+}
+
 /** One label per item: the owner's correction wins over the AI judge. */
 export function effectiveLabels(rows: LabelRow[]): Map<string, Label> {
   const out = new Map<string, Label>();
@@ -78,6 +83,8 @@ export type BriefMetrics = {
   credits: number | null;
   costPerUseful: number | null;
   seconds: number | null;
+  /** Share of the judged top-10 places labelled by the owner (null when no owner labels were given to measure). */
+  human: number | null;
 };
 
 export function briefMetrics(input: {
@@ -87,6 +94,8 @@ export function briefMetrics(input: {
   labels: Map<string, Label>;
   stats: RunStatsLite;
   seconds: number | null;
+  /** Items the owner labelled: how much of the numbers rest on a human rather than the AI judge. */
+  human?: Set<string>;
 }): BriefMetrics {
   const { clips, labels, stats } = input;
   const platforms: BriefMetrics["platforms"] = {};
@@ -109,6 +118,9 @@ export function briefMetrics(input: {
     };
   }
 
+  const places = EVAL_PLATFORMS.flatMap((p) => clips.filter((c) => c.platform === p).slice(0, 10).map((c) => String(c.id)));
+  const human = input.human && places.length ? places.filter((i) => input.human!.has(i)).length / places.length : null;
+
   const top20 = clips.slice(0, 20);
   const perCreator = new Map<string, number>();
   for (const c of top20) perCreator.set(creatorItem(c.platform, c.handle), (perCreator.get(creatorItem(c.platform, c.handle)) ?? 0) + 1);
@@ -123,6 +135,7 @@ export function briefMetrics(input: {
     credits,
     costPerUseful: credits !== null && useful > 0 ? credits / useful : null,
     seconds: input.seconds,
+    human,
   };
 }
 
@@ -144,6 +157,8 @@ export type Summary = {
   seconds: number | null;
   /** Results per brief (all platforms): shows what a stricter filter or order variant gives up. */
   clips: number | null;
+  /** Share of the judged top-10 places the owner labelled. */
+  human: number | null;
 };
 
 export function summarize(briefs: BriefMetrics[]): Summary {
@@ -160,6 +175,7 @@ export function summarize(briefs: BriefMetrics[]): Summary {
     costPerUseful: mean(briefs.map((b) => b.costPerUseful)),
     seconds: mean(briefs.map((b) => b.seconds)),
     clips: mean(briefs.map((b) => Object.values(b.platforms).reduce((s, m) => s + m!.clips, 0))),
+    human: mean(briefs.map((b) => b.human)),
   };
   for (const p of EVAL_PLATFORMS) {
     out.precision10[p] = per(p, "precision10", (r) => (r as Ratio).value);

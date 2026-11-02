@@ -48,6 +48,7 @@ lib/clip-link.ts              # pasted Instagram Reel / TikTok links (client + s
 lib/ask.ts                    # Ask Reely answer and thread types, thread memory (lib/scripts.ts writes and saves scripts)
 lib/eval.ts                   # relevance test set metrics (precision@10, creators@5, IG useful, cost per useful clip), judge-check agreement; data in lib/eval-data.ts, owner page app/[locale]/app/eval
 lib/eval-replay.ts            # order variants replayed on stored results (/app/eval/replay); lib/eval-check.ts = blind judge check (/app/eval/check)
+lib/eval-queue.ts             # labelling queue (/app/eval/label): every judged clip once per brief, hidden repeats; data in lib/eval-queue-data.ts
 lib/ranking.ts                # the "best" order (goal, account fit, 👍/👎) used by the search and every page that ranks results
 lib/run-context.ts            # credits counted per research (stats.credits)
 lib/events.ts                 # client_events names and sources (lib/event-log.ts writes them); never what users typed
@@ -160,8 +161,10 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     Order and filter changes are measured first with **Replay** (`/app/eval/replay`: same stored results and labels, AI only,
     no credits); live re-runs only for changes Replay can't show. Results store the search's own relevance score
     (`run_results.relevance`), and owner researches store every candidate found (`run_candidates`, kept or dropped and why;
-    never for other users). The judge is trusted only while the blind check (`/app/eval/check`, 60 clips you label without
-    seeing the AI) gives "says 2 → you agree" and "your 2s it finds" of 80%+.
+    never for other users). **The owner's blind labels are the truth** (`/app/eval/label`: every clip in a judged place,
+    once per brief, saved on each research of that brief; about every 20th clip is a hidden repeat that measures label
+    consistency). Report numbers with "Only my labels" and their human coverage; the AI judge (v3; v4 failed its test
+    half on 2026-11-02) only fills places not labelled yet, and is trusted only while it agrees with those labels.
 
 ## Security rules
 

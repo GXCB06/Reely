@@ -1,7 +1,7 @@
 import "server-only";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
 import { bestOrder } from "@/lib/ranking";
-import { type EvalClip, type EvalPlatform, EVAL_PLATFORMS, effectiveLabels, type Label, type LabelRow, type RunStatsLite } from "@/lib/eval";
+import { type EvalClip, type EvalPlatform, EVAL_PLATFORMS, effectiveLabels, humanLabels, type Label, type LabelRow, type RunStatsLite } from "@/lib/eval";
 import { loadFeedback } from "@/lib/feedback-store";
 import { type Goal, isGoal } from "@/lib/goals";
 import type { ScoredVideo } from "@/lib/search";
@@ -66,7 +66,18 @@ export async function loadEvalBrief(admin: Admin, runId: string) {
   const rowsTyped = (labelRows ?? []) as (LabelRow & { reason: string | null })[];
   const reasons = new Map(rowsTyped.filter((r) => r.source === "ai").map((r) => [r.item, r.reason ?? ""]));
   const corrected = new Set(rowsTyped.filter((r) => r.source === "user").map((r) => r.item));
-  return { run: evalRun, videos, clips, labels: effectiveLabels(rowsTyped), reasons, corrected, feedback, productId: run.product_id as string | null };
+  return {
+    run: evalRun,
+    videos,
+    clips,
+    labels: effectiveLabels(rowsTyped),
+    /** Only the owner's labels: the human-labelled test set. */
+    userLabels: humanLabels(rowsTyped),
+    reasons,
+    corrected,
+    feedback,
+    productId: run.product_id as string | null,
+  };
 }
 
 export type EvalBrief = NonNullable<Awaited<ReturnType<typeof loadEvalBrief>>>;

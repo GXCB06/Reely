@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agreement, briefMetrics, checkHalf, combineJudgements, creatorItem, type EvalClip, effectiveLabels, type Label, latestBatch, pickCheckSample, summarize, summaryMarkdown, topCreators } from "./eval";
+import { agreement, briefMetrics, checkHalf, humanLabels, combineJudgements, creatorItem, type EvalClip, effectiveLabels, type Label, latestBatch, pickCheckSample, summarize, summaryMarkdown, topCreators } from "./eval";
 
 const clip = (id: number, platform: EvalClip["platform"], handle: string): EvalClip => ({ id, platform, handle });
 
@@ -151,5 +151,23 @@ describe("checkHalf", () => {
     expect(dev).toBeGreaterThan(70);
     expect(dev).toBeLessThan(130);
     expect(checkHalf("run", "7")).toBe(checkHalf("run", "7"));
+  });
+});
+
+describe("human labels", () => {
+  it("keeps only the owner's labels and measures how much of the top 10 they cover", () => {
+    const rows = [
+      { item: "1", source: "ai" as const, label: 2 },
+      { item: "1", source: "user" as const, label: 0 },
+      { item: "2", source: "ai" as const, label: 2 },
+    ];
+    const human = humanLabels(rows);
+    expect([...human]).toEqual([["1", 0]]);
+    const clips = [clip(1, "tiktok", "a"), clip(2, "tiktok", "b"), clip(3, "youtube", "c"), clip(4, "youtube", "d")];
+    const m = briefMetrics({ runId: "r", region: "th", clips, labels: human, stats: null, seconds: null, human: new Set(human.keys()) });
+    expect(m.human).toBe(1 / 4);
+    // Only the one labelled place counts: P@10 is measured on it alone.
+    expect(m.platforms.tiktok!.precision10).toEqual({ value: 0, judged: 1, of: 2 });
+    expect(m.platforms.youtube!.precision10.value).toBeNull();
   });
 });

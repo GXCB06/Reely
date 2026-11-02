@@ -921,7 +921,8 @@
       "diversity": "Concentration",
       "cost": "Credits/useful",
       "seconds": "Seconds",
-      "clips": "Clips"
+      "clips": "Clips",
+      "human": "Your labels"
     },
     "targetsHint": "Green = meets the v0.2 target · red = not yet · ▲▼ vs the last snapshot · — = no data yet (credits and time are kept for new researches only)",
     "lastSnapshot": "Last snapshot: {note}",
@@ -1020,7 +1021,10 @@
       "rubric0": "Unrelated: other niches, generic entertainment, motivation or news, or the product's own account.",
       "notSaved": "Not saved, try again",
       "line": "Judge check ({n} clips): says 2 → you agree {precision} · your 2s it finds {recall} · same label {exact}",
-      "lineProgress": "Judge check: {n} of {of} clips labelled"
+      "lineProgress": "Judge check: {n} of {of} clips labelled",
+      "allLabels": "All your labels so far ({n} clips, once per brief):",
+      "consistencyTitle": "Your own consistency (same clip asked twice)",
+      "consistencyWait": "Your consistency shows after 20 repeated clips ({n} so far). About every 20th clip in the queue is one you labelled before."
     },
     "trial": {
       "title": "Try judge {version} on your labels",
@@ -1033,6 +1037,25 @@
       "test": "test half",
       "misses": "Where the new judge still differs from you (dev half, {n})",
       "youVsNew": "you {you} · today {now} · new {next}"
+    },
+    "labels": {
+      "all": "All labels",
+      "human": "Only my labels",
+      "allHint": "Your labels win over the AI judge's; the rest is the AI judge.",
+      "humanHint": "Every number from your labels alone; places you haven't labelled yet are left out."
+    },
+    "label": {
+      "open": "Label clips",
+      "title": "Label clips",
+      "subtitle": "Every clip the test set's numbers read, once per brief. Label it as you see it: the AI's answer is never shown. Your labels become the truth the numbers are computed from. Progress saves after every answer, so stop whenever you like.",
+      "progress": "{done} of {total} labelled",
+      "briefProgress": "{title}: {done} of {total}",
+      "skip": "Skip (S)",
+      "undo": "Undo (Z)",
+      "keys": "Keys: 2 · 1 · 0",
+      "finished": "Every clip is labelled. Thank you!",
+      "seeResults": "See how the AI compares",
+      "loadingMore": "Loading the next clips…"
     }
   }
 }

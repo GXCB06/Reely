@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Copy, Gavel, ListChecks, Loader2, Shuffle } from "lucide-react";
+import { Camera, Copy, Gavel, ListChecks, Loader2, PenLine, Shuffle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -109,6 +109,9 @@ export function EvalSummary({
         </button>
         <Link href="/app/eval/replay" className="chip">
           <Shuffle className="size-3.5" /> {t("replay.open")}
+        </Link>
+        <Link href="/app/eval/label" className="chip">
+          <PenLine className="size-3.5" /> {t("label.open")}
         </Link>
         <Link href="/app/eval/check" className="chip">
           <ListChecks className="size-3.5" /> {t("check.open")}

@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AddBriefs } from "./add-briefs";
 import { BriefCard, type BriefView, type EvalItem } from "./brief-card";
 import { EvalSummary } from "./eval-summary";
+import { HumanToggle } from "./metric-table";
 
 const SUGGESTED = 12;
 // "Re-run" runs a whole research from this page.
@@ -29,8 +30,10 @@ export const maxDuration = 120;
  * Owner-only: the relevance test set. Each brief's stored results are judged (strict AI, correctable in one tap) and
  * measured against the v0.2 targets; snapshots compare one search change with the last. Spends no credits.
  */
-export default async function EvalPage({ params }: PageProps<"/[locale]/app/eval">) {
+export default async function EvalPage({ params, searchParams }: PageProps<"/[locale]/app/eval">) {
   const { locale } = await params;
+  // "Only my labels": every number from the owner's labels alone (places not labelled yet are left out).
+  const humanOnly = (await searchParams).labels === "human";
   setRequestLocale(locale);
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
@@ -65,7 +68,7 @@ export default async function EvalPage({ params }: PageProps<"/[locale]/app/eval
   const pct = (x: number | null) => (x === null ? "—" : `${Math.round(x * 100)}%`);
 
   for (const b of briefs) {
-    const m = briefMetrics({ runId: b.run.id, region: b.run.region, clips: b.clips, labels: b.labels, stats: b.run.stats, seconds: b.run.seconds });
+    const m = briefMetrics({ runId: b.run.id, region: b.run.region, clips: b.clips, labels: humanOnly ? b.userLabels : b.labels, stats: b.run.stats, seconds: b.run.seconds, human: new Set(b.userLabels.keys()) });
     metrics.push(m);
     allIds.push(b.run.id);
     const byId = new Map(b.videos.map((v) => [v.dbId!, v]));
@@ -173,6 +176,7 @@ export default async function EvalPage({ params }: PageProps<"/[locale]/app/eval
         <p className="mt-1 max-w-3xl text-muted-foreground">{t("subtitle")}</p>
       </header>
       <div className="space-y-6 px-4 pb-16 md:px-10">
+        <HumanToggle path="/app/eval" on={humanOnly} />
         <EvalSummary rows={rows} last={last} unjudged={unjudged} all={allIds} agreementLine={agreementLine} />
         <section className="space-y-3">
           <h2 className="font-heading text-xl font-bold">{t("setTitle", { n: views.length, core: views.filter((v) => v.core).length })}</h2>

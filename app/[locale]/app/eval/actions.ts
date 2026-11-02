@@ -208,6 +208,66 @@ export async function setBlindLabelAction(id: string, item: string, platform: st
   return { ok: !error };
 }
 
+/** The researches of one brief (the original and its re-runs) whose results contain this clip. */
+async function familyRunsWith(admin: Admin, family: string, item: string) {
+  const { data: runs } = await admin.from("eval_briefs").select("run_id").or(`run_id.eq.${family},parent_run_id.eq.${family}`);
+  const ids = (runs ?? []).map((r) => r.run_id as string);
+  if (!ids.length) return [];
+  const { data } = await admin.from("run_results").select("run_id").in("run_id", ids).eq("video_id", Number(item));
+  return [...new Set((data ?? []).map((r) => r.run_id as string))];
+}
+
+const queueInput = z.object({ family: runId, item: z.string().regex(/^\d+$/).max(20) });
+const labelValue = z.union([z.literal(0), z.literal(1), z.literal(2)]);
+
+/**
+ * A label from the labelling queue: one answer per clip per brief, stored (blind, as the owner's) on every research of
+ * that brief that contains the clip, so re-runs of the same brief never ask again.
+ */
+export async function labelClipAction(family: string, item: string, platform: string, label: number) {
+  const admin = await ownerAdmin();
+  const parsed = queueInput.extend({ platform: z.enum(EVAL_PLATFORMS), label: labelValue }).safeParse({ family, item, platform, label });
+  if (!admin || !parsed.success) return { ok: false as const };
+  const d = parsed.data;
+  const runs = await familyRunsWith(admin, d.family, d.item);
+  if (!runs.length) return { ok: false as const };
+  const at = new Date().toISOString();
+  const { error } = await admin
+    .from("relevance_labels")
+    .upsert(
+      runs.map((run_id) => ({ run_id, item: d.item, kind: "clip", platform: d.platform, label: d.label, source: "user", blind: true, judged_at: at })),
+      { onConflict: "run_id,item,source" },
+    );
+  return { ok: !error };
+}
+
+/** Takes back the last queue answer (all researches of the brief). */
+export async function undoClipAction(family: string, item: string) {
+  const admin = await ownerAdmin();
+  const parsed = queueInput.safeParse({ family, item });
+  if (!admin || !parsed.success) return { ok: false as const };
+  const runs = await familyRunsWith(admin, parsed.data.family, parsed.data.item);
+  if (!runs.length) return { ok: true as const };
+  const { error } = await admin.from("relevance_labels").delete().in("run_id", runs).eq("item", parsed.data.item).eq("source", "user").eq("blind", true);
+  return { ok: !error };
+}
+
+/** The second, unmarked answer on a clip labelled earlier (null takes it back): how consistent the labels are. */
+export async function repeatClipAction(family: string, item: string, label: number | null) {
+  const admin = await ownerAdmin();
+  const parsed = queueInput.extend({ label: labelValue.nullable() }).safeParse({ family, item, label });
+  if (!admin || !parsed.success) return { ok: false as const };
+  const runs = await familyRunsWith(admin, parsed.data.family, parsed.data.item);
+  if (!runs.length) return { ok: false as const };
+  const { error } = await admin
+    .from("relevance_labels")
+    .update({ repeat_label: parsed.data.label, repeat_at: parsed.data.label === null ? null : new Date().toISOString() })
+    .in("run_id", runs)
+    .eq("item", parsed.data.item)
+    .eq("source", "user");
+  return { ok: !error };
+}
+
 /** Hold-out briefs are measured with every search change but never tuned on. */
 export async function setHoldoutAction(id: string, holdout: boolean) {
   const admin = await ownerAdmin();

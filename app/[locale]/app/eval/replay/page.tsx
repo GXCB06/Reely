@@ -7,7 +7,7 @@ import { isOwner } from "@/lib/limits";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { Link } from "@/i18n/navigation";
-import { MetricTable } from "../metric-table";
+import { HumanToggle, MetricTable } from "../metric-table";
 import { ReplayRunner } from "./replay-runner";
 
 // "Prepare" runs a relevance check and the judge for one brief per call.
@@ -17,8 +17,10 @@ export const maxDuration = 120;
  * Owner-only: today's order next to other orders of the SAME stored results and labels (search quality S0), so an order
  * change is measured for free and without run-to-run noise. Core briefs, hold-out briefs and the latest re-run batch.
  */
-export default async function ReplayPage({ params }: PageProps<"/[locale]/app/eval/replay">) {
+export default async function ReplayPage({ params, searchParams }: PageProps<"/[locale]/app/eval/replay">) {
   const { locale } = await params;
+  // "Only my labels": every number from the owner's labels alone (places not labelled yet are left out).
+  const humanOnly = (await searchParams).labels === "human";
   setRequestLocale(locale);
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
@@ -37,7 +39,7 @@ export default async function ReplayPage({ params }: PageProps<"/[locale]/app/ev
     if (gaps.unscored.length || gaps.clips.length || gaps.creators.length) pending.push(b.run.id);
     for (const v of REPLAY_VARIANTS) {
       const clips = evalClipsOf(replayOrder(v, b.videos, b.run.goal, b.feedback));
-      byVariant.get(v)!.set(b.run.id, briefMetrics({ runId: b.run.id, region: b.run.region, clips, labels: b.labels, stats: b.run.stats, seconds: b.run.seconds }));
+      byVariant.get(v)!.set(b.run.id, briefMetrics({ runId: b.run.id, region: b.run.region, clips, labels: humanOnly ? b.userLabels : b.labels, stats: b.run.stats, seconds: b.run.seconds, human: new Set(b.userLabels.keys()) }));
     }
   }
 
@@ -68,6 +70,7 @@ export default async function ReplayPage({ params }: PageProps<"/[locale]/app/ev
         <p className="mt-1 max-w-3xl text-muted-foreground">{t("replay.subtitle")}</p>
       </header>
       <div className="space-y-6 px-4 pb-16 md:px-10">
+        <HumanToggle path="/app/eval/replay" on={humanOnly} />
         <ReplayRunner pending={pending} markdown={markdown} snapshot={snapshot} />
         {tables.map((tb) => (
           <section key={tb.key} className="space-y-2 rounded-3xl border bg-card p-4">

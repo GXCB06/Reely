@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { type Summary, TARGETS } from "@/lib/eval";
 
 export type MetricRow = { key: string; name: string; s: Summary };
@@ -33,6 +34,7 @@ const columns = (s: Summary): Cell[] => [
   { value: s.costPerUseful, lowerIsBetter: true },
   { value: s.seconds, digits: 0, lowerIsBetter: true },
   { value: s.clips, digits: 0 },
+  { value: s.human, pct: true },
 ];
 
 /**
@@ -59,6 +61,7 @@ export function MetricTable({
     t("col.cost"),
     t("col.seconds"),
     t("col.clips"),
+    t("col.human"),
   ];
   const against = compare ? columns(compare.against) : null;
   return (
@@ -101,6 +104,22 @@ export function MetricTable({
           )}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** Switches a page between every label (yours win over the AI judge's) and only your labels. */
+export function HumanToggle({ path, on }: { path: "/app/eval" | "/app/eval/replay"; on: boolean }) {
+  const t = useTranslations("eval");
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <Link href={path} className={`chip ${on ? "" : "border-primary bg-primary/10 text-primary"}`}>
+        {t("labels.all")}
+      </Link>
+      <Link href={{ pathname: path, query: { labels: "human" } }} className={`chip ${on ? "border-primary bg-primary/10 text-primary" : ""}`}>
+        {t("labels.human")}
+      </Link>
+      <span className="text-muted-foreground">{t(on ? "labels.humanHint" : "labels.allHint")}</span>
     </div>
   );
 }
