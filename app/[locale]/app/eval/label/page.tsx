@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { Link } from "@/i18n/navigation";
 import { LabelQueue } from "./label-queue";
+import { RepeatRound } from "./repeat-round";
 
 /**
  * Owner-only labelling queue (human-labelled test set): every clip the test set's metrics read, asked once per brief,
@@ -37,7 +38,12 @@ export default async function LabelPage({ params }: PageProps<"/[locale]/app/eva
         <p className="mt-1 max-w-3xl text-muted-foreground">{t("label.subtitle")}</p>
       </header>
       <div className="px-4 pb-16 md:px-10">
-        <LabelQueue key={batchKey} batch={queue.batch} repeats={queue.repeats} total={queue.total} done={queue.done} perFamily={queue.perFamily} />
+        {queue.done >= queue.total ? (
+          // Every clip is labelled: a round of earlier clips again, to measure how consistent the labels are.
+          <RepeatRound clips={queue.repeatRound} repeatsBefore={queue.repeatPairs.length} />
+        ) : (
+          <LabelQueue key={batchKey} batch={queue.batch} repeats={queue.repeats} total={queue.total} done={queue.done} perFamily={queue.perFamily} />
+        )}
       </div>
     </div>
   );

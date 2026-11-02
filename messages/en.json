@@ -1073,6 +1073,11 @@
       "today": "Stored score · {group}",
       "plain": "Check, no votes · {group}",
       "votes": "Check with your votes · {group}"
+    },
+    "repeat": {
+      "progress": "Repeat round: {done} of {total} ({before} repeats from the queue already count)",
+      "hint": "Every clip is labelled. These are clips you labelled earlier, shown again: label each one fresh, as if new. Your first answer is never shown. Comparing the two measures how consistent the labels are, the realistic ceiling for any automatic check.",
+      "finished": "Repeat round done. Thank you!"
     }
   }
 }

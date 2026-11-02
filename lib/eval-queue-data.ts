@@ -11,6 +11,8 @@ export type SetRow = { run_id: string; holdout: boolean; parent_run_id: string |
 /** Clips sent to the page at a time (the page asks for the next batch when they run out). */
 export const QUEUE_BATCH = 40;
 const REPEATS_PER_BATCH = 2;
+/** Once every clip is labelled: earlier clips shown again, unmarked, to measure how consistent the labels are. */
+export const REPEAT_ROUND = 30;
 
 export type LabelClip = {
   family: string;
@@ -92,6 +94,10 @@ export async function loadQueue(admin: Admin, set: SetRow[], briefs: EvalBrief[]
       .map((l) => detail(entryOf.get(familyKey(l.family, l.item))!))
       .filter((x) => x !== null),
     perFamily,
+    /** After the queue: earlier clips to label again (never the last answers, never one already repeated). */
+    repeatRound: pickRepeats(inQueue, REPEAT_ROUND)
+      .map((l) => detail(entryOf.get(familyKey(l.family, l.item))!))
+      .filter((x) => x !== null),
     /** Your first and second answer on the same clip. */
     repeatPairs: inQueue.filter((l) => l.repeat !== null).map((l) => ({ label: l.label, repeat: l.repeat! })),
   };
