@@ -1,6 +1,6 @@
 import "server-only";
 import { type AgreementPair, CHECK_PER_PLATFORM, checkHalf, familyHalves, type EvalPlatform, JUDGE_CLIPS, type Label, pickCheckSample, topClips } from "@/lib/eval";
-import type { EvalBrief } from "@/lib/eval-data";
+import { clipLabelRows, type EvalBrief } from "@/lib/eval-data";
 import { looksThai } from "@/lib/region";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
@@ -37,14 +37,11 @@ export async function loadCheck(admin: Admin, set: { run_id: string; parent_run_
     if (!cur || r.added_at > cur.at) newest.set(original, { runId: r.run_id, at: r.added_at });
   }
   const runIds = [...newest.values()].map((n) => n.runId);
-  const { data } = set.length
-    ? await admin
-        .from("relevance_labels")
-        .select("run_id, item, label, source, blind, reason, repeat_label")
-        .eq("kind", "clip")
-        .in("run_id", set.map((r) => r.run_id))
-    : { data: [] };
-  const rows = (data ?? []) as { run_id: string; item: string; label: number; source: "ai" | "user"; blind: boolean; reason: string | null; repeat_label: number | null }[];
+  const rows = await clipLabelRows<{ run_id: string; item: string; label: number; source: "ai" | "user"; blind: boolean; reason: string | null; repeat_label: number | null }>(
+    admin,
+    set.map((r) => r.run_id),
+    "run_id, item, label, source, blind, reason, repeat_label",
+  );
   const at = (r: { run_id: string; item: string }) => `${r.run_id}:${r.item}`;
   const ai = new Map(rows.filter((r) => r.source === "ai").map((r) => [at(r), r]));
   const user = new Map(rows.filter((r) => r.source === "user").map((r) => [at(r), r]));

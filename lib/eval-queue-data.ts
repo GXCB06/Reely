@@ -1,6 +1,6 @@
 import "server-only";
 import type { EvalPlatform, Label } from "@/lib/eval";
-import type { EvalBrief } from "@/lib/eval-data";
+import { clipLabelRows, type EvalBrief } from "@/lib/eval-data";
 import { familyKey, type FamilyInfo, type Placement, pickRepeats, type QueueEntry, queueOrder } from "@/lib/eval-queue";
 import { judgedPlaces } from "@/lib/eval-replay";
 import type { createAdminClient } from "@/lib/supabase/admin";
@@ -40,18 +40,15 @@ export async function loadQueue(admin: Admin, set: SetRow[], briefs: EvalBrief[]
   const entries = queueOrder(placements, families);
   const entryOf = new Map(entries.map((e) => [familyKey(e.family, e.item), e]));
 
-  const { data } = set.length
-    ? await admin
-        .from("relevance_labels")
-        .select("run_id, item, label, judged_at, repeat_label")
-        .eq("kind", "clip")
-        .eq("source", "user")
-        .eq("blind", true)
-        .in("run_id", set.map((r) => r.run_id))
-    : { data: [] };
+  const data = await clipLabelRows<{ run_id: string; item: string; label: number; judged_at: string; repeat_label: number | null }>(
+    admin,
+    set.map((r) => r.run_id),
+    "run_id, item, label, judged_at, repeat_label",
+    { source: "user", blind: true },
+  );
   // One answer per clip per brief (the same label is stored on each research of the brief).
   const labelled = new Map<string, { family: string; item: string; at: string; repeated: boolean; label: Label; repeat: Label | null }>();
-  for (const r of (data ?? []) as { run_id: string; item: string; label: number; judged_at: string; repeat_label: number | null }[]) {
+  for (const r of data) {
     const family = familyOf.get(r.run_id) ?? r.run_id;
     const key = familyKey(family, r.item);
     const prev = labelled.get(key);

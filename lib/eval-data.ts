@@ -82,3 +82,23 @@ export async function loadEvalBrief(admin: Admin, runId: string) {
 
 export type EvalBrief = NonNullable<Awaited<ReturnType<typeof loadEvalBrief>>>;
 export type { Label };
+
+const PAGE = 1000;
+
+/**
+ * Every clip label of the given researches. The database answers at most 1,000 rows a request, and the test set has
+ * more labels than that (AI labels plus the owner's, saved on each research of a brief), so this reads in pages.
+ */
+export async function clipLabelRows<T>(admin: Admin, runIds: string[], columns: string, only: { source?: "ai" | "user"; blind?: boolean } = {}): Promise<T[]> {
+  if (!runIds.length) return [];
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    let q = admin.from("relevance_labels").select(columns).eq("kind", "clip").in("run_id", runIds);
+    if (only.source) q = q.eq("source", only.source);
+    if (only.blind !== undefined) q = q.eq("blind", only.blind);
+    const { data, error } = await q.order("run_id").order("item").order("source").range(from, from + PAGE - 1);
+    if (error) throw new Error(error.message);
+    out.push(...((data ?? []) as T[]));
+    if (!data || data.length < PAGE) return out;
+  }
+}
