@@ -39,7 +39,8 @@ export async function Timeline({ points, usual, hrefOf }: { points: TimelinePoin
         {usual !== null && (
           <g>
             <line x1={pad.l} x2={W - pad.r} y1={y(usual)} y2={y(usual)} className="stroke-foreground/50" strokeWidth={1.5} strokeDasharray="5 4" />
-            <text x={W - pad.r} y={y(usual) - 5} textAnchor="end" className="fill-muted-foreground text-[11px]">
+            {/* At the left end: recent posts cluster on the right, where a label would sit on the dots. */}
+            <text x={pad.l + 4} y={y(usual) - 5} className="fill-muted-foreground text-[11px]">
               {t("usualLine", { views: compact(usual) })}
             </text>
           </g>
