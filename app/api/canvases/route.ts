@@ -1,4 +1,4 @@
-import { addToCanvasAction, listCanvasesAction } from "@/app/[locale]/app/canvas/actions";
+import { addToCanvasAction, listCanvasesAction, openInCanvasAction } from "@/app/[locale]/app/canvas/actions";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,7 +20,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!(await signedIn())) return Response.json({ error: "auth" }, { status: 401 });
-  const body = (await request.json().catch(() => null)) as { target?: unknown; videoId?: unknown; source?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { target?: unknown; videoId?: unknown; source?: unknown; runId?: unknown } | null;
+  // "Open in canvas" on a research (same reason: the research page's own AI action would hold it up).
+  if (body?.runId !== undefined) {
+    const opened = await openInCanvasAction(body.runId as string);
+    return Response.json(opened, { status: opened.ok ? 200 : 400 });
+  }
   // addToCanvasAction validates every field with zod.
   const res = await addToCanvasAction(body?.target as { canvasId: string }, body?.videoId as number, body?.source as string);
   return Response.json(res, { status: res.ok ? 200 : 400 });
