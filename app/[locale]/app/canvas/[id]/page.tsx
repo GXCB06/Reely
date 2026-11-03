@@ -3,16 +3,19 @@ import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { CANVAS_PER_DAY, formatsFor } from "@/lib/canvas";
+import { parseBoard } from "@/lib/canvas-board";
 import { clipChoices, loadCanvas } from "@/lib/canvas-data";
 import { createClient } from "@/lib/supabase/server";
+import { BoardView } from "./board-view";
 import { CanvasInputs } from "./canvas-inputs";
 import { CanvasOutput } from "./canvas-output";
 import { CanvasTitle } from "./canvas-title";
+import { CanvasViews } from "./canvas-views";
 import { MyChannelCard } from "./my-channel-card";
 
 /**
- * One Content Canvas: reference clips, the product and a note on the left; a fixed format, Generate and every version
- * on the right. A new canvas reads as three numbered steps (the guided start).
+ * One Content Canvas, as Steps (reference clips, the product and a note on the left; a fixed format, Generate and
+ * every version on the right; a new canvas reads as three numbered steps) or as a Board of nodes. Same data either way.
  */
 export default async function CanvasPage({ params }: PageProps<"/[locale]/app/canvas/[id]">) {
   const { locale, id } = await params;
@@ -24,6 +27,27 @@ export default async function CanvasPage({ params }: PageProps<"/[locale]/app/ca
   if (!canvas) notFound();
   const choices = await clipChoices(supabase, canvas.product.id);
   const p = canvas.product;
+  const formats = formatsFor(p.goal);
+
+  const productCard = (
+    <section className="space-y-1 rounded-3xl border bg-card p-4 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="inline-flex items-center gap-1.5 font-heading font-bold">
+          <Package className="size-4 text-primary" /> {t("product")}
+        </h2>
+        <Link href="/app/product" className="text-xs text-primary hover:underline">
+          {t("editProduct")}
+        </Link>
+      </div>
+      <p className="font-medium">
+        {p.name}
+        {p.goal && <span className="ml-1.5 text-xs text-muted-foreground">· {tg(`${p.goal}.short`)}</span>}
+      </p>
+      {p.description && <p className="line-clamp-3 text-xs text-muted-foreground">{p.description}</p>}
+    </section>
+  );
+  const channelCard = canvas.myChannel ? <MyChannelCard canvasId={canvas.id} channel={canvas.myChannel} on={canvas.inputs.useMyChannel} /> : null;
+  const inputsCard = <CanvasInputs canvasId={canvas.id} clips={canvas.clips} note={canvas.inputs.note} link={canvas.inputs.link ?? ""} choices={choices} />;
 
   return (
     <div>
@@ -35,32 +59,38 @@ export default async function CanvasPage({ params }: PageProps<"/[locale]/app/ca
         <CanvasTitle key={canvas.title} id={canvas.id} title={canvas.title} placeholder={t("untitled")} />
         {canvas.outputs.length === 0 && <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{t("guide")}</p>}
       </header>
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 px-4 pb-16 md:px-10 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-4">
-          <section className="space-y-1 rounded-3xl border bg-card p-4 text-sm">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="inline-flex items-center gap-1.5 font-heading font-bold">
-                <Package className="size-4 text-primary" /> {t("product")}
-              </h2>
-              <Link href="/app/product" className="text-xs text-primary hover:underline">
-                {t("editProduct")}
-              </Link>
+      <div className="px-4 pb-16 md:px-10">
+        <CanvasViews
+          steps={
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]">
+              <div className="min-w-0 space-y-4">
+                {productCard}
+                {channelCard}
+                {inputsCard}
+              </div>
+              <CanvasOutput canvasId={canvas.id} formats={formats} outputs={canvas.outputs} perDay={CANVAS_PER_DAY} hasClips={canvas.clips.length > 0} />
             </div>
-            <p className="font-medium">
-              {p.name}
-              {p.goal && <span className="ml-1.5 text-xs text-muted-foreground">· {tg(`${p.goal}.short`)}</span>}
-            </p>
-            {p.description && <p className="line-clamp-3 text-xs text-muted-foreground">{p.description}</p>}
-          </section>
-          {canvas.myChannel && <MyChannelCard canvasId={canvas.id} channel={canvas.myChannel} on={canvas.inputs.useMyChannel} />}
-          <CanvasInputs canvasId={canvas.id} clips={canvas.clips} note={canvas.inputs.note} link={canvas.inputs.link ?? ""} choices={choices} />
-        </div>
-        <CanvasOutput
-          canvasId={canvas.id}
-          formats={formatsFor(p.goal)}
-          outputs={canvas.outputs}
-          perDay={CANVAS_PER_DAY}
-          hasClips={canvas.clips.length > 0}
+          }
+          inputs={
+            <>
+              <div className="space-y-4">{inputsCard}</div>
+              {channelCard}
+            </>
+          }
+          board={
+            <BoardView
+              canvasId={canvas.id}
+              productName={p.name}
+              note={canvas.inputs.note}
+              clips={canvas.clips}
+              channel={canvas.myChannel}
+              useMyChannel={canvas.inputs.useMyChannel}
+              outputs={canvas.outputs}
+              initialBoard={parseBoard(canvas.inputs.board, formats[0])}
+              formats={formats}
+              perDay={CANVAS_PER_DAY}
+            />
+          }
         />
       </div>
     </div>

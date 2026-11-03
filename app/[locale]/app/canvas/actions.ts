@@ -16,6 +16,7 @@ import {
   versionText,
 } from "@/lib/canvas";
 import { matchCandidates } from "@/lib/did-it-work";
+import { MAIN_NODE, nodeClips, outputNode, parseBoard } from "@/lib/canvas-board";
 import { canvasRefs, loadCanvas } from "@/lib/canvas-data";
 import { importClip } from "@/lib/clip-import";
 import { parseClipLink } from "@/lib/clip-link";
@@ -194,11 +195,13 @@ const generateInput = z.object({
   instructions: z.string().trim().max(INSTRUCTIONS_MAX),
   lang,
   refine: z.object({ outputId: uuid, kind: z.enum(CANVAS_REFINES) }).nullable(),
+  nodeId: z.string().regex(/^[w-]{1,20}$/).nullable(),
 });
 
 /**
  * One generation: the canvas's product, clips, note and page into one fixed format (one AI call, no credits), or a
- * one-tap rewrite of an earlier version. Every version is kept.
+ * one-tap rewrite of an earlier version. Every version is kept. On the board, `nodeId` runs one format node with its
+ * own clips, and the new version hangs off that node (a rewrite stays on its original's node).
  */
 export async function generateAction(
   canvasId: string,
@@ -206,8 +209,9 @@ export async function generateAction(
   instructions: string,
   locale: string,
   refine: { outputId: string; kind: string } | null = null,
+  nodeId: string | null = null,
 ) {
-  const parsed = generateInput.safeParse({ canvasId, format, instructions, lang: locale, refine });
+  const parsed = generateInput.safeParse({ canvasId, format, instructions, lang: locale, refine, nodeId });
   if (!parsed.success) return { ok: false as const, error: "invalid" as const };
   const supabase = await createClient();
   if (!(await underDailyCap(supabase))) return { ok: false as const, error: "limit" as const };
@@ -216,8 +220,13 @@ export async function generateAction(
   const previous = parsed.data.refine ? canvas.outputs.find((o) => o.id === parsed.data.refine!.outputId) : null;
   if (parsed.data.refine && !previous) return { ok: false as const, error: "invalid" as const };
 
+  const board = parseBoard(canvas.inputs.board, parsed.data.format);
+  const node = previous ? outputNode(board, previous.id) : (parsed.data.nodeId ?? MAIN_NODE);
+  const nodeDef = board.formats.find((f) => f.id === node);
+  const allowed = nodeDef ? nodeClips(nodeDef, canvas.clips.map((c) => c.id)) : canvas.clips.map((c) => c.id);
+  const clips = canvas.clips.filter((c) => allowed.includes(c.id));
   const [refs, page] = await Promise.all([
-    canvasRefs(supabase, canvas.clips, parsed.data.lang),
+    canvasRefs(supabase, clips, parsed.data.lang),
     canvas.inputs.link ? readLink(canvas.inputs.link) : Promise.resolve(null),
   ]);
   const content = await writeCanvas({
@@ -234,13 +243,24 @@ export async function generateAction(
   });
   if (!content) return { ok: false as const, error: "failed" as const };
 
-  const { error } = await supabase.from("canvas_outputs").insert({
-    canvas_id: canvas.id,
-    format: content.format,
-    instructions: parsed.data.instructions,
-    refine: parsed.data.refine?.kind ?? null,
-    content,
-  });
+  const { data: inserted, error } = await supabase
+    .from("canvas_outputs")
+    .insert({
+      canvas_id: canvas.id,
+      format: content.format,
+      instructions: parsed.data.instructions,
+      refine: parsed.data.refine?.kind ?? null,
+      content,
+    })
+    .select("id")
+    .single();
+  // Board: the new version hangs off the node that made it (the main node needs no entry).
+  if (inserted && node !== MAIN_NODE) {
+    await updateInputs(canvas.id, (i) => {
+      const b = parseBoard(i.board, parsed.data.format);
+      return { ...i, board: { ...b, outputs: { ...b.outputs, [inserted.id as string]: node } } };
+    });
+  }
   // The first titled version names an untitled canvas.
   const title = "title" in content ? content.title : null;
   await supabase
@@ -251,11 +271,25 @@ export async function generateAction(
     await recordEvent(supabase, {
       name: "canvas_generate",
       source: "canvas",
-      props: { format: content.format, refine: parsed.data.refine?.kind ?? null, clips: canvas.clips.length },
+      props: { format: content.format, refine: parsed.data.refine?.kind ?? null, clips: clips.length, board: node !== MAIN_NODE },
     });
   }
   refresh();
   return error ? { ok: false as const, error: "failed" as const } : { ok: true as const };
+}
+
+/** Saves the board view (positions, format nodes and their clips), checked and trimmed like any stored board. */
+export async function saveBoardAction(canvasId: string, board: unknown) {
+  if (!uuid.safeParse(canvasId).success || JSON.stringify(board ?? null).length > 20_000) return { ok: false as const };
+  return {
+    ok: await updateInputs(canvasId, (i) => {
+      const next = parseBoard(board, "script");
+      // Which node made each version is the server's to record; the client never rewrites it. Versions of a removed
+      // node move to the main node.
+      const outputs = Object.fromEntries(Object.entries(parseBoard(i.board, "script").outputs).filter(([, n]) => next.formats.some((f) => f.id === n)));
+      return { ...i, board: { ...next, outputs } };
+    }),
+  };
 }
 
 export async function voteOutputAction(outputId: string, vote: number | null) {

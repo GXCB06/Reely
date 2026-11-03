@@ -57,6 +57,8 @@ lib/embed.ts                  # official TikTok / YouTube / Instagram embed play
 lib/plan.ts                   # 7-day plan per product (content_plans): 👍 + saved + latest research's best clips → one AI call
 lib/account-analysis.ts       # My channels maths (pure): snapshot, hit rate, posting pattern, monthly usual; data in lib/own-accounts.ts, pages app/[locale]/app/me
 lib/canvas.ts                 # Content Canvas formats, inputs, copy text (pure); data in lib/canvas-data.ts, prompt `canvasPrompt` / `writeCanvas` in lib/ai/tasks.ts, pages app/[locale]/app/canvas
+lib/canvas-board.ts           # Canvas board view (Steps | Board): format nodes with their own clips, layout (pure); React Flow (@xyflow/react) in app/[locale]/app/canvas/[id]/board-view.tsx
+lib/did-it-work.ts            # "Did it work?": match a canvas version to the post made from it, its result vs the channel's usual (pure)
 lib/today.ts                  # Today page: new breakouts (7 days) from tracked accounts + followed topics → 3-5 ideas
 lib/formats.ts                # format explorer: same sound + format search → topics, sounds, stage (lib/format-stats.ts)
 lib/search-settings.ts        # time window, minimum views, caption language (shared by client and server)

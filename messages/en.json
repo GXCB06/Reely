@@ -1309,6 +1309,18 @@
         "limit": "Today's pasted-link limit is used up.",
         "failed": "Couldn't read that post."
       }
+    },
+    "board": {
+      "steps": "Steps",
+      "board": "Board",
+      "inputs": "Clips, note and channel",
+      "formatNode": "Format",
+      "removeFormat": "Remove this format node",
+      "open": "Open",
+      "noNote": "No note yet",
+      "addFormat": "Add a format node",
+      "hint": "Drag a clip onto a format node to use it there; select a clip line and press Delete to take it off. Each format node generates with its own clips.",
+      "maxFormats": "Up to {n} format nodes on one board."
     }
   },
   "me": {

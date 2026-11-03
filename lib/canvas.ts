@@ -17,7 +17,8 @@ export const INSTRUCTIONS_MAX = 300;
 export const CANVAS_PER_DAY = 40;
 
 /** `useMyChannel`: feed what works on the founder's own channel (My channels audit) into the prompt; on by default. */
-export type CanvasInputs = { clips: number[]; note: string; link: string | null; useMyChannel: boolean };
+/** `board`: the board view's layout and format nodes, kept as stored (read with parseBoard in lib/canvas-board.ts). */
+export type CanvasInputs = { clips: number[]; note: string; link: string | null; useMyChannel: boolean; board?: unknown };
 
 /** A canvas's stored inputs, whatever shape the row holds (older or hand-edited rows never break the page). */
 export function parseInputs(raw: unknown): CanvasInputs {
@@ -28,6 +29,7 @@ export function parseInputs(raw: unknown): CanvasInputs {
     note: typeof r.note === "string" ? r.note.slice(0, NOTE_MAX) : "",
     link: typeof r.link === "string" && r.link.trim() ? r.link.trim().slice(0, 300) : null,
     useMyChannel: r.useMyChannel !== false,
+    ...(r.board !== undefined ? { board: r.board } : {}),
   };
 }
 

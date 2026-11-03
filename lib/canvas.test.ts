@@ -11,6 +11,11 @@ describe("parseInputs", () => {
     expect(parsed.link).toBe("https://a.co");
   });
 
+  it("keeps the board as stored, so saving inputs never wipes it", () => {
+    expect(parseInputs({ clips: [1], board: { formats: [] } }).board).toEqual({ formats: [] });
+    expect("board" in parseInputs({ clips: [1] })).toBe(false);
+  });
+
   it("never throws on an odd row", () => {
     expect(parseInputs(null)).toEqual({ clips: [], note: "", link: null, useMyChannel: true });
     expect(parseInputs({ clips: "no", link: "", useMyChannel: false })).toEqual({ clips: [], note: "", link: null, useMyChannel: false });
