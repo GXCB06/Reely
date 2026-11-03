@@ -34,8 +34,8 @@ export default async function CanvasPage({ params }: PageProps<"/[locale]/app/ca
         <CanvasTitle key={canvas.title} id={canvas.id} title={canvas.title} placeholder={t("untitled")} />
         {canvas.outputs.length === 0 && <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{t("guide")}</p>}
       </header>
-      <div className="grid gap-6 px-4 pb-16 md:px-10 lg:grid-cols-[minmax(320px,400px)_1fr]">
-        <div className="space-y-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 px-4 pb-16 md:px-10 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-4">
           <section className="space-y-1 rounded-3xl border bg-card p-4 text-sm">
             <div className="flex items-center justify-between gap-2">
               <h2 className="inline-flex items-center gap-1.5 font-heading font-bold">

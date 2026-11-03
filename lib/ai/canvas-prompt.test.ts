@@ -23,6 +23,7 @@ describe("canvasPrompt (Content Canvas)", () => {
     expect(p).toContain("Free trial this month");
     expect(p).toContain("@flowaccount (tiktok, 41300 views, 82x their usual)");
     expect(p).toContain("Never invent numbers");
+    expect(p).toContain("no free trial, discount, price or deadline otherwise");
     expect(p).toContain("Beats in order: pain, feature, result, cta.");
   });
 

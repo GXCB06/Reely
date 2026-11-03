@@ -349,7 +349,7 @@ export const canvasScriptSchema = z.object({
     )
     .min(3)
     .max(7),
-  caption: z.string().describe("Post caption, 1-2 sentences"),
+  caption: z.string().describe("Post caption, 1-2 sentences, without hashtags (they go in hashtags)"),
   hashtags: z.array(z.string()).max(6),
   borrowed: z.string().describe("One sentence: what is borrowed from which reference and what is new"),
 });
@@ -387,7 +387,7 @@ export const canvasBriefSchema = z.object({
 
 export const canvasCaptionSchema = z.object({
   options: z
-    .array(z.object({ caption: z.string().describe("1-2 sentences"), hashtags: z.array(z.string()).max(6) }))
+    .array(z.object({ caption: z.string().describe("1-2 sentences, without hashtags (they go in hashtags)"), hashtags: z.array(z.string()).max(6) }))
     .length(3),
 });
 

@@ -23,7 +23,7 @@ export function NewCanvas({ products }: { products: { id: string; name: string }
   }
 
   return (
-    <div className="relative">
+    <div>
       <button
         type="button"
         disabled={pending}
@@ -33,7 +33,8 @@ export function NewCanvas({ products }: { products: { id: string; name: string }
         {pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />} {t("new")}
       </button>
       {picking && (
-        <div className="absolute right-0 z-20 mt-2 w-64 rounded-2xl border bg-popover p-2 shadow-lg">
+        // In the page flow, not a floating menu: the content panel clips anything that overflows it.
+        <div className="mt-2 w-64 max-w-full rounded-2xl border bg-popover p-2 shadow-lg">
           <p className="px-2 py-1 text-xs text-muted-foreground">{t("pickProduct")}</p>
           {products.map((p) => (
             <button
