@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayPart, monthlyUsual, multipliers, postingPattern, snapshot, type ChannelPost } from "./account-analysis";
+import { compareChannels, dayPart, groupPerformance, lengthBucket, monthlyUsual, multipliers, postingPattern, snapshot, timelinePoints, weeklyGrowth, type ChannelPost } from "./account-analysis";
 
 const NOW = Date.parse("2026-11-03T12:00:00Z");
 // Ten posts a day apart, newest first; usual views ~1,000, two hits (3,000 and 5,000).
@@ -54,5 +54,45 @@ describe("monthlyUsual", () => {
     expect(m.map((x) => x.month)).toEqual(["2026-10", "2026-11"]);
     expect(m[1].posts).toBe(3);
     expect(m[1].usual).toBe(1000);
+  });
+});
+
+describe("charts", () => {
+  it("puts dated posts on a timeline, oldest first, with hits marked", () => {
+    const pts = timelinePoints(posts);
+    expect(pts[0].id).toBe("p9");
+    expect(pts.filter((p) => p.hit).map((p) => p.id).sort()).toEqual(["p1", "p4"]);
+  });
+
+  it("buckets lengths", () => {
+    expect([null, 8, 15, 45, 60, 61].map(lengthBucket)).toEqual([null, "under15", "s15to30", "s30to60", "s30to60", "over60"]);
+  });
+
+  it("groups posts, best first, and flags groups too small to tell", () => {
+    const tag: Record<string, string> = { p1: "demo", p4: "demo", p0: "demo", p2: "talk", p3: "talk", p5: "talk", p6: "skit" };
+    const rows = groupPerformance(posts, (p) => tag[p.id] ?? null);
+    expect(rows.map((r) => [r.key, r.posts, r.enough])).toEqual([
+      ["demo", 3, true],
+      ["talk", 3, true],
+      ["skit", 1, false],
+    ]);
+    expect(rows[0].hitRate).toBeCloseTo(2 / 3);
+  });
+
+  it("compares channels on usual views, hit rate, posting and engagement", () => {
+    const [mine] = compareChannels([{ handle: "me", own: true, posts: posts.map((p) => ({ ...p, engagement: 0.05 })) }], NOW);
+    expect(mine).toMatchObject({ handle: "me", own: true, usual: 1025, postsPerWeek: 2.5, engagement: 0.05, posts: 10 });
+  });
+
+  it("keeps the last snapshot of each week", () => {
+    const w = weeklyGrowth([
+      { day: "2026-11-03", followers: 3500, usual: 810 },
+      { day: "2026-11-05", followers: 3520, usual: 820 },
+      { day: "2026-11-10", followers: 3600, usual: 900 },
+    ]);
+    expect(w).toEqual([
+      { week: "2026-11-02", followers: 3520, usual: 820 },
+      { week: "2026-11-09", followers: 3600, usual: 900 },
+    ]);
   });
 });

@@ -111,3 +111,97 @@ export function monthlyUsual(posts: ChannelPost[], now = Date.now(), months = 4)
     return { month: key, usual: m === null ? null : Math.round(m), posts: inMonth.length };
   });
 }
+
+// ---------- Charts (v0.3 round 2, C1) ----------
+
+/** One post on the performance timeline: when, how many views, and whether it was a hit. Oldest first. */
+export type TimelinePoint = { id: string; t: number; views: number; x: number | null; hit: boolean };
+
+export function timelinePoints(posts: ChannelPost[]): TimelinePoint[] {
+  const x = multipliers(posts);
+  return posts
+    .filter((p) => p.publishedAt && p.views !== null)
+    .map((p) => ({ id: p.id, t: Date.parse(p.publishedAt!), views: p.views as number, x: x.get(p.id) ?? null, hit: (x.get(p.id) ?? 0) >= HIT_AT }))
+    .sort((a, b) => a.t - b.t);
+}
+
+/** Formats and hook types the AI tags each post with (fixed lists, so the charts can compare them). */
+export const POST_FORMATS = ["talkingHead", "screenDemo", "skit", "tutorial", "textSlides", "productShowcase", "behindScenes", "review", "other"] as const;
+export const HOOK_TYPES = ["question", "boldClaim", "pain", "howTo", "pov", "commentToGet", "other"] as const;
+export type PostFormat = (typeof POST_FORMATS)[number];
+export type HookType = (typeof HOOK_TYPES)[number];
+export type PostTag = { format: PostFormat; hook: HookType };
+
+export const LENGTH_BUCKETS = ["under15", "s15to30", "s30to60", "over60"] as const;
+export type LengthBucket = (typeof LENGTH_BUCKETS)[number];
+
+export function lengthBucket(seconds: number | null | undefined): LengthBucket | null {
+  if (seconds === null || seconds === undefined || seconds <= 0) return null;
+  if (seconds < 15) return "under15";
+  if (seconds < 30) return "s15to30";
+  if (seconds <= 60) return "s30to60";
+  return "over60";
+}
+
+/** A group needs this many posts before its numbers mean anything; smaller ones show as "too few to tell". */
+export const GROUP_MIN_POSTS = 3;
+
+export type GroupRow = { key: string; posts: number; medianX: number | null; hitRate: number | null; enough: boolean };
+
+/**
+ * How each group of posts (a format, a hook type, a length) does against the channel's own usual: median multiplier
+ * and hit rate. Groups with enough posts come first, best first; small groups follow, flagged.
+ */
+export function groupPerformance(posts: ChannelPost[], keyOf: (p: ChannelPost) => string | null): GroupRow[] {
+  const x = multipliers(posts);
+  const groups = new Map<string, number[]>();
+  for (const p of posts) {
+    const key = keyOf(p);
+    const m = x.get(p.id);
+    if (!key || m === undefined) continue;
+    groups.set(key, [...(groups.get(key) ?? []), m]);
+  }
+  return [...groups.entries()]
+    .map(([key, ms]) => ({
+      key,
+      posts: ms.length,
+      medianX: median(ms),
+      hitRate: ms.filter((m) => m >= HIT_AT).length / ms.length,
+      enough: ms.length >= GROUP_MIN_POSTS,
+    }))
+    .sort((a, b) => Number(b.enough) - Number(a.enough) || (b.medianX ?? 0) - (a.medianX ?? 0));
+}
+
+/** One channel in "You vs accounts you track". */
+export type CompareRow = {
+  handle: string;
+  own: boolean;
+  usual: number | null;
+  hitRate: number | null;
+  postsPerWeek: number;
+  /** Median engagement (likes + comments + saves + shares per view) of its posts. */
+  engagement: number | null;
+  posts: number;
+};
+
+export function compareChannels(
+  channels: { handle: string; own: boolean; posts: (ChannelPost & { engagement: number | null })[] }[],
+  now = Date.now(),
+): CompareRow[] {
+  return channels.map((c) => {
+    const s = snapshot(c.posts, now);
+    const engagement = median(c.posts.map((p) => p.engagement).filter((e): e is number => e !== null));
+    return { handle: c.handle, own: c.own, usual: s.usual, hitRate: s.hitRate, postsPerWeek: s.postsPerWeek, engagement, posts: s.posts };
+  });
+}
+
+/** Daily snapshots → the last value of each week (weeks start Monday), oldest first. */
+export function weeklyGrowth(snapshots: { day: string; followers: number | null; usual: number | null }[]): { week: string; followers: number | null; usual: number | null }[] {
+  const weeks = new Map<string, { day: string; followers: number | null; usual: number | null }>();
+  for (const s of [...snapshots].sort((a, b) => a.day.localeCompare(b.day))) {
+    const d = new Date(`${s.day}T00:00:00Z`);
+    const monday = new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * 864e5).toISOString().slice(0, 10);
+    weeks.set(monday, s);
+  }
+  return [...weeks.entries()].map(([week, s]) => ({ week, followers: s.followers, usual: s.usual }));
+}

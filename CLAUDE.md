@@ -178,6 +178,9 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     (`analyseChannel`) is one AI call, no credits, kept on `own_accounts.audit` until the channel's posts are refreshed; it
     compares with tracked accounts' and the latest research's clips from the cache only, and every point cites posts or
     clips (`resolveAudit` drops made-up labels). Its "common in hits" points feed canvas generations (`useMyChannel`).
+    The same tap tags every post with a format and hook type (`tagPosts`, one more AI call, `own_accounts.post_tags`) for
+    the "What works for you" charts. `saveCreator` writes one `creator_snapshots` row per creator per day (growth history,
+    no credits). The comparison with tracked accounts reads the cache only.
 
 ## Security rules
 

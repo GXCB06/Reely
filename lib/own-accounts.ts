@@ -5,8 +5,9 @@ import { instagramReels } from "@/lib/adapters/instagram-scrapecreators";
 import { tiktokProfileVideos } from "@/lib/adapters/tiktok-scrapecreators";
 import type { NormalizedVideo, Platform } from "@/lib/adapters/types";
 import { saveCreator, saveVideos } from "@/lib/cache";
-import { type AuditClip, auditChannel } from "@/lib/ai/tasks";
-import { resolveAudit, type StoredAudit } from "@/lib/channel-audit";
+import { type AuditClip, auditChannel, tagPosts } from "@/lib/ai/tasks";
+import { resolveAudit, resolveTags, type StoredAudit } from "@/lib/channel-audit";
+import type { PostTag } from "@/lib/account-analysis";
 import { isGoal } from "@/lib/goals";
 import { usualScore, usualViewsExcluding } from "@/lib/scoring";
 import type { createClient } from "@/lib/supabase/server";
@@ -119,31 +120,75 @@ export type AuditResult = { ok: true; audit: StoredAudit; fresh: boolean } | { o
  * then returns the stored one). Reads only the cache: no credits.
  */
 export async function analyseChannel(supabase: Supabase, platform: Platform, handle: string, locale: string): Promise<AuditResult> {
-  const { data: own } = await supabase.from("own_accounts").select("id, product_id, audit, audit_at").eq("platform", platform).eq("handle", handle).maybeSingle();
+  const { data: own } = await supabase
+    .from("own_accounts")
+    .select("id, product_id, audit, audit_at, post_tags, post_tags_at")
+    .eq("platform", platform)
+    .eq("handle", handle)
+    .maybeSingle();
   if (!own) return { ok: false, error: "notFound" };
   const { data: creator } = await supabase.from("creators").select("fetched_at").eq("platform", platform).eq("handle", handle).maybeSingle();
   const fetchedAt = creator?.fetched_at ? Date.parse(creator.fetched_at as string) : 0;
-  if (own.audit && own.audit_at && Date.parse(own.audit_at as string) >= fetchedAt) {
-    return { ok: true, audit: own.audit as StoredAudit, fresh: false };
-  }
+  const fresh = (at: unknown) => typeof at === "string" && Date.parse(at) >= fetchedAt;
+  // The audit and the post tags each run only when missing or older than the channel's latest posts.
+  const needAudit = !(own.audit && fresh(own.audit_at));
+  const needTags = !(own.post_tags && fresh(own.post_tags_at));
+  if (!needAudit && !needTags) return { ok: true, audit: own.audit as StoredAudit, fresh: false };
+
   const [stats, { data: product }, clips] = await Promise.all([
     loadAccount(platform, handle, Date.now(), CHANNEL_POSTS),
     supabase.from("products").select("name, url, description, audience, goal").eq("id", own.product_id).maybeSingle(),
-    watchedClips(supabase, own.product_id as string, handle),
+    needAudit ? watchedClips(supabase, own.product_id as string, handle) : Promise.resolve([]),
   ]);
-  const posts = stats.videos.filter((v) => v.dbId).slice(0, AUDIT_POSTS);
+  const all = stats.videos.filter((v) => v.dbId);
+  const posts = all.slice(0, AUDIT_POSTS);
   if (!posts.length || !product) return { ok: false, error: "noPosts" };
-  const raw = await auditChannel({
-    handle,
-    platform,
-    posts: posts.map((v) => ({ views: v.views, usual: v.usual, seconds: v.durationSeconds, postedAt: postedAt(v.publishedAt), caption: v.caption })),
-    clips,
-    product: { name: product.name as string, url: (product.url as string | null) ?? null, description: (product.description as string | null) ?? null, audience: (product.audience as string | null) ?? null },
-    goal: isGoal(product.goal) ? product.goal : null,
-    locale,
-  });
-  if (!raw) return { ok: false, error: "failed" };
-  const audit = resolveAudit(raw, posts.map((v) => v.dbId!), clips.map((c) => c.id));
-  await supabase.from("own_accounts").update({ audit, audit_at: new Date().toISOString() }).eq("id", own.id);
+  const [raw, rawTags] = await Promise.all([
+    needAudit
+      ? auditChannel({
+          handle,
+          platform,
+          posts: posts.map((v) => ({ views: v.views, usual: v.usual, seconds: v.durationSeconds, postedAt: postedAt(v.publishedAt), caption: v.caption })),
+          clips,
+          product: { name: product.name as string, url: (product.url as string | null) ?? null, description: (product.description as string | null) ?? null, audience: (product.audience as string | null) ?? null },
+          goal: isGoal(product.goal) ? product.goal : null,
+          locale,
+        })
+      : Promise.resolve(null),
+    // Every post read (up to 60) gets a format and hook type for the charts.
+    needTags ? tagPosts(all.map((v) => ({ caption: v.caption, seconds: v.durationSeconds }))) : Promise.resolve(null),
+  ]);
+  if (needAudit && !raw) return { ok: false, error: "failed" };
+  const now = new Date().toISOString();
+  const audit = raw ? resolveAudit(raw, posts.map((v) => v.dbId!), clips.map((c) => c.id)) : (own.audit as StoredAudit);
+  await supabase
+    .from("own_accounts")
+    .update({
+      ...(raw ? { audit, audit_at: now } : {}),
+      ...(rawTags ? { post_tags: resolveTags(rawTags, all.map((v) => v.dbId!)), post_tags_at: now } : {}),
+    })
+    .eq("id", own.id);
   return { ok: true, audit, fresh: true };
+}
+
+/** Tracked accounts compared on a channel page (same platform), read from the cache only. */
+const COMPARE_ACCOUNTS = 5;
+
+/**
+ * What a channel page's charts need beyond its own posts, all from the cache (no credits): the post tags from the
+ * last analysis, the tracked accounts on the same platform with their recent posts, and the channel's daily snapshots.
+ */
+export async function channelExtras(supabase: Supabase, platform: Platform, handle: string) {
+  const [{ data: own }, { data: tracked }, { data: snaps }] = await Promise.all([
+    supabase.from("own_accounts").select("post_tags").eq("platform", platform).eq("handle", handle).maybeSingle(),
+    supabase.from("tracked_accounts").select("handle").eq("platform", platform).limit(COMPARE_ACCOUNTS + 1),
+    supabase.from("creator_snapshots").select("day, followers, usual_views").eq("platform", platform).eq("handle", handle).order("day"),
+  ]);
+  const handles = [...new Set((tracked ?? []).map((t) => t.handle as string))].filter((h) => h !== handle).slice(0, COMPARE_ACCOUNTS);
+  const others = await Promise.all(handles.map((h) => loadAccount(platform, h)));
+  return {
+    tags: ((own?.post_tags ?? null) as Record<string, PostTag> | null) ?? null,
+    others: others.filter((o) => o.videos.length > 0),
+    snapshots: (snaps ?? []).map((s) => ({ day: s.day as string, followers: (s.followers as number | null) ?? null, usual: (s.usual_views as number | null) ?? null })),
+  };
 }

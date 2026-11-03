@@ -54,6 +54,18 @@ export async function saveCreator(
     },
     { onConflict: "platform,handle" },
   );
+  // Growth history (My channels): one row per creator per day, the latest refresh of the day wins.
+  await admin.from("creator_snapshots").upsert(
+    {
+      platform,
+      handle,
+      day: new Date().toISOString().slice(0, 10),
+      followers: values.followers,
+      usual_views: values.usualViews === null ? null : Math.round(values.usualViews),
+      posts_read: values.sampleSize,
+    },
+    { onConflict: "platform,handle,day" },
+  );
 }
 
 /** Upserts videos into the shared cache and returns their database ids keyed by platform video id. */

@@ -27,3 +27,14 @@ describe("resolveAudit", () => {
     expect(audit.clipsRead).toBe(2);
   });
 });
+
+describe("resolveTags", () => {
+  it("maps P labels to video ids and drops unknown ones", async () => {
+    const { resolveTags } = await import("./channel-audit");
+    const tags = resolveTags(
+      { tags: [{ post: "P1", format: "screenDemo", hook: "commentToGet" }, { post: "p2", format: "skit", hook: "pain" }, { post: "P7", format: "other", hook: "other" }] },
+      [101, 102],
+    );
+    expect(tags).toEqual({ "101": { format: "screenDemo", hook: "commentToGet" }, "102": { format: "skit", hook: "pain" } });
+  });
+});

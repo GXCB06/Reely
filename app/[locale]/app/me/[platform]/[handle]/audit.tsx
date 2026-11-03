@@ -16,10 +16,11 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 export async function ChannelAudit({ supabase, platform, handle, fetchedAt, now }: { supabase: Supabase; platform: string; handle: string; fetchedAt: string | null; now: number }) {
   const t = await getTranslations("me");
   const format = await getFormatter();
-  const { data: own } = await supabase.from("own_accounts").select("audit, audit_at").eq("platform", platform).eq("handle", handle).maybeSingle();
+  const { data: own } = await supabase.from("own_accounts").select("audit, audit_at, post_tags").eq("platform", platform).eq("handle", handle).maybeSingle();
   const audit = (own?.audit as StoredAudit | null) ?? null;
   const auditAt = (own?.audit_at as string | null) ?? null;
-  const stale = !!audit && !!auditAt && !!fetchedAt && Date.parse(fetchedAt) > Date.parse(auditAt);
+  // Newer posts than the analysis, or posts never tagged for the charts: offer "Analyse again".
+  const stale = (!!audit && !!auditAt && !!fetchedAt && Date.parse(fetchedAt) > Date.parse(auditAt)) || (!!audit && !own?.post_tags);
 
   if (!audit) {
     return (

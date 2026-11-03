@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { HOOK_TYPES, POST_FORMATS } from "@/lib/account-analysis";
 import { GOALS } from "@/lib/goals";
 
 export const MAX_KEYWORDS = 5;
@@ -418,3 +419,15 @@ export const channelAuditSchema = z.object({
     .length(5),
 });
 export type ChannelAuditOutput = z.infer<typeof channelAuditSchema>;
+
+/** My channels charts: each post's format and hook type, from fixed lists (labels P1, P2… as in the audit). */
+export const postTagsSchema = z.object({
+  tags: z.array(
+    z.object({
+      post: z.string().describe("The post's label, e.g. P3"),
+      format: z.enum(POST_FORMATS),
+      hook: z.enum(HOOK_TYPES),
+    }),
+  ),
+});
+export type PostTagsOutput = z.infer<typeof postTagsSchema>;

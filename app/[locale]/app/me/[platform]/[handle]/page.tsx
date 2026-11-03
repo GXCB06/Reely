@@ -4,10 +4,23 @@ import { getFormatter, getTranslations, setRequestLocale } from "next-intl/serve
 import { OutlierCard } from "@/components/outlier-card";
 import { profileUrl } from "@/components/tracking/account-row";
 import { Link } from "@/i18n/navigation";
-import { type ChannelPost, monthlyUsual, postingPattern, PATTERN_MIN_POSTS, snapshot } from "@/lib/account-analysis";
-import { loadOwnChannel } from "@/lib/own-accounts";
+import {
+  type ChannelPost,
+  compareChannels,
+  groupPerformance,
+  lengthBucket,
+  monthlyUsual,
+  postingPattern,
+  PATTERN_MIN_POSTS,
+  snapshot,
+  timelinePoints,
+  weeklyGrowth,
+} from "@/lib/account-analysis";
+import { engagementRate } from "@/lib/scoring";
+import { channelExtras, loadOwnChannel } from "@/lib/own-accounts";
 import { createClient } from "@/lib/supabase/server";
 import { ChannelAudit } from "./audit";
+import { CompareTable, GroupBars, Timeline, WeekLine } from "./charts";
 
 const WINDOWS = { d30: 30, d90: 90, y1: 365 } as const;
 type WindowKey = keyof typeof WINDOWS;
@@ -30,8 +43,26 @@ export default async function ChannelPage({ params, searchParams }: PageProps<"/
   const t = await getTranslations("me");
   const format = await getFormatter();
   const stats = await loadOwnChannel(platform, handle);
+  const extras = await channelExtras(supabase, platform, handle);
 
   const { now, posts, snap, pattern, months, shown } = analyse(stats.videos, WINDOWS[windowKey]);
+  const tc = await getTranslations("me.charts");
+  // The charts: every post on a timeline, groups by format / hook / length, you vs tracked accounts, growth by week.
+  const seconds = new Map(stats.videos.map((v) => [String(v.dbId ?? v.platformVideoId), v.durationSeconds]));
+  const byFormat = extras.tags ? groupPerformance(posts, (p) => extras.tags?.[p.id]?.format ?? null) : [];
+  const byHook = extras.tags ? groupPerformance(posts, (p) => extras.tags?.[p.id]?.hook ?? null) : [];
+  const byLength = groupPerformance(posts, (p) => lengthBucket(seconds.get(p.id)));
+  const withEngagement = (videos: typeof stats.videos) =>
+    videos.map((v) => ({ id: String(v.dbId ?? v.platformVideoId), views: v.views, publishedAt: v.publishedAt, engagement: engagementRate(v) }));
+  const compare = compareChannels(
+    [
+      { handle, own: true, posts: withEngagement(stats.videos) },
+      ...extras.others.map((o) => ({ handle: o.handle, own: false, posts: withEngagement(o.videos) })),
+    ],
+    now,
+  );
+  const updatedOf = new Map(extras.others.map((o) => [o.handle, o.fetchedAt]));
+  const weeks = weeklyGrowth(extras.snapshots);
   const compact = (n: number) => format.number(n, { notation: "compact", maximumFractionDigits: 1 });
   const dayNames = t.raw("days") as string[];
 
@@ -65,6 +96,67 @@ export default async function ChannelPage({ params, searchParams }: PageProps<"/
 
       <div className="space-y-8 px-4 pb-16 md:px-10">
         <ChannelAudit supabase={supabase} platform={platform} handle={handle} fetchedAt={stats.fetchedAt} now={now} />
+
+        <section className="space-y-3 rounded-3xl border bg-card p-4" data-me="timeline">
+          <div>
+            <h2 className="font-heading text-lg font-bold">{tc("timelineTitle")}</h2>
+            <p className="text-xs text-muted-foreground">{tc("timelineHint")}</p>
+          </div>
+          <Timeline points={timelinePoints(posts)} usual={snap.usual} hrefOf={(id) => `/${locale}/app/video/${id}`} />
+        </section>
+
+        <section className="space-y-4 rounded-3xl border bg-card p-4" data-me="what-works">
+          <div>
+            <h2 className="font-heading text-lg font-bold">{tc("worksTitle")}</h2>
+            <p className="text-xs text-muted-foreground">{tc("worksHint")}</p>
+          </div>
+          <div className="grid gap-6 md:grid-cols-3">
+            {extras.tags ? (
+              <>
+                <GroupBars title={tc("byFormat")} rows={byFormat} nameOf={(k) => t(`formats.${k}`)} />
+                <GroupBars title={tc("byHook")} rows={byHook} nameOf={(k) => t(`hooks.${k}`)} />
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground md:col-span-2">{tc("needAnalysis")}</p>
+            )}
+            <GroupBars title={tc("byLength")} rows={byLength} nameOf={(k) => t(`lengths.${k}`)} />
+          </div>
+        </section>
+
+        <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
+          <section className="space-y-3 rounded-3xl border bg-card p-4">
+            <div>
+              <h2 className="font-heading text-lg font-bold">{tc("compareTitle")}</h2>
+              <p className="text-xs text-muted-foreground">{tc("compareHint")}</p>
+            </div>
+            {compare.length > 1 ? (
+              <CompareTable
+                rows={compare}
+                updatedOf={(h) => {
+                  const at = updatedOf.get(h);
+                  return at ? tc("updatedShort", { when: format.relativeTime(new Date(at), now) }) : null;
+                }}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">{tc("compareEmpty")}</p>
+            )}
+          </section>
+          <section className="space-y-3 rounded-3xl border bg-card p-4" data-me="growth">
+            <h2 className="font-heading text-lg font-bold">{tc("growthTitle")}</h2>
+            {weeks.length >= 2 ? (
+              <div className="space-y-4">
+                <WeekLine title={tc("followersWeek")} points={weeks.map((w) => ({ week: w.week, value: w.followers }))} />
+                <WeekLine title={tc("usualWeek")} points={weeks.map((w) => ({ week: w.week, value: w.usual }))} />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {tc("growthStarts", {
+                  date: format.dateTime(new Date(extras.snapshots[0] ? `${extras.snapshots[0].day}T00:00:00Z` : now), { day: "numeric", month: "long" }),
+                })}
+              </p>
+            )}
+          </section>
+        </div>
         <section className="space-y-3">
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div>

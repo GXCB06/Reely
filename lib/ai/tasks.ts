@@ -48,7 +48,10 @@ import {
   canvasScriptSchema,
   type ChannelAuditOutput,
   channelAuditSchema,
+  type PostTagsOutput,
+  postTagsSchema,
 } from "./schemas";
+import { HOOK_TYPES, POST_FORMATS } from "@/lib/account-analysis";
 import { type CanvasContent, type CanvasFormat, type CanvasRefine, keepKnownSources } from "@/lib/canvas";
 
 // Every task falls back to deterministic sample output when Gemini is not configured or fails,
@@ -1002,6 +1005,36 @@ export function channelAuditPrompt(o: {
   ]
     .filter((l) => l !== "")
     .join("\n");
+}
+
+/**
+ * Tags each of the founder's posts with a format and a hook type from fixed lists (one AI call for up to 60 posts),
+ * so the channel page can chart which formats and hooks do best against the channel's own usual. Reads the caption
+ * and length only. Null when the AI is unavailable or fails.
+ */
+export async function tagPosts(posts: { caption: string; seconds: number | null }[]): Promise<PostTagsOutput | null> {
+  const model = getModel();
+  if (!model || !posts.length) return null;
+  try {
+    const { output } = await generateText({
+      ...aiCallOptions(45_000),
+      model,
+      output: Output.object({ schema: postTagsSchema }),
+      prompt: [
+        "Tag every short video below with its format and its hook type, judging from the caption and length.",
+        `Formats: ${POST_FORMATS.join(", ")} (talkingHead = a person talking to camera; screenDemo = a screen recording of an app;`,
+        "textSlides = text or still images; productShowcase = the product shown or used; behindScenes = making-of or workplace).",
+        `Hook types: ${HOOK_TYPES.join(", ")} (commentToGet = asks viewers to comment a word to get something; pov = a "POV" scene).`,
+        "Use other when nothing fits. Return one tag per label, every label once.",
+        "",
+        ...posts.map((p, i) => `P${i + 1} | ${p.seconds ?? "?"}s | ${p.caption.slice(0, 220).replace(/\s+/g, " ") || "(no caption)"}`),
+      ].join("\n"),
+    });
+    return output;
+  } catch (e) {
+    console.warn("[ai] tagPosts failed", (e as Error).message);
+    return null;
+  }
 }
 
 /** One channel audit (one AI call). Null when the AI is unavailable or fails. */

@@ -1,6 +1,7 @@
 // "Analyse my channel" (v0.3 Part B2): the AI cites the founder's posts as P1, P2… and watched clips as C1, C2…; this
 // turns those labels back into video ids and drops any label it made up. Pure, so it is unit-tested.
-import type { ChannelAuditOutput } from "@/lib/ai/schemas";
+import type { PostTag } from "@/lib/account-analysis";
+import type { ChannelAuditOutput, PostTagsOutput } from "@/lib/ai/schemas";
 
 export type AuditPoint = { point: string; videoIds: number[] };
 export type AuditIdea = { title: string; hook: string; angle: string; why: string; videoIds: number[] };
@@ -41,4 +42,15 @@ export function resolveAudit(raw: ChannelAuditOutput, posts: number[], clips: nu
     postsRead: posts.length,
     clipsRead: clips.length,
   };
+}
+
+/** Post tags (format + hook type) by video id, from the AI's P1, P2… labels; unknown labels are dropped. */
+export function resolveTags(raw: PostTagsOutput, posts: number[]): Record<string, PostTag> {
+  const out: Record<string, PostTag> = {};
+  for (const t of raw.tags) {
+    const n = t.post.trim().toUpperCase().match(/^P\s*(\d+)$/)?.[1];
+    const id = n ? posts[Number(n) - 1] : undefined;
+    if (id !== undefined) out[String(id)] = { format: t.format, hook: t.hook };
+  }
+  return out;
 }

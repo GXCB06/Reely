@@ -1367,6 +1367,65 @@
     "ideasTitle": "5 ideas to film next",
     "openInCanvas": "Open in canvas",
     "auditFailed": "The AI couldn't analyse this channel. Try again.",
-    "auditNoPosts": "No posts read yet for this channel."
+    "auditNoPosts": "No posts read yet for this channel.",
+    "charts": {
+      "timelineTitle": "Every post, over time",
+      "timelineHint": "Each dot is a post (views on a log scale). Hits are coloured; the dashed line is your usual. Tap a dot to open the clip.",
+      "timelineLabel": "{n} posts by date and views",
+      "timelineEmpty": "Not enough dated posts yet.",
+      "usualLine": "your usual ~{views}",
+      "legendHit": "hit (2× your usual or more)",
+      "legendOther": "other post",
+      "legendUsual": "your usual",
+      "worksTitle": "What works for you",
+      "worksHint": "Median views against your usual for each kind of post. The line marks 1× (your usual); bars past it beat your normal.",
+      "byFormat": "By format",
+      "byHook": "By hook",
+      "byLength": "By length",
+      "needAnalysis": "Run “Analyse my channel” above to see which formats and hooks work for you.",
+      "groupLine": "{x}× usual · {hits}% hits · {n} posts",
+      "tooFew": "too few to tell ({n} {n, plural, one {post} other {posts}})",
+      "compareTitle": "You vs accounts you track",
+      "compareHint": "Same platform, from the posts Reely has read. Track accounts in Tracking to add them here.",
+      "compareEmpty": "Track 2–3 competitor or inspiration accounts on this platform to compare.",
+      "you": "you",
+      "updatedShort": "updated {when}",
+      "metric": {
+        "usual": "Usual views",
+        "hitRate": "Hit rate",
+        "perWeek": "Posts a week",
+        "engagement": "Engagement"
+      },
+      "growthTitle": "Growth over time",
+      "followersWeek": "Followers by week",
+      "usualWeek": "Usual views by week",
+      "growthStarts": "History starts {date}: Reely saves your numbers each time it refreshes, so this chart fills in week by week."
+    },
+    "formats": {
+      "talkingHead": "Talking head",
+      "screenDemo": "Screen demo",
+      "skit": "Skit",
+      "tutorial": "Tutorial",
+      "textSlides": "Text / slides",
+      "productShowcase": "Product showcase",
+      "behindScenes": "Behind the scenes",
+      "review": "Review",
+      "other": "Other"
+    },
+    "hooks": {
+      "question": "Question",
+      "boldClaim": "Bold claim",
+      "pain": "Pain point",
+      "howTo": "How-to",
+      "pov": "POV",
+      "commentToGet": "Comment to get",
+      "other": "Other"
+    },
+    "lengths": {
+      "under15": "Under 15 s",
+      "s15to30": "15–30 s",
+      "s30to60": "30–60 s",
+      "over60": "Over 60 s"
+    }
   }
 }
