@@ -20,6 +20,9 @@ export type EvalRun = {
   createdAt: string;
   seconds: number | null;
   stats: RunStatsLite;
+  /** The search keywords as planned (the keyword scorecard). */
+  keywords: string[];
+  competitors: string[];
 };
 
 /**
@@ -30,7 +33,7 @@ export async function loadEvalBrief(admin: Admin, runId: string) {
   const [{ data: run }, { data: rows }, { data: labelRows }] = await Promise.all([
     admin
       .from("research_runs")
-      .select("id, title, brief, region, platforms, goal, input, stats, product_id, created_at, finished_at")
+      .select("id, title, brief, region, platforms, goal, input, stats, product_id, created_at, finished_at, keywords")
       .eq("id", runId)
       .maybeSingle(),
     admin
@@ -48,7 +51,7 @@ export async function loadEvalBrief(admin: Admin, runId: string) {
     .map(videoFromResultRow)
     .filter((v): v is ScoredVideo => v !== null && !!v.dbId && (EVAL_PLATFORMS as readonly string[]).includes(v.platform))
     .sort((a, b) => score(b) - score(a));
-  const input = (run.input ?? {}) as { productName?: string; whatItIs?: string; audience?: string };
+  const input = (run.input ?? {}) as { productName?: string; whatItIs?: string; audience?: string; competitors?: string[] };
   const finished = run.finished_at ? new Date(run.finished_at as string).getTime() : null;
   const evalRun: EvalRun = {
     id: run.id as string,
@@ -61,6 +64,8 @@ export async function loadEvalBrief(admin: Admin, runId: string) {
     createdAt: run.created_at as string,
     seconds: finished ? Math.round((finished - new Date(run.created_at as string).getTime()) / 1000) : null,
     stats: (run.stats ?? null) as RunStatsLite,
+    keywords: (run.keywords as string[] | null) ?? [],
+    competitors: input.competitors ?? [],
   };
   const clips: EvalClip[] = videos.map((v) => ({ id: v.dbId!, platform: v.platform as EvalPlatform, handle: v.creatorHandle }));
   const rowsTyped = (labelRows ?? []) as (LabelRow & { reason: string | null })[];

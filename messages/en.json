@@ -1099,6 +1099,35 @@
       "clips": "From feeds",
       "labelled": "You labelled",
       "onTarget": "On target (2)"
+    },
+    "keywords": {
+      "open": "Keyword scorecard",
+      "title": "Keyword scorecard",
+      "subtitle": "Every planned search keyword of the test set: the results it brought, how many the search's relevance check called exact, and how many you labelled on target. A brief's re-runs are merged (each clip counted once). Use it to see which kinds of keyword pay off.",
+      "byKind": "By kind of keyword",
+      "byLanguage": "By language",
+      "perBrief": "Every keyword",
+      "count": "Keywords",
+      "resultsPer": "Results per keyword",
+      "exactPer": "Exact per keyword",
+      "onTargetPer": "Your 2s per keyword",
+      "onTargetRate": "Your 2s / labelled",
+      "keyword": "Keyword",
+      "kindCol": "Kind",
+      "exact": "Exact (search)",
+      "labelled": "You labelled",
+      "onTarget": "Your 2s",
+      "kind": {
+        "own": "Your own product's name",
+        "competitor": "A competitor's name",
+        "other": "Category, problem or other",
+        "feeds": "From accounts and feeds (not a planned keyword)"
+      },
+      "lang": {
+        "thai": "Thai",
+        "notThai": "English / other"
+      },
+      "note": "A result counts for the keyword that first found it. Instagram Reels found through accounts carry the account search's query, so they show under \"From accounts and feeds\"."
     }
   }
 }
