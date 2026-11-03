@@ -38,7 +38,7 @@ export function MyChannelCard({ canvasId, channel, on }: { canvasId: string; cha
         </label>
       </div>
       <p className="text-xs text-muted-foreground">
-        {t("myChannelHint", { handle: channel.handle })}{" "}
+        {t("myChannelHint")}{" "}
         <Link href={`/app/me/${channel.platform}/${encodeURIComponent(channel.handle)}`} className="text-primary hover:underline">
           @{channel.handle}
         </Link>

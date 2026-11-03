@@ -1281,7 +1281,7 @@
     "openInCanvas": "Open in canvas",
     "openInCanvasTip": "A new canvas with this research's best 3 clips, ready to write a script, hooks or a brief",
     "myChannel": "What works on my channel",
-    "myChannelHint": "From the analysis of @{handle}. Keeps scripts in a style that already works for you.",
+    "myChannelHint": "From the analysis of your channel. Keeps scripts in a style that already works for you:",
     "myChannelOn": "Use it"
   },
   "me": {
