@@ -396,6 +396,11 @@ Insta360 clips the owner had rejected.
 
 - When a platform has fewer than 3 exact matches (e.g. Thai accounting on Instagram), the results say so. They offer
   one tap for Worldwide or a 180-day window instead of padding the list with "1"s.
+- **Shipped 2026-11-03** (`thinPlatforms` in lib/results.ts):
+  - the notice names each thin platform and how many exact matches it has;
+  - it offers "See the wider topic" (the broader section);
+  - for Thailand-only researches, it also offers "Search Thailand + worldwide".
+  - The 180-day window isn't offered: researches only support 7, 30 or 90 days.
 
 ## 5. Budget and order
 
