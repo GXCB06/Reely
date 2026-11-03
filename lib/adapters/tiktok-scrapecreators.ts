@@ -134,26 +134,8 @@ export const tiktokAdapter: PlatformAdapter = {
   },
 
   async getCreatorVideos(handle) {
-    type Res = { aweme_list?: Aweme[]; max_cursor?: number | string; has_more?: number | boolean };
-    const videos: NormalizedVideo[] = [];
-    let cursor: string | undefined;
     // Two pages of 10 = a 20-video baseline (2 credits).
-    for (let page = 1; page <= 2; page++) {
-      const data = fixturesEnabled()
-        ? await readFixture<Res>(`tiktok-videos-${handle}-${page}`)
-        : await call<Res>("/v3/tiktok/profile/videos", {
-            handle,
-            trim: "true",
-            include_pinned: "false",
-            region: "TH",
-            ...(cursor ? { max_cursor: cursor } : {}),
-          });
-      videos.push(...(data?.aweme_list ?? []).map(toVideo));
-      if (!data?.has_more || !data.max_cursor) break;
-      cursor = String(data.max_cursor);
-    }
-    const seen = new Set<string>();
-    return videos.filter((v) => !seen.has(v.platformVideoId) && seen.add(v.platformVideoId));
+    return tiktokProfileVideos(handle, 2);
   },
 
   async getTranscript(videoUrl) {
@@ -164,6 +146,32 @@ export const tiktokAdapter: PlatformAdapter = {
     return data?.transcript ?? null;
   },
 };
+
+/**
+ * Up to `pages` pages (10 posts each, newest first, pinned posts left out) of a creator's videos: 1 credit per page.
+ * Baselines read 2 (cost rule 9); a founder's own channel reads 4 once, when it is added (cost rule 23).
+ */
+export async function tiktokProfileVideos(handle: string, pages: number): Promise<NormalizedVideo[]> {
+  type Res = { aweme_list?: Aweme[]; max_cursor?: number | string; has_more?: number | boolean };
+  const videos: NormalizedVideo[] = [];
+  let cursor: string | undefined;
+  for (let page = 1; page <= pages; page++) {
+    const data = fixturesEnabled()
+      ? await readFixture<Res>(`tiktok-videos-${handle}-${page}`)
+      : await call<Res>("/v3/tiktok/profile/videos", {
+          handle,
+          trim: "true",
+          include_pinned: "false",
+          region: "TH",
+          ...(cursor ? { max_cursor: cursor } : {}),
+        });
+    videos.push(...(data?.aweme_list ?? []).map(toVideo));
+    if (!data?.has_more || !data.max_cursor) break;
+    cursor = String(data.max_cursor);
+  }
+  const seen = new Set<string>();
+  return videos.filter((v) => !seen.has(v.platformVideoId) && seen.add(v.platformVideoId));
+}
 
 /** Videos that use one sound (1 credit per page of ~12). Powers "who else made this kind of clip". */
 export async function tiktokSoundVideos(soundId: string): Promise<NormalizedVideo[]> {

@@ -19,6 +19,8 @@ export const EVENT_NAMES = [
   "canvas_generate",
   "canvas_save_script",
   "canvas_vote",
+  // My channels: an own channel added (props: platform).
+  "own_account_add",
 ] as const;
 export type EventName = (typeof EVENT_NAMES)[number];
 

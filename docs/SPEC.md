@@ -80,6 +80,7 @@ All routes live under `/[locale]` (`th` default, `en`).
 | Tracking | `/app/tracking` | Tracked accounts list, add handle |
 | Account detail | `/app/tracking/[platform]/[handle]` | Usual views, recent posts, breakouts highlighted |
 | Saved | `/app/saved` | Saved videos |
+| My channels | `/app/me`, `/app/me/[platform]/[handle]` | The founder's own public accounts (v0.3): snapshot, hit rate, hits vs their own normal, when they post, usual views by month |
 | Canvas | `/app/canvas`, `/app/canvas/[id]` | Content Canvas (v0.3): reference clips + product + note → a fixed format (script, 3 hooks, product demo, shop review, influencer brief, caption), every version kept |
 
 Visual reference: the Lovable design (screenshots in `/docs/design`). Use shadcn/ui components; do not

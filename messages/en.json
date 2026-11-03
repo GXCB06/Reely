@@ -29,7 +29,8 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "plan": "7-day plan",
-    "canvas": "Canvas"
+    "canvas": "Canvas",
+    "me": "My channels"
   },
   "login": {
     "title": "Welcome to Reely",
@@ -1279,5 +1280,75 @@
     "newFor": "New canvas for {product}",
     "openInCanvas": "Open in canvas",
     "openInCanvasTip": "A new canvas with this research's best 3 clips, ready to write a script, hooks or a brief"
+  },
+  "me": {
+    "title": "My channels",
+    "subtitle": "Add your own TikTok, YouTube or Instagram account and see what works on it, measured against your own normal.",
+    "publicNote": "Analysis of your public posts. Private analytics (watch time, retention, audience) need you to log in to the platform, which Reely doesn't do.",
+    "noProducts": "Run a research first: each channel belongs to one of your products.",
+    "empty": "No channels yet. Add one above.",
+    "addTitle": "Add a channel",
+    "placeholder": "Profile link or @handle",
+    "platform": "Platform",
+    "product": "Product",
+    "full": "full",
+    "add": "Add",
+    "adding": "Reading your posts…",
+    "addHint": "Reads up to about 40 of your posts once (TikTok 4 credits, Instagram 3, YouTube free). After that it refreshes when you open the channel, at most once a day. Up to 3 channels per product.",
+    "followers": "{n} followers",
+    "usual": "usually ~{views} views",
+    "notRead": "not read yet",
+    "remove": "Remove",
+    "removeConfirm": "Remove this channel from your list?",
+    "back": "My channels",
+    "updated": "Updated {when} · {n} posts read",
+    "followersLabel": "Followers",
+    "usualLabel": "Usual views",
+    "usualHint": "median of your posts",
+    "hitRate": "Hit rate",
+    "hitsOf": "{hits} of {posts} posts at 2× your usual or more",
+    "perWeek": "Posts a week",
+    "perWeekHint": "last 4 weeks",
+    "trend": "Views of your last {n} posts, oldest first",
+    "hitsTitle": "Your hits vs your normal",
+    "hitsHint": "Every post against your own usual views (~{usual}), biggest first.",
+    "window": {
+      "d30": "30 days",
+      "d90": "90 days",
+      "y1": "1 year"
+    },
+    "noPosts": "No posts in this period.",
+    "patternTitle": "When you post",
+    "patternHint": "Your hits vs your other posts, by day and time (Bangkok). A pattern in your own posts, not a rule.",
+    "patternWait": "Shows once Reely has read {min}+ of your posts ({n} so far).",
+    "hits": "hits",
+    "others": "other posts",
+    "days": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun"
+    ],
+    "parts": {
+      "morning": "Morning",
+      "midday": "Midday",
+      "afternoon": "Afternoon",
+      "evening": "Evening",
+      "night": "Night"
+    },
+    "monthsTitle": "Your normal over time",
+    "monthsHint": "Usual views of the posts made each month",
+    "nPosts": "{n, plural, =0 {no posts} one {# post} other {# posts}}",
+    "errors": {
+      "badHandle": "Paste a profile link or an @handle.",
+      "pickPlatform": "Pick the platform for this @handle.",
+      "limit": "Up to 3 channels per product.",
+      "exists": "You've already added this channel.",
+      "notFound": "Couldn't find public posts for this account. Is it public?",
+      "failed": "Couldn't read this channel. Try again."
+    }
   }
 }

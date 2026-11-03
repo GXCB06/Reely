@@ -66,7 +66,7 @@ function monthKey(d: Date) {
 }
 
 /** Builds the row data for one tracked account from the shared cache (no external calls). */
-export async function loadAccount(platform: Platform, handle: string, now = Date.now()): Promise<AccountStats> {
+export async function loadAccount(platform: Platform, handle: string, now = Date.now(), limit = RECENT_LIMIT): Promise<AccountStats> {
   const supabase = await createClient();
   const [{ data: creator }, { data: rows }] = await Promise.all([
     supabase
@@ -81,7 +81,7 @@ export async function loadAccount(platform: Platform, handle: string, now = Date
       .eq("platform", platform)
       .eq("creator_handle", handle)
       .order("published_at", { ascending: false, nullsFirst: false })
-      .limit(RECENT_LIMIT),
+      .limit(limit),
   ]);
 
   const list = (rows ?? []) as VideoRow[];

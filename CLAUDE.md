@@ -55,6 +55,7 @@ lib/events.ts                 # client_events names and sources (lib/event-log.t
 lib/export.ts                 # research export: CSV (Excel), Markdown (for Claude / ChatGPT), JSON; data from lib/export-data.ts, served by app/api/research/[id]/export
 lib/embed.ts                  # official TikTok / YouTube / Instagram embed players (components/clip-player.tsx: hover preview + in-app player)
 lib/plan.ts                   # 7-day plan per product (content_plans): 👍 + saved + latest research's best clips → one AI call
+lib/account-analysis.ts       # My channels maths (pure): snapshot, hit rate, posting pattern, monthly usual; data in lib/own-accounts.ts, pages app/[locale]/app/me
 lib/canvas.ts                 # Content Canvas formats, inputs, copy text (pure); data in lib/canvas-data.ts, prompt `canvasPrompt` / `writeCanvas` in lib/ai/tasks.ts, pages app/[locale]/app/canvas
 lib/today.ts                  # Today page: new breakouts (7 days) from tracked accounts + followed topics → 3-5 ideas
 lib/formats.ts                # format explorer: same sound + format search → topics, sounds, stage (lib/format-stats.ts)
@@ -170,6 +171,10 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     `CANVAS_PER_DAY` (40) per person per rolling 24 h. It reads only what is stored (captions, cached breakdowns, transcripts
     already read); a pasted clip link follows rule 19, and "Read what the clip says" stays on the video page (rule 6). No
     AI video, voice or image generation (paid providers).
+23. My channels (`/app/me`, v0.3 Part B): a founder's own public accounts, at most 3 per product (`own_accounts`). One
+    deeper read when a channel is added (`addOwnAccount`: TikTok 4 pages = 4 credits via `tiktokProfileVideos`, Instagram
+    3 pages = 3 credits, YouTube free), then only the normal 24-hour refresh of rule 5 when its page is opened. Posts live
+    in the shared cache. Public numbers only: no account login (OAuth), no private analytics.
 
 ## Security rules
 
