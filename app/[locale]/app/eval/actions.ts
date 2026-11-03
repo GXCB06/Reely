@@ -362,14 +362,14 @@ export async function saveSnapshotAction(note: string, metrics: unknown) {
   return { ok: !error };
 }
 
-/** Adds several researches at once (the suggested starting set is added as core briefs). */
-export async function addBriefsAction(ids: string[], core: boolean) {
+/** Adds several researches at once (the suggested starting set is added as core briefs; hold-out briefs are measured, never tuned on). */
+export async function addBriefsAction(ids: string[], core: boolean, holdout = false) {
   const admin = await ownerAdmin();
   const parsed = z.array(runId).max(50).safeParse(ids);
   if (!admin || !parsed.success) return { ok: false as const };
   const { error } = await admin
     .from("eval_briefs")
-    .upsert(parsed.data.map((run_id) => ({ run_id, core })), { onConflict: "run_id" });
+    .upsert(parsed.data.map((run_id) => ({ run_id, core: core && !holdout, holdout: holdout === true })), { onConflict: "run_id" });
   refresh();
   return { ok: !error };
 }

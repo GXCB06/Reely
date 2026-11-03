@@ -1091,6 +1091,7 @@
       "today": "Stored score · {group}",
       "text": "Caption only · {group}",
       "covers": "Caption + cover · {group}"
-    }
+    },
+    "addHoldout": "Add as hold-out"
   }
 }

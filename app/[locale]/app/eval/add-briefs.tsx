@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Sparkles } from "lucide-react";
+import { Plus, ShieldCheck, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { toast } from "sonner";
@@ -14,9 +14,9 @@ export function AddBriefs({ candidates, suggested }: { candidates: Candidate[]; 
   const t = useTranslations("eval");
   const router = useRouter();
   const [pending, start] = useTransition();
-  const add = (ids: string[], core: boolean) =>
+  const add = (ids: string[], core: boolean, holdout = false) =>
     start(async () => {
-      const res = await addBriefsAction(ids, core);
+      const res = await addBriefsAction(ids, core, holdout);
       if (!res.ok) toast.error(t("addFailed"));
       router.refresh();
     });
@@ -44,6 +44,9 @@ export function AddBriefs({ candidates, suggested }: { candidates: Candidate[]; 
             </div>
             <button type="button" disabled={pending} onClick={() => add([c.id], false)} className="chip">
               <Plus className="size-3.5" /> {t("add")}
+            </button>
+            <button type="button" disabled={pending} onClick={() => add([c.id], false, true)} className="chip" title={t("holdoutTip")}>
+              <ShieldCheck className="size-3.5" /> {t("addHoldout")}
             </button>
           </div>
         ))}
