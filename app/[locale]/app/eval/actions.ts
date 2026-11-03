@@ -389,14 +389,21 @@ async function briefRun(admin: Admin, id: string) {
 
 /**
  * Plans a brief's keywords again with the keyword planner on trial (v2, search quality S4), from what the founder
- * gave the original research: their words, link, region, goal and saved product. One AI call, no credits. Null when
- * the AI is unavailable (the sample plan is no test of the planner).
+ * gave the original research: their words, link, region, goal and the product as that research understood it (not
+ * the saved product row, which may have been edited or reused since). One AI call, no credits. Null when the AI is
+ * unavailable (the sample plan is no test of the planner).
  */
-async function replan(admin: Admin, run: NonNullable<Awaited<ReturnType<typeof briefRun>>>, lang: "th" | "en") {
-  const { data: saved } = run.product_id
-    ? await admin.from("products").select("name, url, description, audience, competitors").eq("id", run.product_id).maybeSingle()
-    : { data: null };
+async function replan(run: NonNullable<Awaited<ReturnType<typeof briefRun>>>, lang: "th" | "en") {
   const url = run.input.url ?? "";
+  const saved = run.input.productName
+    ? {
+        name: run.input.productName,
+        url: url || null,
+        description: run.input.whatItIs ?? null,
+        audience: run.input.audience ?? null,
+        competitors: run.input.competitors?.length ? run.input.competitors : null,
+      }
+    : null;
   const plan = await understandProduct(
     {
       text: (run.input.text ?? run.brief ?? "").slice(0, 1000),
@@ -420,7 +427,7 @@ export async function previewPlanAction(id: string, lang: string) {
   const parsed = z.object({ id: runId, lang: z.enum(["th", "en"]) }).safeParse({ id, lang });
   if (!admin || !parsed.success) return { ok: false as const };
   const run = await briefRun(admin, parsed.data.id);
-  const plan = run ? await replan(admin, run, parsed.data.lang) : null;
+  const plan = run ? await replan(run, parsed.data.lang) : null;
   if (!plan) return { ok: false as const };
   return { ok: true as const, keywords: plan.keywords.map((k) => k.text), competitors: plan.competitors };
 }
@@ -439,7 +446,7 @@ export async function rerunBriefAction(id: string, lang: string, replanKeywords 
   const run = await briefRun(admin, parsed.data.id);
   if (!run) return { ok: false as const, error: "noGoal" as const };
   const input = run.input;
-  const plan = parsed.data.replan ? await replan(admin, run, parsed.data.lang) : null;
+  const plan = parsed.data.replan ? await replan(run, parsed.data.lang) : null;
   if (parsed.data.replan && !plan) return { ok: false as const, error: "noPlan" as const };
   const keywords = plan
     ? plan.keywords.map((k) => ({ text: k.text.slice(0, 80), region: k.region }))

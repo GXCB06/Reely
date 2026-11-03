@@ -149,7 +149,8 @@ const GOAL_KEYWORDS_V2: Record<Goal, string[]> = {
     "- 3 phrases for the product type the way buyers search before buying: a review ('รีวิว<type>', '<type> review'),",
     "  the plain type ('กล้องวงจรปิดไร้สาย', 'wireless mic'), and one specific variant ('ไมค์ติดปกเสื้อ', 'lavalier mic').",
     "- 1 phrase naming a real competing product or brand (full real names only; list them in competitors).",
-    "- 1 phrase for the result the product promises, as buyers say it (for a serum: 'หน้าใส').",
+    "- 1 phrase for the product type in its main use, so the product is in the video ('ไมค์ไลฟ์สด', 'กล้องวงจรปิดหน้าบ้าน',",
+    "  'เซรั่มหน้าใส'); never the result alone ('หน้าใส', 'บ้านปลอดภัย').",
   ],
   startup: [
     "- 2 phrases the way apps and tools in this category caption or hashtag their OWN promo videos, so the search finds",
