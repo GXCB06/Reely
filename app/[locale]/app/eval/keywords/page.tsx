@@ -7,6 +7,7 @@ import { isOwner } from "@/lib/limits";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { Link } from "@/i18n/navigation";
+import { PlanPreview, type PreviewBrief } from "./plan-preview";
 
 /**
  * Owner-only keyword scorecard: for every planned keyword of the test set, the results it brought, how many the
@@ -21,8 +22,8 @@ export default async function KeywordsPage({ params }: PageProps<"/[locale]/app/
   if (!admin || !isOwner(claims?.claims?.email as string | undefined)) notFound();
   const t = await getTranslations("eval");
 
-  const { data: set } = await admin.from("eval_briefs").select("run_id, parent_run_id, added_at").order("added_at");
-  const rows = (set ?? []) as { run_id: string; parent_run_id: string | null; added_at: string }[];
+  const { data: set } = await admin.from("eval_briefs").select("run_id, parent_run_id, added_at, core, holdout").order("added_at");
+  const rows = (set ?? []) as { run_id: string; parent_run_id: string | null; added_at: string; core: boolean; holdout: boolean }[];
   const briefs = (await Promise.all(rows.map((r) => loadEvalBrief(admin, r.run_id)))).filter((b) => b !== null);
 
   // One entry per brief: its researches' results merged (a clip counted once, with the keyword that first found it).
@@ -51,6 +52,13 @@ export default async function KeywordsPage({ params }: PageProps<"/[locale]/app/
     families.set(family, f);
   }
   const scored = keywordRows([...families.values()]);
+  // The briefs the new planner is tried on: core and hold-out originals, with the keywords they were first run with.
+  const previewBriefs: PreviewBrief[] = rows
+    .filter((r) => !r.parent_run_id && (r.core || r.holdout))
+    .flatMap((r) => {
+      const b = briefs.find((x) => x.run.id === r.run_id);
+      return b ? [{ runId: r.run_id, title: b.run.title, productName: b.run.product.name, competitors: b.run.competitors, keywords: b.run.keywords, holdout: r.holdout }] : [];
+    });
   const kinds = keywordGroups(scored, (r) => r.kind);
   const languages = keywordGroups(scored.filter((r) => r.kind !== "feeds"), (r) => (r.thai ? "thai" : "notThai"));
 
@@ -100,6 +108,7 @@ export default async function KeywordsPage({ params }: PageProps<"/[locale]/app/
       <div className="space-y-6 px-4 pb-16 md:px-10">
         {groupTable(t("keywords.byKind"), kinds, (k) => t(`keywords.kind.${k}`))}
         {groupTable(t("keywords.byLanguage"), languages, (k) => t(`keywords.lang.${k}`))}
+        <PlanPreview briefs={previewBriefs} />
         <section className="space-y-2 rounded-3xl border bg-card p-4">
           <h2 className="font-heading text-lg font-bold">{t("keywords.perBrief")}</h2>
           <div className="overflow-x-auto">

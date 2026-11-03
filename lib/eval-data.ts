@@ -23,6 +23,8 @@ export type EvalRun = {
   /** The search keywords as planned (the keyword scorecard). */
   keywords: string[];
   competitors: string[];
+  /** "v2" for a re-run whose keywords came from the keyword planner on trial (search quality S4). */
+  planner: "v1" | "v2";
 };
 
 /**
@@ -33,7 +35,7 @@ export async function loadEvalBrief(admin: Admin, runId: string) {
   const [{ data: run }, { data: rows }, { data: labelRows }] = await Promise.all([
     admin
       .from("research_runs")
-      .select("id, title, brief, region, platforms, goal, input, stats, product_id, created_at, finished_at, keywords")
+      .select("id, title, brief, region, platforms, goal, input, stats, product_id, created_at, finished_at, keywords, settings")
       .eq("id", runId)
       .maybeSingle(),
     admin
@@ -66,6 +68,7 @@ export async function loadEvalBrief(admin: Admin, runId: string) {
     stats: (run.stats ?? null) as RunStatsLite,
     keywords: (run.keywords as string[] | null) ?? [],
     competitors: input.competitors ?? [],
+    planner: (run.settings as { planner?: string } | null)?.planner === "v2" ? "v2" : "v1",
   };
   const clips: EvalClip[] = videos.map((v) => ({ id: v.dbId!, platform: v.platform as EvalPlatform, handle: v.creatorHandle }));
   const rowsTyped = (labelRows ?? []) as (LabelRow & { reason: string | null })[];

@@ -4,18 +4,19 @@ import { FlaskConical, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-import { type Agreement, AGREEMENT_BAR, agreement, type CalibrationExample, type Label } from "@/lib/eval";
+import { type Agreement, AGREEMENT_BAR, agreement, type Label } from "@/lib/eval";
 import type { RelevanceItem } from "@/lib/eval-check";
 import { trialRelevanceAction } from "../actions";
 
-const VERSIONS = ["v2", "v3"] as const;
+const VERSIONS = ["v1", "v4"] as const;
 type Version = (typeof VERSIONS)[number];
 
 /**
- * Tries the search's relevance check v2 and v3 on every clip you labelled, without storing anything: today's stored
- * score vs both, on the dev briefs (what they are tuned on), and on the test briefs only when `final`.
+ * Tries the search's relevance check v4 (pain-only clips are 1, search quality S4b) on every clip you labelled, without
+ * storing anything: today's stored score, v1 scored again on the same single model, and v4, on the dev briefs, and on
+ * the test briefs only when `final`.
  */
-export function RelevanceTrial({ items, calibration, final }: { items: RelevanceItem[]; calibration: CalibrationExample[]; final: boolean }) {
+export function RelevanceTrial({ items, final }: { items: RelevanceItem[]; final: boolean }) {
   const t = useTranslations("eval");
   const [progress, setProgress] = useState<{ done: number; of: number } | null>(null);
   const [scores, setScores] = useState<Record<Version, Map<string, Label>> | null>(null);
@@ -25,10 +26,10 @@ export function RelevanceTrial({ items, calibration, final }: { items: Relevance
       const ids = items.filter((i) => i.runId === runId).map((i) => i.item);
       return VERSIONS.flatMap((version) => Array.from({ length: Math.ceil(ids.length / 80) }, (_, k) => ({ runId, version, ids: ids.slice(k * 80, (k + 1) * 80) })));
     });
-    const out: Record<Version, Map<string, Label>> = { v2: new Map(), v3: new Map() };
+    const out: Record<Version, Map<string, Label>> = { v1: new Map(), v4: new Map() };
     setProgress({ done: 0, of: calls.length });
     for (const [n, c] of calls.entries()) {
-      const res = await trialRelevanceAction(c.runId, c.ids, c.version, c.version === "v3" ? calibration : []).catch(() => null);
+      const res = await trialRelevanceAction(c.runId, c.ids, c.version, []).catch(() => null);
       if (res?.ok) for (const s of res.scores) out[c.version].set(`${c.runId}:${s.item}`, s.score as Label);
       else toast.error(t("judgeFailed"));
       setProgress({ done: n + 1, of: calls.length });
@@ -43,20 +44,20 @@ export function RelevanceTrial({ items, calibration, final }: { items: Relevance
   const pair = (i: RelevanceItem, other: Label) => ({ platform: i.platform, thai: i.thai, user: i.user, other });
   const rows = scores
     ? halves.flatMap((h) => {
-        const mine = items.filter((i) => i.half === h && scores.v2.has(`${i.runId}:${i.item}`) && scores.v3.has(`${i.runId}:${i.item}`));
+        const mine = items.filter((i) => i.half === h && scores.v1.has(`${i.runId}:${i.item}`) && scores.v4.has(`${i.runId}:${i.item}`));
         return [
           { key: `${h}-today`, name: t("relTrial.today", { half: t(`trial.${h}`) }), a: agreement(mine.filter((i) => i.today !== null).map((i) => pair(i, i.today!))) },
           ...VERSIONS.map((v) => ({ key: `${h}-${v}`, name: t("relTrial.version", { version: v, half: t(`trial.${h}`) }), a: agreement(mine.map((i) => pair(i, scores[v].get(`${i.runId}:${i.item}`)!))) })),
         ];
       })
     : [];
-  const misses = scores ? items.filter((i) => i.half === "dev" && scores.v3.has(`${i.runId}:${i.item}`) && scores.v3.get(`${i.runId}:${i.item}`) !== i.user) : [];
+  const misses = scores ? items.filter((i) => i.half === "dev" && scores.v4.has(`${i.runId}:${i.item}`) && scores.v4.get(`${i.runId}:${i.item}`) !== i.user) : [];
   const cell = (a: Agreement, k: "exact" | "precision2" | "recall2") => <td className={`py-1.5 pr-3 tabular-nums ${k === "exact" ? "" : tone(a[k])}`}>{pct(a[k])}</td>;
 
   return (
     <section className="space-y-3 rounded-3xl border bg-card p-4">
       <h2 className="font-heading text-lg font-bold">{t("relTrial.title")}</h2>
-      <p className="text-xs text-muted-foreground">{t("relTrial.hint", { examples: calibration.length })}</p>
+      <p className="text-xs text-muted-foreground">{t("relTrial.hint")}</p>
       <button
         type="button"
         disabled={progress !== null || !items.length}
@@ -100,7 +101,7 @@ export function RelevanceTrial({ items, calibration, final }: { items: Relevance
               {misses.map((m) => (
                 <li key={`${m.runId}:${m.item}`} className="border-t pt-2">
                   <p className="text-xs text-muted-foreground">
-                    {m.product} · @{m.handle} · {t("relTrial.youVs", { you: m.user, today: m.today ?? "—", v2: scores.v2.get(`${m.runId}:${m.item}`) ?? "—", v3: scores.v3.get(`${m.runId}:${m.item}`) ?? "—" })}
+                    {m.product} · @{m.handle} · {t("relTrial.youVs", { you: m.user, today: m.today ?? "—", v1: scores.v1.get(`${m.runId}:${m.item}`) ?? "—", v4: scores.v4.get(`${m.runId}:${m.item}`) ?? "—" })}
                   </p>
                   <p className="line-clamp-2">{m.caption || "—"}</p>
                 </li>

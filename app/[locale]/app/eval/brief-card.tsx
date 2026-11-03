@@ -34,6 +34,8 @@ export type BriefView = {
   holdout: boolean;
   /** The original brief's title when this research is a re-run of it. */
   rerunOf: string | null;
+  /** "v2" when the re-run planned new keywords (search quality S4). */
+  planner: "v1" | "v2";
   judged: boolean;
   lists: { platform: EvalPlatform; clips: EvalItem[]; creators: EvalItem[] }[];
   line: string;
@@ -83,11 +85,11 @@ export function BriefCard({ view }: { view: BriefView }) {
   const [rerunning, startRerun] = useTransition();
   const [pending, start] = useTransition();
 
-  function rerun() {
-    if (!window.confirm(t("rerunConfirm"))) return;
+  function rerun(replan: boolean) {
+    if (!window.confirm(t(replan ? "replanConfirm" : "rerunConfirm"))) return;
     startRerun(async () => {
-      const res = await rerunBriefAction(view.runId, locale);
-      if (!res.ok) return void toast.error(t(res.error === "noGoal" ? "rerunNoGoal" : "rerunFailed"));
+      const res = await rerunBriefAction(view.runId, locale, replan);
+      if (!res.ok) return void toast.error(t(res.error === "noGoal" ? "rerunNoGoal" : res.error === "noPlan" ? "replanFailed" : "rerunFailed"));
       toast.success(t("rerunDone"));
       router.refresh();
     });
@@ -133,6 +135,7 @@ export function BriefCard({ view }: { view: BriefView }) {
             <p className="text-[11px] font-medium text-primary">
               <Repeat2 className="mr-1 inline size-3" />
               {t("rerunOf", { title: view.rerunOf })}
+              {view.planner === "v2" && <> · {t("replanned")}</>}
             </p>
           )}
           <p className="line-clamp-1 text-xs text-muted-foreground">
@@ -151,15 +154,26 @@ export function BriefCard({ view }: { view: BriefView }) {
           {judging ? <Loader2 className="size-3.5 animate-spin" /> : <Gavel className="size-3.5" />} {view.judged ? t("rejudge") : t("judge")}
         </button>
         {!view.rerunOf && (
-          <button
-            type="button"
-            onClick={rerun}
-            disabled={rerunning}
-            title={t("rerunTip")}
-            className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium disabled:opacity-60"
-          >
-            {rerunning ? <Loader2 className="size-3.5 animate-spin" /> : <Repeat2 className="size-3.5" />} {rerunning ? t("rerunning") : t("rerun")}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => rerun(false)}
+              disabled={rerunning}
+              title={t("rerunTip")}
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium disabled:opacity-60"
+            >
+              {rerunning ? <Loader2 className="size-3.5 animate-spin" /> : <Repeat2 className="size-3.5" />} {rerunning ? t("rerunning") : t("rerun")}
+            </button>
+            <button
+              type="button"
+              onClick={() => rerun(true)}
+              disabled={rerunning}
+              title={t("replanTip")}
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium disabled:opacity-60"
+            >
+              <Repeat2 className="size-3.5" /> {t("replan")}
+            </button>
+          </>
         )}
         <button
           type="button"

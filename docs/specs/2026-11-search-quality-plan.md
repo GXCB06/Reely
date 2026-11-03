@@ -366,6 +366,32 @@ Insta360 clips the owner had rejected.
   so they can't measure this.
 - **Measured with** a live batch on the 11 core briefs (about 250 credits), with re-plan on.
 
+**Status 2026-11-03: planner part built (0 extra credits), behind switches; the adaptive second pass is not built.**
+
+- **Keyword scorecard** (`/app/eval/keywords`, your labels):
+
+  | Kind | Your 2s per keyword | Your 2s / labelled |
+  |---|---|---|
+  | Category | 5.0 | 55% |
+  | Competitor brand | 2.7 | 68% |
+  | Problem / situation | 2.4 | 39% |
+  | How-to | 1.3 | 45% |
+
+  - Every pain phrase found 0 of your 2s: "month end close", "AI app revenue dashboard", "วิธีปิดงบการเงิน",
+    "ปิดงบสิ้นเดือน".
+  - Own names of new products found almost nothing.
+- **Planner v2** (`PLANNER_VERSION`, still "v1" live):
+  - startup: a feature phrase instead of the pain phrase;
+  - sell: 3 product-type phrases and 1 result phrase;
+  - every goal: no own name, no sentences, no pain-only phrase;
+  - shop and brand recipes unchanged.
+- **Relevance v4** (on trial): v1, but a clip only about the pain, with no product like it, is 1.
+- **Measuring tools:**
+  - free preview of the new plans on the scorecard;
+  - "Re-run with new keywords" on each brief (TikTok + YouTube only, `settings.planner = "v2"`);
+  - the v1 vs v4 relevance trial on the check page.
+- **Ship rule:** more of your 2s per research on core AND hold-out, and main-list P@10 not lower.
+
 ### S5 — Thin topics, said plainly (0 credits)
 
 - When a platform has fewer than 3 exact matches (e.g. Thai accounting on Instagram), the results say so. They offer

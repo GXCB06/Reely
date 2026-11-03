@@ -1066,12 +1066,12 @@
       "loadingMore": "Loading the next clips…"
     },
     "relTrial": {
-      "title": "Try the search's relevance check v2 / v3 on your labels",
-      "hint": "Scores every clip you labelled with two new versions of the search's relevance check (AI only, nothing stored) and compares them with today's stored score. v2: a stricter 2 and the brief as context; v3: v2 plus {examples} examples of your judgement from the dev briefs. Dev briefs: what they are tuned on. Test briefs: other products, measured once.",
+      "title": "Try the search's relevance check v4 on your labels",
+      "hint": "v4 scores a clip that is only about the pain or situation the product solves (no product like it in the video) 1 instead of 2: the keyword scorecard showed you label those 0. Every clip you labelled is scored with v1 and v4 on the same model (AI only, nothing stored) and compared with today's stored score. Dev briefs: what it is tuned on. Test briefs: other products, measured once.",
       "today": "Today's check · {half}",
       "version": "Check {version} · {half}",
-      "misses": "Where v3 still differs from you (dev briefs, {n})",
-      "youVs": "you {you} · today {today} · v2 {v2} · v3 {v3}"
+      "misses": "Where v4 still differs from you (dev briefs, {n})",
+      "youVs": "you {you} · today {today} · v1 {v1} · v4 {v4}"
     },
     "votesTrial": {
       "title": "Learning from your votes",
@@ -1130,7 +1130,22 @@
         "thai": "Thai",
         "notThai": "English / other"
       },
-      "note": "A result counts for the keyword that first found it. Instagram Reels found through accounts carry the account search's query, so they show under \"From accounts and feeds\"."
-    }
+      "note": "A result counts for the keyword that first found it. Instagram Reels found through accounts carry the account search's query, so they show under \"From accounts and feeds\".",
+      "preview": {
+        "title": "Preview: the new keyword planner (v2)",
+        "hint": "Plans every core and hold-out brief again with planner v2 (category, feature, AI-tool and competitor phrases; no own name, no pain-only or how-to phrases) and shows the new keywords next to the ones each brief first ran with. One AI call per brief, no credits, nothing stored.",
+        "run": "Preview new keywords ({n} briefs)",
+        "running": "Planning… {done}/{of}",
+        "old": "Keywords it ran with",
+        "new": "New plan (v2)",
+        "holdout": "hold-out",
+        "failed": "AI unavailable, try again"
+      }
+    },
+    "replan": "Re-run with new keywords",
+    "replanTip": "Plan new keywords with the keyword planner on trial (v2) and run them on TikTok + YouTube (search quality S4; credits as a normal research, ~5–10)",
+    "replanConfirm": "Plan new keywords (planner v2) and run them on TikTok + YouTube? About 5–10 credits and ~1 minute.",
+    "replanFailed": "Couldn’t plan new keywords (AI unavailable): nothing was run",
+    "replanned": "new keywords (planner v2)"
   }
 }

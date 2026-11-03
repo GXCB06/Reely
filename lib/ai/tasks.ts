@@ -133,12 +133,56 @@ const GOAL_KEYWORDS: Record<Goal, string[]> = {
   ],
 };
 
+export const PLANNER_VERSIONS = ["v1", "v2"] as const;
+export type PlannerVersion = (typeof PLANNER_VERSIONS)[number];
+/** The keyword planner the chat uses. v2 is on trial against the owner's labels (search quality S4). */
+export const PLANNER_VERSION: PlannerVersion = "v1";
+
+/**
+ * Keyword recipe v2 (search quality S4, from the keyword scorecard on the owner's labels): category, feature and
+ * competitor phrases found the most on-target clips; pain or situation phrases ("month end close") and the product's
+ * own name (new products have no videos yet) found almost none. Shop and brand are unchanged (no data yet).
+ */
+const GOAL_KEYWORDS_V2: Record<Goal, string[]> = {
+  ...GOAL_KEYWORDS,
+  sell: [
+    "- 3 phrases for the product type the way buyers search before buying: a review ('รีวิว<type>', '<type> review'),",
+    "  the plain type ('กล้องวงจรปิดไร้สาย', 'wireless mic'), and one specific variant ('ไมค์ติดปกเสื้อ', 'lavalier mic').",
+    "- 1 phrase naming a real competing product or brand (full real names only; list them in competitors).",
+    "- 1 phrase for the result the product promises, as buyers say it (for a serum: 'หน้าใส').",
+  ],
+  startup: [
+    "- 2 phrases the way apps and tools in this category caption or hashtag their OWN promo videos, so the search finds",
+    "  similar products marketing themselves: '<category> app', 'แอป<category>', 'best <category> apps'",
+    "  (for a fitness app: 'fitness app', 'แอปออกกำลังกาย'; for accounting software: 'แอปทำบัญชี', 'accounting app').",
+    "- 1 phrase for the product's main feature as a kind of app or tool ('workout tracker app', 'receipt scanner app',",
+    "  'แอปสแกนใบเสร็จ').",
+    "- 1 phrase for AI or tools that do this job ('AI ทำบัญชี', 'AI tool for <job>').",
+    "- 1 phrase naming a real similar product that markets a lot on short video, the way people search or tag it",
+    "  ('<brand> app', '<brand> รีวิว'). Full real names only (never guess); list them in competitors.",
+  ],
+};
+
+/** Rules every v2 plan follows, whatever the goal. */
+const PLANNER_V2_RULES = [
+  "Never use the product's own name as a keyword (new products have no videos yet), unless the user asked to look for it.",
+  "Prefer short, common phrases of 2-3 words. No sentences ('how to …', 'วิธี…'): they return few or no videos.",
+  "Never a phrase about only the pain or situation (e.g. 'month end close', 'ปิดงบสิ้นเดือน'): it finds clips that",
+  "show no product like this one.",
+];
+
 /** What a video must be about to count as clearly relevant (score 2) for each goal. */
 const GOAL_RELEVANCE: Record<Goal, string> = {
   sell: "The user sells this kind of product: 2 also covers videos that review, demo, unbox, compare or sell a similar product (any brand).",
   shop: "The user runs this kind of business: 2 also covers videos where a similar business promotes itself, shows behind the scenes, or customers show their visit.",
   startup: "The user wants to promote a product feature: 2 also covers a similar app or tool's own promo or demo video (the clearest model to learn from), and videos about the exact pain or situation the product solves (skits, rants, how-tos), even when no product is shown.",
   brand: "The user is a creator in this niche: 2 covers videos on the niche's topics; 1 covers adjacent topics the same viewers watch.",
+};
+
+/** Relevance v4: as v1, but a video only about the pain (no product like it) is 1, not 2 (the owner labelled them 0). */
+const GOAL_RELEVANCE_V4: Record<Goal, string> = {
+  ...GOAL_RELEVANCE,
+  startup: "The user wants to promote a product feature: 2 also covers a similar app or tool's own promo or demo video (the clearest model to learn from). A video only about the pain or situation the product solves, with no product like it, is 1.",
 };
 
 /** Scripts and ideas get posted as-is, so they must not promise results nobody measured. */
@@ -192,13 +236,17 @@ const GOAL_TODAY: Record<Goal, string> = {
   brand: "Prefer videos where one creator's hook or story carried the video.",
 };
 
-function goalPlan(goal: Goal | null | undefined): string[] {
-  if (goal) return [`The user ${GOAL_BRIEF[goal]}. Set goal to "${goal}". Keywords (${MAX_KEYWORDS}):`, ...GOAL_KEYWORDS[goal]];
+/** The goal and keyword part of the planning prompt, for a planner version. */
+export function goalPlan(goal: Goal | null | undefined, version: PlannerVersion = PLANNER_VERSION): string[] {
+  const recipes = version === "v2" ? GOAL_KEYWORDS_V2 : GOAL_KEYWORDS;
+  const rules = version === "v2" ? PLANNER_V2_RULES : [];
+  if (goal) return [`The user ${GOAL_BRIEF[goal]}. Set goal to "${goal}". Keywords (${MAX_KEYWORDS}):`, ...recipes[goal], ...rules];
   return [
     "First decide goal: what the user most likely wants the clips for, from their words, the product and the link:",
     ...(Object.keys(GOAL_BRIEF) as Goal[]).map((g) => `- ${g}: the user ${GOAL_BRIEF[g]}`),
     `Then write ${MAX_KEYWORDS} keywords with the recipe for that goal:`,
-    ...(Object.keys(GOAL_KEYWORDS) as Goal[]).flatMap((g) => [`If ${g}:`, ...GOAL_KEYWORDS[g]]),
+    ...(Object.keys(recipes) as Goal[]).flatMap((g) => [`If ${g}:`, ...recipes[g]]),
+    ...rules,
   ];
 }
 
@@ -219,6 +267,7 @@ export async function understandProduct(
   msg: ProductMessage & { english?: boolean },
   locale: string,
   onDraft?: (draft: PlanDraft) => void,
+  opts: { planner?: PlannerVersion } = {},
 ): Promise<Understanding & { source: "ai" | "sample" }> {
   const known = msg.saved
     ? { productName: msg.saved.name, whatItIs: msg.saved.description ?? "", audience: msg.saved.audience ?? "" }
@@ -248,7 +297,7 @@ export async function understandProduct(
         `Never add a year to a phrase (it is ${new Date().getFullYear()}; old years bring old videos).`,
         "Avoid broad or ambiguous phrases that also name unrelated things (e.g. a university faculty, a",
         "celebrity, a TV show): every phrase should still clearly point at the product's topic.",
-        ...goalPlan(msg.goal),
+        ...goalPlan(msg.goal, opts.planner),
         knownCompetitors ? "" : "competitors: real brand names only (never guess); prefer similar products that are big on TikTok, Reels or Shorts.",
         "Exclusions: single words that would bring off-topic videos. Never exclude a word that is part of the",
         "product's own topic or its audience's everyday work (e.g. for accounting software never exclude tax,",
@@ -363,17 +412,32 @@ const RELEVANCE_BATCH = 80;
 /** Lines per call when cover images are sent too. */
 const RELEVANCE_COVER_BATCH = 20;
 
-export const RELEVANCE_VERSIONS = ["v1", "v2", "v3"] as const;
+export const RELEVANCE_VERSIONS = ["v1", "v2", "v3", "v4"] as const;
 export type RelevanceVersion = (typeof RELEVANCE_VERSIONS)[number];
-/** The relevance check the search uses. v2 / v3 are on trial against the owner's labels (search quality S1b). */
+/** The relevance check the search uses. v2 / v3 failed their trial (S1b); v4 is on trial (S4b). */
 export const RELEVANCE_VERSION: RelevanceVersion = "v1";
 
 /**
  * The relevance rubric. v1: the product's field. v2 (after the owner's 391 labels): a stricter 2 (the product's own
  * category or job), neighbouring tools and advice about the field as 1, the founder's brief as context. v3: v2 plus
- * examples of how the owner judges, from other products.
+ * examples of how the owner judges, from other products. v4 (from the keyword scorecard): v1, but a video only about
+ * the problem, with no product like it, is 1 (the owner labelled pain-only clips 0).
  */
 function relevanceRubric(version: RelevanceVersion, brief: string, calibration: CalibrationExample[]): string[] {
+  if (version === "v4") {
+    return [
+      "First name the product's FIELD in 2-4 words (e.g. accounting & tax for SMEs). Then score:",
+      "2: about the product's category: a product like it (any brand, incl. a named competitor) shown, reviewed,",
+      "compared, demoed or promoting itself.",
+      "1: not about a product like it, but squarely inside its field: the problem it solves or the everyday situation",
+      "behind it with no such product, or field topics (e.g. for accounting software: tax tips, bookkeeping, invoices,",
+      "payroll, SME cash flow).",
+      "0: anything outside the field, even if loosely related: generic AI, app or tech tutorials, social",
+      "media tips, other software categories, entertainment, school life, other industries. Also 0 when a",
+      "word only matches by accident (a brand that shares a word, 'account' meaning a social media account,",
+      "'บัญชี' meaning a bank or TikTok account) or the caption is empty or too vague to tell.",
+    ];
+  }
   if (version === "v1") {
     return [
       "First name the product's FIELD in 2-4 words (e.g. accounting & tax for SMEs). Then score:",
@@ -421,8 +485,8 @@ export async function rateRelevance(
   opts: { version?: RelevanceVersion; brief?: string; calibration?: CalibrationExample[]; covers?: boolean; singleModel?: boolean } = {},
 ): Promise<{ scores: number[]; copy: (number | null)[]; brand: boolean[] } | null> {
   const version = opts.version ?? RELEVANCE_VERSION;
-  // v2+ read the caption up to 300 characters (the hashtags at the end say a lot).
-  const captionChars = version === "v1" ? 160 : 300;
+  // v2 / v3 read the caption up to 300 characters (the hashtags at the end say a lot); v4 changes only the rubric.
+  const captionChars = version === "v1" || version === "v4" ? 160 : 300;
   // The user's own 👍/👎 for this product: the clearest signal of what "relevant" means to them.
   const example = (c: { creatorHandle: string; caption: string }) => `- @${c.creatorHandle} | ${c.caption.slice(0, 120).replace(/\s+/g, " ")}`;
   const taught = [
@@ -472,7 +536,7 @@ export async function rateRelevance(
             ...relevanceRubric(version, opts.brief ?? "", opts.calibration ?? []),
             "For a business (B2B) product, personal/consumer topics are outside the field (personal debt, home loans,",
             "personal budgeting or investing, motivation and mindset clips).",
-            goal ? GOAL_RELEVANCE[goal] : "",
+            goal ? (version === "v4" ? GOAL_RELEVANCE_V4 : GOAL_RELEVANCE)[goal] : "",
             ...taught,
             "Also rate copy: how easily a small business could film a similar clip with a phone.",
             "2: easy (talking head, screen recording or demo, simple skit, product in hand, voiceover on photos or text).",

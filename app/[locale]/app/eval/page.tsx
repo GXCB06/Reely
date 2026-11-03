@@ -103,6 +103,7 @@ export default async function EvalPage({ params, searchParams }: PageProps<"/[lo
       core: inSet.get(b.run.id) ?? false,
       holdout: holdout.has(b.run.id),
       rerunOf: parentOf.has(b.run.id) ? (briefs.find((x) => x.run.id === parentOf.get(b.run.id))?.run.title ?? "—") : null,
+      planner: b.run.planner,
       judged,
       lists,
       line: judged ? line : t("notJudged"),

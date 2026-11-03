@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { AGREEMENT_BAR, type Agreement, type AgreementPair, agreement, EVAL_PLATFORMS, pickExamples } from "@/lib/eval";
+import { AGREEMENT_BAR, type Agreement, type AgreementPair, agreement, EVAL_PLATFORMS } from "@/lib/eval";
 import { loadCheck } from "@/lib/eval-check";
 import { feedClipStats, loadEvalBrief } from "@/lib/eval-data";
 import { isOwner } from "@/lib/limits";
@@ -99,14 +99,7 @@ export default async function CheckPage({ params, searchParams }: PageProps<"/[l
           <>
             <CoversTrial items={check.relevanceItems} />
             <VotesTrial items={check.relevanceItems} />
-            <RelevanceTrial
-              final={final}
-              items={check.relevanceItems}
-              calibration={pickExamples(
-                check.relevanceItems.map((r) => ({ family: r.family, item: r.item, label: r.user, product: r.product, caption: r.caption })),
-                new Set(check.relevanceItems.filter((r) => r.half === "dev").map((r) => r.family)),
-              )}
-            />
+            <RelevanceTrial final={final} items={check.relevanceItems} />
             <TrialRunner
               version="v4"
               final={final}

@@ -3,12 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { modelName } from "@/lib/ai/model";
-import { JUDGE_VERSION, JUDGE_VERSIONS, judgeRelevance, RELEVANCE_VERSIONS, rateRelevance } from "@/lib/ai/tasks";
+import { JUDGE_VERSION, JUDGE_VERSIONS, judgeRelevance, RELEVANCE_VERSIONS, rateRelevance, understandProduct } from "@/lib/ai/tasks";
 import { EVAL_PLATFORMS, type EvalClip, JUDGE_CLIPS, creatorItem, topClips, topCreators } from "@/lib/eval";
 import { type EvalBrief, loadEvalBrief } from "@/lib/eval-data";
 import { replayGaps } from "@/lib/eval-replay";
 import { isGoal } from "@/lib/goals";
 import { isOwner } from "@/lib/limits";
+import { readLink } from "@/lib/link-preview";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { startResearch } from "../research/actions";
@@ -374,31 +375,90 @@ export async function addBriefsAction(ids: string[], core: boolean, holdout = fa
   return { ok: !error };
 }
 
-/**
- * Re-runs a test brief with the same product, goal, region, platforms, settings and KEYWORDS (so the comparison is the
- * search, not the keyword planner) and adds the new research to the set, linked to the original. Spends credits like
- * any research (~30-40), so the page asks first.
- */
-export async function rerunBriefAction(id: string, lang: string) {
-  const admin = await ownerAdmin();
-  const parsed = z.object({ id: runId, lang: z.enum(["th", "en"]) }).safeParse({ id, lang });
-  if (!admin || !parsed.success) return { ok: false as const, error: "invalid" as const };
+type RunInputRow = { text?: string; url?: string | null; productName?: string; whatItIs?: string; audience?: string; reply?: string; competitors?: string[] };
+
+/** A test brief's research, as a re-run or a new keyword plan needs it. */
+async function briefRun(admin: Admin, id: string) {
   const { data: run } = await admin
     .from("research_runs")
     .select("id, brief, keywords, keyword_regions, keyword_english, exclusions, platforms, region, goal, settings, input, product_id")
-    .eq("id", parsed.data.id)
+    .eq("id", id)
     .maybeSingle();
-  if (!run || !isGoal(run.goal)) return { ok: false as const, error: "noGoal" as const };
-  const input = (run.input ?? {}) as { text?: string; url?: string | null; productName?: string; whatItIs?: string; audience?: string; reply?: string; competitors?: string[] };
-  const keywords = ((run.keywords as string[]) ?? []).map((text, i) => ({
-    text,
-    region: (((run.keyword_regions as string[] | null) ?? [])[i] === "global" ? "global" : "th") as "th" | "global",
-    english: ((run.keyword_english as string[] | null) ?? [])[i] || undefined,
-  }));
+  return run && isGoal(run.goal) ? { ...run, goal: run.goal, input: (run.input ?? {}) as RunInputRow } : null;
+}
+
+/**
+ * Plans a brief's keywords again with the keyword planner on trial (v2, search quality S4), from what the founder
+ * gave the original research: their words, link, region, goal and saved product. One AI call, no credits. Null when
+ * the AI is unavailable (the sample plan is no test of the planner).
+ */
+async function replan(admin: Admin, run: NonNullable<Awaited<ReturnType<typeof briefRun>>>, lang: "th" | "en") {
+  const { data: saved } = run.product_id
+    ? await admin.from("products").select("name, url, description, audience, competitors").eq("id", run.product_id).maybeSingle()
+    : { data: null };
+  const url = run.input.url ?? "";
+  const plan = await understandProduct(
+    {
+      text: (run.input.text ?? run.brief ?? "").slice(0, 1000),
+      link: url ? await readLink(url) : null,
+      image: null,
+      region: (run.region as "th" | "global" | "both") ?? "th",
+      saved,
+      goal: run.goal,
+      english: false,
+    },
+    lang,
+    undefined,
+    { planner: "v2" },
+  ).catch(() => null);
+  return plan?.source === "ai" ? plan : null;
+}
+
+/** The new keyword plan (v2) for a test brief, for the free preview on the keyword scorecard. */
+export async function previewPlanAction(id: string, lang: string) {
+  const admin = await ownerAdmin();
+  const parsed = z.object({ id: runId, lang: z.enum(["th", "en"]) }).safeParse({ id, lang });
+  if (!admin || !parsed.success) return { ok: false as const };
+  const run = await briefRun(admin, parsed.data.id);
+  const plan = run ? await replan(admin, run, parsed.data.lang) : null;
+  if (!plan) return { ok: false as const };
+  return { ok: true as const, keywords: plan.keywords.map((k) => k.text), competitors: plan.competitors };
+}
+
+/**
+ * Re-runs a test brief with the same product, goal, region, platforms, settings and KEYWORDS (so the comparison is the
+ * search, not the keyword planner) and adds the new research to the set, linked to the original. Spends credits like
+ * any research (~30-40), so the page asks first. With `replanKeywords` (search quality S4): new keywords from planner
+ * v2, TikTok + YouTube only (Instagram is creator-first, so keywords matter least there, and it costs the most), and
+ * the research is marked `settings.planner = "v2"`.
+ */
+export async function rerunBriefAction(id: string, lang: string, replanKeywords = false) {
+  const admin = await ownerAdmin();
+  const parsed = z.object({ id: runId, lang: z.enum(["th", "en"]), replan: z.boolean() }).safeParse({ id, lang, replan: replanKeywords });
+  if (!admin || !parsed.success) return { ok: false as const, error: "invalid" as const };
+  const run = await briefRun(admin, parsed.data.id);
+  if (!run) return { ok: false as const, error: "noGoal" as const };
+  const input = run.input;
+  const plan = parsed.data.replan ? await replan(admin, run, parsed.data.lang) : null;
+  if (parsed.data.replan && !plan) return { ok: false as const, error: "noPlan" as const };
+  const keywords = plan
+    ? plan.keywords.map((k) => ({ text: k.text.slice(0, 80), region: k.region }))
+    : ((run.keywords as string[]) ?? []).map((text, i) => ({
+        text,
+        region: (((run.keyword_regions as string[] | null) ?? [])[i] === "global" ? "global" : "th") as "th" | "global",
+        english: ((run.keyword_english as string[] | null) ?? [])[i] || undefined,
+      }));
+  const original = (run.platforms as ("tiktok" | "youtube" | "instagram")[]) ?? ["tiktok", "youtube"];
+  const kept = plan ? original.filter((p) => p !== "instagram") : original;
+  const platforms = kept.length ? kept : (["tiktok", "youtube"] as const);
   const settings = (run.settings ?? {}) as { days?: number; minViews?: number; language?: string };
   // Linked the moment the research row exists, so the link survives a run that outlasts this page's time limit.
-  const link = async (newId: string) =>
-    admin.from("eval_briefs").upsert({ run_id: newId, parent_run_id: parsed.data.id, core: false }, { onConflict: "run_id" });
+  const link = async (newId: string) => {
+    await admin.from("eval_briefs").upsert({ run_id: newId, parent_run_id: parsed.data.id, core: false }, { onConflict: "run_id" });
+    if (!plan) return;
+    const { data: row } = await admin.from("research_runs").select("settings").eq("id", newId).maybeSingle();
+    await admin.from("research_runs").update({ settings: { ...((row?.settings ?? {}) as object), planner: "v2" } }).eq("id", newId);
+  };
   const res = await startResearch({
     requestId: crypto.randomUUID(),
     text: (input.text ?? run.brief ?? "").slice(0, 1000),
@@ -409,11 +469,11 @@ export async function rerunBriefAction(id: string, lang: string) {
       whatItIs: (input.whatItIs ?? "").slice(0, 300),
       audience: (input.audience ?? "").slice(0, 200),
       reply: (input.reply ?? "").slice(0, 400),
-      competitors: (input.competitors ?? []).slice(0, 6),
+      competitors: (plan?.competitors.length ? plan.competitors : (input.competitors ?? [])).slice(0, 6),
     },
     keywords,
     exclusions: (run.exclusions as string[]) ?? [],
-    platforms: (run.platforms as ("tiktok" | "youtube" | "instagram")[]) ?? ["tiktok", "youtube"],
+    platforms: [...platforms],
     region: (run.region as "th" | "global" | "both") ?? "th",
     goal: run.goal,
     settings: {
