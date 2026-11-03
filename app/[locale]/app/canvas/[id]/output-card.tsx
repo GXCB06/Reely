@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Copy, FileText, Loader2, ThumbsDown, ThumbsUp, Wand2 } from "lucide-react";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useNow, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useRouter } from "@/i18n/navigation";
@@ -13,6 +13,8 @@ import { generateAction, saveScriptAction, voteOutputAction } from "../actions";
 export function OutputCard({ canvasId, output, perDay }: { canvasId: string; output: CanvasOutput; perDay: number }) {
   const t = useTranslations("canvas");
   const format = useFormatter();
+  // An explicit "now" (from the provider) keeps relative times the same on the server and in the browser.
+  const now = useNow();
   const locale = useLocale();
   const router = useRouter();
   const [copied, setCopied] = useState(false);
@@ -49,7 +51,7 @@ export function OutputCard({ canvasId, output, perDay }: { canvasId: string; out
     <article className="space-y-3 rounded-3xl border bg-card p-4" data-canvas-output={output.format}>
       <p className="text-xs text-muted-foreground">
         <span className="font-medium text-foreground">{t(`formats.${output.format}.name`)}</span>
-        {output.refine && <> · {t("refinedFrom", { kind: t(`refines.${output.refine}`) })}</>} · {format.relativeTime(new Date(output.createdAt))}
+        {output.refine && <> · {t("refinedFrom", { kind: t(`refines.${output.refine}`) })}</>} · {format.relativeTime(new Date(output.createdAt), now)}
         {output.instructions && <> · “{output.instructions}”</>}
       </p>
       <Content c={c} />

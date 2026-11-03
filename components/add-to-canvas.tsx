@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { addToCanvasAction, listCanvasesAction } from "@/app/[locale]/app/canvas/actions";
+import type { addToCanvasAction, listCanvasesAction } from "@/app/[locale]/app/canvas/actions";
 import { useRouter } from "@/i18n/navigation";
 import { MAX_CLIPS } from "@/lib/canvas";
 import { sourceOf } from "@/lib/events";
@@ -35,12 +35,23 @@ export function AddToCanvas({ videoId, compact = false }: { videoId: number; com
 
   function toggle() {
     setOpen((o) => !o);
-    if (!choices) void listCanvasesAction().then(setChoices).catch(() => setChoices({ canvases: [], products: [] }));
+    if (!choices) {
+      void fetch("/api/canvases")
+        .then((r) => (r.ok ? (r.json() as Promise<Choices>) : Promise.reject()))
+        .then(setChoices)
+        .catch(() => setChoices({ canvases: [], products: [] }));
+    }
   }
 
   function add(target: { canvasId: string } | { productId: string }) {
     start(async () => {
-      const res = await addToCanvasAction(target, videoId, sourceOf(pathname));
+      const res = (await fetch("/api/canvases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target, videoId, source: sourceOf(pathname) }),
+      })
+        .then((r) => r.json())
+        .catch(() => ({ ok: false, error: "invalid" }))) as Awaited<ReturnType<typeof addToCanvasAction>>;
       if (!res.ok) return void toast.error(res.error === "full" ? t("full") : t("failed"));
       setOpen(false);
       setChoices(null);
