@@ -6,7 +6,7 @@ import { type PostResult, postResult } from "@/lib/did-it-work";
 import { type CanvasContent, type CanvasFormat, type CanvasInputs, parseInputs } from "@/lib/canvas";
 import type { VideoRow } from "@/lib/db-mappers";
 import { type Goal, isGoal } from "@/lib/goals";
-import { usualScore } from "@/lib/scoring";
+import { usualScore, usualViewsExcluding } from "@/lib/scoring";
 import type { createClient } from "@/lib/supabase/server";
 import { firstSeconds, type Segment } from "@/lib/transcript";
 
@@ -46,13 +46,25 @@ export type PostedResult = {
   result: PostResult;
 };
 
-/** Linked posts with their result against each channel's usual views (from the cache; no credits). */
+/**
+ * Linked posts with their result against each channel's usual views (from the cache; no credits). The usual is the
+ * median of the channel's latest 60 cached posts without the linked one, the same basis as its My channels page.
+ */
 export async function postedResults(supabase: Supabase, ids: number[], now = Date.now()): Promise<Map<number, PostedResult>> {
   if (!ids.length) return new Map();
   const { data: rows } = await supabase.from("videos").select("id, platform, creator_handle, thumbnail_url, url, views, published_at").in("id", ids);
-  const handles = [...new Set((rows ?? []).map((r) => r.creator_handle as string))];
-  const { data: creators } = handles.length ? await supabase.from("creators").select("platform, handle, usual_views").in("handle", handles) : { data: [] };
-  const usualOf = new Map((creators ?? []).map((c) => [`${c.platform}:${c.handle}`, c.usual_views as number | null]));
+  const channels = [...new Map((rows ?? []).map((r) => [`${r.platform}:${r.creator_handle}`, { platform: r.platform as string, handle: r.creator_handle as string }])).values()];
+  const recentOf = new Map(
+    await Promise.all(
+      channels.map(async (c) => {
+        const { data } = await supabase.from("videos").select("id, views").eq("platform", c.platform).eq("creator_handle", c.handle).order("published_at", { ascending: false }).limit(60);
+        return [`${c.platform}:${c.handle}`, (data ?? []).map((v) => ({ id: String(v.id), views: v.views as number | null }))] as const;
+      }),
+    ),
+  );
+  const usualOf = new Map(
+    (rows ?? []).map((r) => [r.id as number, usualViewsExcluding(recentOf.get(`${r.platform}:${r.creator_handle}`) ?? [], String(r.id))]),
+  );
   return new Map(
     (rows ?? []).map((r) => [
       r.id as number,
@@ -63,7 +75,7 @@ export async function postedResults(supabase: Supabase, ids: number[], now = Dat
         thumbnailUrl: (r.thumbnail_url as string | null) ?? null,
         url: r.url as string,
         publishedAt: (r.published_at as string | null) ?? null,
-        result: postResult(r.views as number | null, usualOf.get(`${r.platform}:${r.creator_handle}`) ?? null, (r.published_at as string | null) ?? null, now),
+        result: postResult(r.views as number | null, usualOf.get(r.id as number) ?? null, (r.published_at as string | null) ?? null, now),
       },
     ]),
   );
