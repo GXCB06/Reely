@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
 import { OutlierCard } from "@/components/outlier-card";
 import { SaveButton } from "@/components/save-button";
+import { AddToCanvas } from "@/components/add-to-canvas";
 import { ClipPlayer } from "@/components/clip-player";
 import { TrackButton } from "@/components/tracking/track-button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -189,6 +190,7 @@ export default async function VideoPage({ params, searchParams }: PageProps<"/[l
               {t("openOriginal")} <ExternalLink className="size-3.5" />
             </a>
             <SaveButton videoId={video.id} initialSaved={Boolean(savedRow)} />
+            <AddToCanvas videoId={video.id} />
           </div>
           <TrackButton platform={video.platform} handle={video.creator_handle} initialTracked={Boolean(trackedRow)} />
           <Link

@@ -5,6 +5,7 @@ import { ReelyBubble, UserBubble } from "@/components/chat/research-chat";
 import { RegionIcon } from "@/components/chat/region-flag";
 import { OutlierCard } from "@/components/outlier-card";
 import { PlatformIcon } from "@/components/platform-icon";
+import { OpenInCanvas } from "@/components/open-in-canvas";
 import { FilterBar } from "@/components/results/filter-bar";
 import { FollowTopicButton } from "@/components/results/follow-topic-button";
 import { ExportDialog } from "@/components/results/export-dialog";
@@ -321,7 +322,10 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
             <section className="space-y-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h3 className="font-heading text-lg font-bold">{t("bestTitle", { n: top.length })}</h3>
-                <span className="text-xs text-muted-foreground">{t("bestHint")}</span>
+                <span className="flex flex-wrap items-center gap-3">
+                  <span className="text-xs text-muted-foreground">{t("bestHint")}</span>
+                  {run.product_id && run.status === "done" && <OpenInCanvas runId={run.id as string} />}
+                </span>
               </div>
               {run.product_id && <p className="-mt-2 text-xs text-muted-foreground">{t("teachHint", { product: input?.productName ?? "" })}</p>}
               {/* Ideas are written once the results are on screen; older researches without a goal have none. */}

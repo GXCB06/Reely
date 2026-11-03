@@ -17,6 +17,8 @@ import {
 import { canvasRefs, loadCanvas } from "@/lib/canvas-data";
 import { importClip } from "@/lib/clip-import";
 import { parseClipLink } from "@/lib/clip-link";
+import { recordEvent } from "@/lib/event-log";
+import { EVENT_SOURCES } from "@/lib/events";
 import { readLink } from "@/lib/link-preview";
 import { createClient } from "@/lib/supabase/server";
 
@@ -40,6 +42,71 @@ export async function createCanvasAction(productId: string, clipIds: number[] = 
     .single();
   refresh();
   return error || !data ? { ok: false as const } : { ok: true as const, id: data.id as string };
+}
+
+/** For "Add to canvas" on a clip: the user's recent canvases and their products (for "New canvas for …"). */
+export async function listCanvasesAction() {
+  const supabase = await createClient();
+  const [{ data: canvases }, { data: products }] = await Promise.all([
+    supabase.from("canvases").select("id, title, product_id, inputs").order("updated_at", { ascending: false }).limit(8),
+    supabase.from("products").select("id, name").order("created_at"),
+  ]);
+  const nameOf = new Map((products ?? []).map((p) => [p.id as string, p.name as string]));
+  return {
+    canvases: (canvases ?? []).map((c) => ({
+      id: c.id as string,
+      title: c.title as string,
+      product: nameOf.get(c.product_id as string) ?? "",
+      clips: parseInputs(c.inputs).clips,
+    })),
+    products: (products ?? []).map((p) => ({ id: p.id as string, name: p.name as string })),
+  };
+}
+
+/** "Add to canvas" from a clip card or video page: into an existing canvas, or a new one for a product. */
+export async function addToCanvasAction(target: { canvasId: string } | { productId: string }, videoId: number, source: string) {
+  const parsed = z
+    .object({
+      target: z.union([z.object({ canvasId: uuid }), z.object({ productId: uuid })]),
+      videoId: z.number().int().positive(),
+      source: z.enum(EVENT_SOURCES),
+    })
+    .safeParse({ target, videoId, source });
+  if (!parsed.success) return { ok: false as const, error: "invalid" as const };
+  const t = parsed.data.target;
+  let canvasId: string;
+  if ("canvasId" in t) {
+    const supabase = await createClient();
+    const { data } = await supabase.from("canvases").select("inputs").eq("id", t.canvasId).maybeSingle();
+    if (!data) return { ok: false as const, error: "invalid" as const };
+    if (parseInputs(data.inputs).clips.length >= MAX_CLIPS) return { ok: false as const, error: "full" as const };
+    if (!(await updateInputs(t.canvasId, (i) => ({ ...i, clips: [...new Set([...i.clips, parsed.data.videoId])] })))) {
+      return { ok: false as const, error: "invalid" as const };
+    }
+    canvasId = t.canvasId;
+  } else {
+    const res = await createCanvasAction(t.productId, [parsed.data.videoId]);
+    if (!res.ok) return { ok: false as const, error: "invalid" as const };
+    canvasId = res.id;
+  }
+  await recordEvent(await createClient(), { name: "canvas_add", source: parsed.data.source, props: { fresh: "productId" in t } });
+  return { ok: true as const, id: canvasId };
+}
+
+/**
+ * "Open in canvas" on a research: a new canvas for its product with the research's best 3 exact matches (the same
+ * order as its best 10), ready to generate.
+ */
+export async function openInCanvasAction(runId: string) {
+  if (!uuid.safeParse(runId).success) return { ok: false as const };
+  const supabase = await createClient();
+  const { data: run } = await supabase.from("research_runs").select("product_id").eq("id", runId).maybeSingle();
+  if (!run?.product_id) return { ok: false as const };
+  const { data: rows } = await supabase.from("run_results").select("video_id, relevance").eq("run_id", runId).order("rank").limit(40);
+  const best = (rows ?? []).filter((r) => r.relevance !== 0 && r.relevance !== 1).slice(0, 3).map((r) => r.video_id as number);
+  const res = await createCanvasAction(run.product_id as string, best);
+  if (res.ok) await recordEvent(supabase, { name: "canvas_open", source: "research", props: { clips: best.length } });
+  return res;
 }
 
 /** Reads, changes and writes a canvas's inputs (the user's own row only). */
@@ -170,6 +237,13 @@ export async function generateAction(
     .from("canvases")
     .update({ updated_at: new Date().toISOString(), ...(!canvas.title && title ? { title: title.slice(0, 80) } : {}) })
     .eq("id", canvas.id);
+  if (!error) {
+    await recordEvent(supabase, {
+      name: "canvas_generate",
+      source: "canvas",
+      props: { format: content.format, refine: parsed.data.refine?.kind ?? null, clips: canvas.clips.length },
+    });
+  }
   refresh();
   return error ? { ok: false as const, error: "failed" as const } : { ok: true as const };
 }
@@ -179,6 +253,7 @@ export async function voteOutputAction(outputId: string, vote: number | null) {
   if (!parsed.success) return { ok: false as const };
   const supabase = await createClient();
   const { error } = await supabase.from("canvas_outputs").update({ vote: parsed.data.vote }).eq("id", parsed.data.outputId);
+  if (!error) await recordEvent(supabase, { name: "canvas_vote", source: "canvas", props: { vote: parsed.data.vote } });
   refresh();
   return { ok: !error };
 }
@@ -202,5 +277,6 @@ export async function saveScriptAction(outputId: string, locale: string) {
     locale: parsed.data.lang,
     content: { ...script, source: "ai" },
   });
+  if (!error) await recordEvent(supabase, { name: "canvas_save_script", source: "canvas", props: { format: content.format } });
   return { ok: !error };
 }

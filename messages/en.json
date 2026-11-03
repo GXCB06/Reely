@@ -1271,6 +1271,13 @@
       "notFound": "Couldn't find that clip.",
       "limit": "Today's pasted-link limit is used up. Try again tomorrow.",
       "failed": "Couldn't read that clip. Try again."
-    }
+    },
+    "addToCanvas": "Add to canvas",
+    "addedTo": "Added to the canvas",
+    "openCanvas": "Open",
+    "alreadyIn": "already on it",
+    "newFor": "New canvas for {product}",
+    "openInCanvas": "Open in canvas",
+    "openInCanvasTip": "A new canvas with this research's best 3 clips, ready to write a script, hooks or a brief"
   }
 }

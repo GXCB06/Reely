@@ -25,6 +25,7 @@ describe("sourceOf", () => {
     expect(sourceOf("/th/app/research/123")).toBe("research");
     expect(sourceOf("/app/video/9")).toBe("video");
     expect(sourceOf("/en/app/saved")).toBe("saved");
+    expect(sourceOf("/th/app/canvas/abc")).toBe("canvas");
     expect(sourceOf("/th/app")).toBe("other");
   });
 });

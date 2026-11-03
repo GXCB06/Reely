@@ -2,6 +2,7 @@ import { BadgeCheck, Bookmark, Clapperboard, Eye, Flame, Heart, Layers, Lightbul
 import { getFormatter, getTranslations } from "next-intl/server";
 import { PlatformIcon } from "@/components/platform-icon";
 import { SaveButton } from "@/components/save-button";
+import { AddToCanvas } from "@/components/add-to-canvas";
 import { HoverPreview } from "@/components/clip-player";
 import { Thumb } from "@/components/thumb";
 import { Link } from "@/i18n/navigation";
@@ -207,7 +208,10 @@ export async function OutlierCard({
             >
               <Layers className="size-3.5" /> {t("format")}
             </Link>
-            <SaveButton videoId={video.dbId} initialSaved={saved} />
+            <span className="flex items-center">
+              <AddToCanvas videoId={video.dbId} compact />
+              <SaveButton videoId={video.dbId} initialSaved={saved} />
+            </span>
           </div>
         )}
       </div>

@@ -12,10 +12,17 @@ export const EVENT_NAMES = [
   "ask_failed",
   "save",
   "vote",
+  // Content Canvas: a clip added from a card or video page, a canvas opened from a research, a generation (props:
+  // format, refine), a script saved, a version voted on.
+  "canvas_add",
+  "canvas_open",
+  "canvas_generate",
+  "canvas_save_script",
+  "canvas_vote",
 ] as const;
 export type EventName = (typeof EVENT_NAMES)[number];
 
-export const EVENT_SOURCES = ["chat", "ask", "research", "video", "plan", "saved", "tracking", "other"] as const;
+export const EVENT_SOURCES = ["chat", "ask", "research", "video", "plan", "saved", "tracking", "canvas", "other"] as const;
 
 const propValue = z.union([z.string().max(60), z.number().finite(), z.boolean(), z.null()]);
 
@@ -35,5 +42,6 @@ export function sourceOf(pathname: string): (typeof EVENT_SOURCES)[number] {
   if (p.startsWith("/app/plan")) return "plan";
   if (p.startsWith("/app/saved")) return "saved";
   if (p.startsWith("/app/tracking")) return "tracking";
+  if (p.startsWith("/app/canvas")) return "canvas";
   return "other";
 }
