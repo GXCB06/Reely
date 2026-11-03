@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyFilters, diverseTop, dropForCreator, isBrandAccount, isExcluded, isOwnAccount, parseFilters, relevanceKeep, withCreatorFit } from "./results";
+import { applyFilters, diverseTop, dropForCreator, isBrandAccount, isExcluded, isOwnAccount, parseFilters, relevanceKeep, thinPlatforms, withCreatorFit } from "./results";
 
 describe("isExcluded", () => {
   it("matches Thai and English words inside captions", () => {
@@ -146,5 +146,16 @@ describe("dropForCreator", () => {
     expect(dropForCreator(0, 2)).toBe(false);
     expect(dropForCreator(1, 0)).toBe(false);
     expect(dropForCreator(null, 0)).toBe(false);
+  });
+});
+
+describe("thinPlatforms", () => {
+  const r = (platform: string, relevance: number | null) => ({ platform, relevance }) as Parameters<typeof thinPlatforms>[0][number];
+  it("names searched platforms with fewer than 3 exact matches, broader clips not counted", () => {
+    const rows = [r("tiktok", 2), r("tiktok", 2), r("tiktok", null), r("instagram", 2), r("instagram", 1), r("instagram", 1)];
+    expect(thinPlatforms(rows, ["tiktok", "youtube", "instagram"])).toEqual([
+      { platform: "youtube", exact: 0 },
+      { platform: "instagram", exact: 1 },
+    ]);
   });
 });

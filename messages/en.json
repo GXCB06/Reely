@@ -430,7 +430,13 @@
     },
     "igAccounts": "read {n} accounts, found {m} on-topic Reels",
     "broaderTitle": "Same audience, broader topic",
-    "broaderHint": "Inside your field but not exactly your product. Good for ideas."
+    "broaderHint": "Inside your field but not exactly your product. Good for ideas.",
+    "thinTitle": "Few videos are exactly about this",
+    "thinLine": "{platform}: {n, plural, =0 {no exact matches} one {# exact match} other {# exact matches}}",
+    "thinHint": "Short videos on exactly this topic are rare there right now, so Reely doesn't pad the list with loosely related clips.",
+    "thinBroader": "See {n} clips on the wider topic",
+    "thinWorldwide": "Search Thailand + worldwide",
+    "thinWorldwideTip": "Plans a new research that also searches worldwide (credits as a normal research)"
   },
   "card": {
     "save": "Save",

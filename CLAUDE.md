@@ -186,7 +186,8 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
   first (relevance 2, or not scored), then label, then views weighted by engagement
   (likes + 3x comments + 5x saves and shares per view, versus a typical clip on that platform: `engagementFactor`,
   `bestScore` in lib/scoring.ts), account fit and 👍/👎. The results page's best 10 come from exact matches only;
-  clips scored 1 get their own section, "Same audience, broader topic" (`topSplit` in lib/results.ts; search quality S1). Cards show the plain engagement % (likes + comments + saves + shares per view).
+  clips scored 1 get their own section, "Same audience, broader topic" (`topSplit` in lib/results.ts; search quality S1). A searched platform with fewer than 3 exact matches gets a plain
+  notice instead of padding (`thinPlatforms`; S5). Cards show the plain engagement % (likes + comments + saves + shares per view).
 - Design: Peekly-inspired — near-black sidebar, light content panel with rounded corners,
   lavender `page-wash` header, purple primary, rounded-2xl cards, pill buttons. Virlo is the
   reference for flows (brief → keywords → results, outlier cards with views + multiplier).

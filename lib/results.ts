@@ -69,6 +69,19 @@ export function topSplit<T extends FilterableResult>(rows: T[], score: (r: T) =>
   };
 }
 
+/** Fewer exact matches than this on a searched platform, and the results page says so (search quality S5). */
+export const THIN_EXACT = 3;
+
+/**
+ * The searched platforms with fewer than THIN_EXACT exact matches, and how many each has: a thin topic is said plainly
+ * instead of being padded with loosely related clips.
+ */
+export function thinPlatforms(rows: FilterableResult[], platforms: string[]): { platform: string; exact: number }[] {
+  return platforms
+    .map((platform) => ({ platform, exact: rows.filter((r) => r.platform === platform && !isBroader(r)).length }))
+    .filter((p) => p.exact < THIN_EXACT);
+}
+
 /** How much a result's account fitting the product (creator fit 0-2) weighs in the "best" order. */
 // Measured on the test set (2026-11-01): 0.85 / 0.6 bunched the top results on a few broad "fit 2" accounts
 // (concentration 27% → 38%), so the nudge is gentler.

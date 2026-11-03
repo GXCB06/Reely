@@ -21,7 +21,7 @@ import type { RunSummary } from "@/lib/ai/schemas";
 import type { AskAnswer, AskTurn } from "@/lib/ask";
 import { bestOrder } from "@/lib/ranking";
 import { type ResultRow, videoFromResultRow } from "@/lib/db-mappers";
-import { applyFilters, diverseTop, parseFilters, type PlatformTab, topSplit } from "@/lib/results";
+import { applyFilters, diverseTop, parseFilters, type PlatformTab, thinPlatforms, topSplit } from "@/lib/results";
 import { loadFeedback } from "@/lib/feedback-store";
 import { isGoal } from "@/lib/goals";
 import type { RegionChoice } from "@/lib/region";
@@ -99,6 +99,8 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
   // The best 10 from exact matches only; clips the relevance check called "same field, broader topic" get their own
   // section below (search quality S1: on the owner's labels the main list went from 53-62% to 71-86% on target).
   const { top, broader } = topSplit(all, score);
+  // Search quality S5: a platform with few exact matches is said plainly, with what can widen it.
+  const thin = thinPlatforms(all, (run.platforms as string[]) ?? []);
   const summary = run.summary as RunSummary | null;
   const ideaOf = new Map((summary?.ideas ?? []).map((x) => [x.videoId, x.idea]));
   const stats = run.stats as {
@@ -245,6 +247,35 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
           </div>
         )}
 
+        {run.status === "done" && !showAll && thin.length > 0 && (
+          <section className="space-y-2 rounded-2xl border border-amber-300/60 bg-amber-50 p-4 text-sm dark:bg-amber-950/20">
+            <p className="font-semibold">{t("thinTitle")}</p>
+            <p className="flex flex-wrap gap-x-4 gap-y-1">
+              {thin.map((p) => (
+                <span key={p.platform} className="inline-flex items-center gap-1.5">
+                  <PlatformIcon platform={p.platform as "tiktok" | "youtube" | "instagram"} className="size-3.5" />
+                  {t("thinLine", { platform: tc(`platform.${p.platform}`), n: p.exact })}
+                </span>
+              ))}
+            </p>
+            <p className="text-xs text-muted-foreground">{t("thinHint")}</p>
+            {(region === "th" || broader.length > 0) && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {broader.length > 0 && (
+                  <a href="#broader" className="chip">
+                    <ChevronDown className="size-3.5" /> {t("thinBroader", { n: broader.length })}
+                  </a>
+                )}
+                {region === "th" && (
+                  <Link href={again("both")} className="chip" title={t("thinWorldwideTip")}>
+                    <Globe className="size-3.5" /> {t("thinWorldwide")}
+                  </Link>
+                )}
+              </div>
+            )}
+          </section>
+        )}
+
         {fresh.length > 0 && !showAll && (
           <section className="space-y-4 rounded-3xl border-2 border-primary/30 bg-primary/5 p-5">
             <h3 className="font-heading text-lg font-bold">{t("freshTitle", { n: fresh.length })}</h3>
@@ -322,7 +353,7 @@ export default async function ResearchResultsPage({ params, searchParams }: Page
         )}
 
         {!showAll && broader.length > 0 && (
-          <section className="space-y-4">
+          <section id="broader" className="scroll-mt-6 space-y-4">
             <div>
               <h3 className="font-heading text-lg font-bold">{t("broaderTitle")}</h3>
               <p className="text-xs text-muted-foreground">{t("broaderHint")}</p>
