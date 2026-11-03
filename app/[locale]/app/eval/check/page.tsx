@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { AGREEMENT_BAR, type Agreement, type AgreementPair, agreement, EVAL_PLATFORMS, pickExamples } from "@/lib/eval";
 import { loadCheck } from "@/lib/eval-check";
-import { loadEvalBrief } from "@/lib/eval-data";
+import { feedClipStats, loadEvalBrief } from "@/lib/eval-data";
 import { isOwner } from "@/lib/limits";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -32,7 +32,7 @@ export default async function CheckPage({ params, searchParams }: PageProps<"/[l
   const { data: set } = await admin.from("eval_briefs").select("run_id, parent_run_id, added_at");
   const rows = (set ?? []) as { run_id: string; parent_run_id: string | null; added_at: string }[];
   const briefs = (await Promise.all(rows.map((r) => loadEvalBrief(admin, r.run_id)))).filter((b) => b !== null);
-  const check = await loadCheck(admin, rows, briefs);
+  const [check, feeds] = await Promise.all([loadCheck(admin, rows, briefs), feedClipStats(admin, briefs)]);
   const next = check.sample.find((s) => s.user === null) ?? null;
   const done = check.sample.length - check.sample.filter((s) => s.user === null).length;
 
@@ -152,6 +152,35 @@ export default async function CheckPage({ params, searchParams }: PageProps<"/[l
               </section>
             )}
           </>
+        )}
+        {/* S2: what the clips from creators' feeds add, on your labels. */}
+        {feeds.length > 0 && (
+          <section className="space-y-2 rounded-3xl border bg-card p-4">
+            <h2 className="font-heading text-lg font-bold">{t("feeds.title")}</h2>
+            <p className="text-xs text-muted-foreground">{t("feeds.hint")}</p>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-sm">
+                <thead className="text-left text-xs text-muted-foreground">
+                  <tr>
+                    <th className="py-1.5 pr-3 font-medium" />
+                    <th className="py-1.5 pr-3 font-medium">{t("feeds.clips")}</th>
+                    <th className="py-1.5 pr-3 font-medium">{t("feeds.labelled")}</th>
+                    <th className="py-1.5 pr-3 font-medium">{t("feeds.onTarget")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {feeds.map((r) => (
+                    <tr key={r.runId} className="border-t">
+                      <td className="py-1.5 pr-3 font-medium">{r.title}</td>
+                      <td className="py-1.5 pr-3 tabular-nums">{r.clips}</td>
+                      <td className="py-1.5 pr-3 tabular-nums">{r.labelled}</td>
+                      <td className="py-1.5 pr-3 tabular-nums">{r.labelled ? `${r.onTarget} (${pct(r.onTarget / r.labelled)})` : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
         )}
       </div>
     </div>

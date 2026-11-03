@@ -102,3 +102,41 @@ export async function clipLabelRows<T>(admin: Admin, runIds: string[], columns: 
     if (!data || data.length < PAGE) return out;
   }
 }
+
+/**
+ * Clips a research got from creators' feeds rather than from its keyword search (S2): for owner researches that
+ * stored their candidate pool, a result that isn't in the pool came from a feed. Per research: how many, how many the
+ * owner labelled, and how many of those are on target (2). Researches without a stored pool are left out.
+ */
+export async function feedClipStats(admin: Admin, briefs: EvalBrief[]) {
+  const ids = briefs.map((b) => b.run.id);
+  const pool = new Map<string, Set<string>>();
+  for (let from = 0; ids.length; from += PAGE) {
+    const { data, error } = await admin
+      .from("run_candidates")
+      .select("run_id, platform, platform_video_id")
+      .in("run_id", ids)
+      .order("run_id")
+      .order("platform_video_id")
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(error.message);
+    for (const r of (data ?? []) as { run_id: string; platform: string; platform_video_id: string }[]) {
+      pool.set(r.run_id, (pool.get(r.run_id) ?? new Set()).add(`${r.platform}:${r.platform_video_id}`));
+    }
+    if (!data || data.length < PAGE) break;
+  }
+  return briefs
+    .filter((b) => pool.has(b.run.id))
+    .map((b) => {
+      const fromFeeds = b.videos.filter((v) => !pool.get(b.run.id)!.has(`${v.platform}:${v.platformVideoId}`));
+      const labelled = fromFeeds.filter((v) => b.userLabels.has(String(v.dbId)));
+      return {
+        runId: b.run.id,
+        title: b.run.title,
+        createdAt: b.run.createdAt,
+        clips: fromFeeds.length,
+        labelled: labelled.length,
+        onTarget: labelled.filter((v) => b.userLabels.get(String(v.dbId)) === 2).length,
+      };
+    });
+}

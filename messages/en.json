@@ -1092,6 +1092,13 @@
       "text": "Caption only · {group}",
       "covers": "Caption + cover · {group}"
     },
-    "addHoldout": "Add as hold-out"
+    "addHoldout": "Add as hold-out",
+    "feeds": {
+      "title": "Clips added from creators' feeds",
+      "hint": "For researches that stored their candidate pool: results the keyword search never found came from the feeds of accounts it looked up (similar products and, since S2, on-topic accounts). Their precision, on your labels.",
+      "clips": "From feeds",
+      "labelled": "You labelled",
+      "onTarget": "On target (2)"
+    }
   }
 }
