@@ -374,8 +374,11 @@ export function BoardView({
           onEdgesDelete={onEdgesDelete}
           fitView
           fitViewOptions={{ padding: 0.15 }}
-          minZoom={0.3}
-          colorMode="system"
+          // Fit again once every node has its real size (custom nodes are measured after the first paint).
+          onInit={(flow) => setTimeout(() => void flow.fitView({ padding: 0.15 }), 60)}
+          minZoom={0.2}
+          // Reely is light-only; "system" would put React Flow's dark class on the board and flip the theme inside it.
+          colorMode="light"
           proOptions={{ hideAttribution: false }}
         >
           <Background gap={20} size={1} />
