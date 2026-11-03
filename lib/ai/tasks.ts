@@ -7,7 +7,7 @@ import { firstSeconds, type Segment } from "@/lib/transcript";
 import { keywordRegions, type RegionChoice } from "@/lib/region";
 import { formatMultiplier } from "@/lib/scoring";
 import { type CalibrationExample, combineJudgements } from "@/lib/eval";
-import { aiCallOptions, getModel, getSingleModel, languageName } from "./model";
+import { aiCallOptions, getModel, getSingleModel, languageName, type TrialModel } from "./model";
 import {
   MAX_KEYWORDS,
   planSchema,
@@ -483,7 +483,7 @@ export async function rateRelevance(
   videos: { caption: string; creatorHandle: string; thumbnailUrl?: string | null }[],
   goal?: Goal | null,
   examples?: Feedback["examples"] | null,
-  opts: { version?: RelevanceVersion; brief?: string; calibration?: CalibrationExample[]; covers?: boolean; singleModel?: boolean } = {},
+  opts: { version?: RelevanceVersion; brief?: string; calibration?: CalibrationExample[]; covers?: boolean; singleModel?: true | TrialModel } = {},
 ): Promise<{ scores: number[]; copy: (number | null)[]; brand: boolean[] } | null> {
   const version = opts.version ?? RELEVANCE_VERSION;
   // v2 / v3 read the caption up to 300 characters (the hashtags at the end say a lot); v4 changes only the rubric.
@@ -499,7 +499,7 @@ export async function rateRelevance(
       : []),
   ];
   // Trials comparing two prompts use one model only, with more time (see getSingleModel).
-  const model = opts.singleModel ? getSingleModel() : getModel();
+  const model = opts.singleModel ? getSingleModel(opts.singleModel === true ? undefined : opts.singleModel) : getModel();
   const timeout = opts.singleModel ? 90_000 : null;
   if (!model || !videos.length) return null;
   // With cover images the model also looks at each clip's cover (on trial: does the picture carry what the caption

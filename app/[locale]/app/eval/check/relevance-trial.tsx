@@ -10,6 +10,8 @@ import { trialRelevanceAction } from "../actions";
 
 const VERSIONS = ["v1", "v4"] as const;
 type Version = (typeof VERSIONS)[number];
+/** The models a trial may run on (TRIAL_MODELS in lib/ai/model.ts): both versions always run on the one picked. */
+const MODELS = ["gemini-3.1-flash-lite", "gemini-flash-lite-latest"] as const;
 
 /**
  * Tries the search's relevance check v4 (pain-only clips are 1, search quality S4b) on every clip you labelled, without
@@ -20,6 +22,7 @@ export function RelevanceTrial({ items, final }: { items: RelevanceItem[]; final
   const t = useTranslations("eval");
   const [progress, setProgress] = useState<{ done: number; of: number } | null>(null);
   const [scores, setScores] = useState<Record<Version, Map<string, Label>> | null>(null);
+  const [model, setModel] = useState<(typeof MODELS)[number]>(MODELS[0]);
 
   async function run() {
     const calls = [...new Set(items.map((i) => i.runId))].flatMap((runId) => {
@@ -29,7 +32,10 @@ export function RelevanceTrial({ items, final }: { items: RelevanceItem[]; final
     const out: Record<Version, Map<string, Label>> = { v1: new Map(), v4: new Map() };
     setProgress({ done: 0, of: calls.length });
     for (const [n, c] of calls.entries()) {
-      const res = await trialRelevanceAction(c.runId, c.ids, c.version, []).catch(() => null);
+      // A busy model fails a batch now and then: one more try before it counts as missing.
+      const ask = () => trialRelevanceAction(c.runId, c.ids, c.version, [], null, false, model).catch(() => null);
+      const first = await ask();
+      const res = first?.ok ? first : await ask();
       if (res?.ok) for (const s of res.scores) out[c.version].set(`${c.runId}:${s.item}`, s.score as Label);
       else toast.error(t("judgeFailed"));
       setProgress({ done: n + 1, of: calls.length });
@@ -58,6 +64,22 @@ export function RelevanceTrial({ items, final }: { items: RelevanceItem[]; final
     <section className="space-y-3 rounded-3xl border bg-card p-4">
       <h2 className="font-heading text-lg font-bold">{t("relTrial.title")}</h2>
       <p className="text-xs text-muted-foreground">{t("relTrial.hint")}</p>
+      <label className="flex items-center gap-2 text-xs">
+        {t("relTrial.model")}
+        <select
+          value={model}
+          disabled={progress !== null}
+          onChange={(e) => setModel(e.target.value as (typeof MODELS)[number])}
+          data-trial="model"
+          className="rounded-full border bg-background px-2 py-1"
+        >
+          {MODELS.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+      </label>
       <button
         type="button"
         disabled={progress !== null || !items.length}

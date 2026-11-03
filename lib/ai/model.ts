@@ -83,11 +83,16 @@ export function aiCallOptions(timeoutMs = Number(process.env.AI_TIMEOUT_MS) || 2
   };
 }
 
+/** Models a trial may run on (one per trial): the main one, or the last-resort one when the main is overloaded. */
+export const TRIAL_MODELS = [MAIN_MODEL, "gemini-flash-lite-latest"] as const;
+export type TrialModel = (typeof TRIAL_MODELS)[number];
+
 /**
- * The main model alone, with no fallback (null when no key is set). For test-set trials that compare two prompts: a
- * fallback would answer some batches with another model and make the comparison unfair.
+ * One model alone, with no fallback (null when no key is set): the main model unless a trial picks another. For
+ * test-set trials that compare two prompts: a fallback would answer some batches with another model and make the
+ * comparison unfair.
  */
-export function getSingleModel() {
+export function getSingleModel(id?: TrialModel) {
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) return null;
-  return google(modelName());
+  return google(id ?? modelName());
 }

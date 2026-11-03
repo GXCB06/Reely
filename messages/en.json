@@ -1077,7 +1077,8 @@
       "today": "Today's check · {half}",
       "version": "Check {version} · {half}",
       "misses": "Where v4 still differs from you (dev briefs, {n})",
-      "youVs": "you {you} · today {today} · v1 {v1} · v4 {v4}"
+      "youVs": "you {you} · today {today} · v1 {v1} · v4 {v4}",
+      "model": "Model (v1 and v4 both run on it; pick the other one when this one is overloaded)"
     },
     "votesTrial": {
       "title": "Learning from your votes",

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { modelName } from "@/lib/ai/model";
+import { modelName, TRIAL_MODELS } from "@/lib/ai/model";
 import { JUDGE_VERSION, JUDGE_VERSIONS, judgeRelevance, RELEVANCE_VERSIONS, rateRelevance, understandProduct } from "@/lib/ai/tasks";
 import { EVAL_PLATFORMS, type EvalClip, JUDGE_CLIPS, creatorItem, topClips, topCreators } from "@/lib/eval";
 import { type EvalBrief, loadEvalBrief } from "@/lib/eval-data";
@@ -195,7 +195,7 @@ export async function trialJudgeAction(id: string, items: string[], version: str
  * Tries a relevance-check version on some of one brief's labelled clips and returns its scores WITHOUT storing them,
  * so a new check is compared with the owner's labels before the search uses it. AI only, no credits.
  */
-export async function trialRelevanceAction(id: string, items: string[], version: string, calibration: unknown, votes?: unknown, covers = false) {
+export async function trialRelevanceAction(id: string, items: string[], version: string, calibration: unknown, votes?: unknown, covers = false, model?: string) {
   const admin = await ownerAdmin();
   const parsed = z
     .object({
@@ -230,7 +230,7 @@ export async function trialRelevanceAction(id: string, items: string[], version:
     calibration: parsed.data.calibration,
     covers: withCovers,
     // Trials compare prompts: one model, no fallback, so no batch is answered by a different model.
-    singleModel: true,
+    singleModel: TRIAL_MODELS.find((m) => m === model) ?? true,
   });
   if (!rated) return { ok: false as const };
   return { ok: true as const, scores: list.map((item, i) => ({ item, score: rated.scores[i] })) };
