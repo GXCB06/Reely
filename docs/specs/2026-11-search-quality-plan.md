@@ -259,6 +259,32 @@ What this tells us:
 - **The likely gap is what the caption can't show:** the owner watched the clips. The next free test is the cover
   image alongside the caption. Transcripts would cost credits (rule 6).
 
+#### Cover images (2026-11-03)
+
+Today's check scored each labelled clip twice with one model (no fallback): from the caption alone, then from the
+caption plus the clip's cover (batches of 20). It covered 239 of 391 clips; the rest hit Gemini busy errors in one of
+the two arms.
+
+| 239 clips | Same label | Says 2 → you agree | Your 2s it finds | Kappa |
+|---|---|---|---|---|
+| Caption only | 54% | 71% | 75% | 0.18 |
+| Caption + cover | 62% | 72% | 85% | 0.29 |
+| (stored scores, for reference) | 62% | 75% | 88% | 0.30 |
+
+- **Test briefs (62 clips):** caption only 71% / 77%; caption + cover 67% / 77%.
+- **Dev briefs (177 clips):** caption only 71% / 75%; caption + cover 73% / 87%.
+
+What this shows:
+- **Like the owner's votes, the cover raises overall agreement and finds more of the owner's 2s.** "Says 2 → you
+  agree" doesn't move (71% → 72%; 71% → 67% on the test briefs).
+- **Fresh scores and stored scores differ by about 4 points** on the same clips: the check's own run-to-run noise.
+
+**Decision: relevance tuning is parked.**
+- Captions, covers, rubric rewrites and votes all land at about 70–75% on "2", against the owner's ~84%.
+- What's left is what the video says and shows, which needs transcripts (credits).
+- S1 already keeps the broader clips out of the main list.
+- Covers stay available to trials (\`rateRelevance\` \`covers\`); real searches don't send them.
+
 - **Store the candidate pool.** Store every candidate a research saw, kept or dropped, in a new table `run_candidates`.
   Each row holds:
   - the clip, its platform and keyword;
