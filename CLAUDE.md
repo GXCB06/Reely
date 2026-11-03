@@ -55,6 +55,7 @@ lib/events.ts                 # client_events names and sources (lib/event-log.t
 lib/export.ts                 # research export: CSV (Excel), Markdown (for Claude / ChatGPT), JSON; data from lib/export-data.ts, served by app/api/research/[id]/export
 lib/embed.ts                  # official TikTok / YouTube / Instagram embed players (components/clip-player.tsx: hover preview + in-app player)
 lib/plan.ts                   # 7-day plan per product (content_plans): 👍 + saved + latest research's best clips → one AI call
+lib/canvas.ts                 # Content Canvas formats, inputs, copy text (pure); data in lib/canvas-data.ts, prompt `canvasPrompt` / `writeCanvas` in lib/ai/tasks.ts, pages app/[locale]/app/canvas
 lib/today.ts                  # Today page: new breakouts (7 days) from tracked accounts + followed topics → 3-5 ideas
 lib/formats.ts                # format explorer: same sound + format search → topics, sounds, stage (lib/format-stats.ts)
 lib/search-settings.ts        # time window, minimum views, caption language (shared by client and server)
@@ -165,6 +166,10 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
     once per brief, saved on each research of that brief; about every 20th clip is a hidden repeat that measures label
     consistency). Report numbers with "Only my labels" and their human coverage; the AI judge (v3; v4 failed its test
     half on 2026-11-02) only fills places not labelled yet, and is trusted only while it agrees with those labels.
+22. Content Canvas (`/app/canvas`, v0.3 Part A): one AI call per generation or one-tap rewrite, **no credits**, at most
+    `CANVAS_PER_DAY` (40) per person per rolling 24 h. It reads only what is stored (captions, cached breakdowns, transcripts
+    already read); a pasted clip link follows rule 19, and "Read what the clip says" stays on the video page (rule 6). No
+    AI video, voice or image generation (paid providers).
 
 ## Security rules
 
@@ -209,5 +214,6 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 - Use Virlo's API (its terms forbid competing products).
 - Build billing, teams, an open-ended Copilot chat (the Home chat only runs the research flow; the "Ask Reely" box
   under a research only answers from that research's clips (reply, clips, hooks, a script from one of them) or proposes
-  a new search: `followUpAction`),
+  a new search: `followUpAction`; the Content Canvas runs fixed formats only, with one optional extra line, never a
+  chat thread), a model picker,
   bring-your-own AI keys, alerts, or anything listed in docs/SPEC.md §3.

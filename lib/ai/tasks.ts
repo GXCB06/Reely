@@ -42,7 +42,12 @@ import {
   type AccountType,
   creatorFitSchema,
   igSuggestSchema,
+  canvasBriefSchema,
+  canvasCaptionSchema,
+  canvasHooksSchema,
+  canvasScriptSchema,
 } from "./schemas";
+import type { CanvasContent, CanvasFormat, CanvasRefine } from "@/lib/canvas";
 
 // Every task falls back to deterministic sample output when Gemini is not configured or fails,
 // so the app keeps working (and costs nothing) during development.
@@ -805,6 +810,137 @@ export async function makeMyVersion(
     borrowed: th ? "ยืมโครงสร้าง ฮุก → ปัญหา → เดโม → ผลลัพธ์ → CTA" : "Borrowed structure: hook → problem → demo → result → CTA",
     source: "sample",
   };
+}
+
+/** A reference clip on a canvas, as its prompt reads it. */
+export type CanvasRef = {
+  handle: string;
+  platform: string;
+  views: number | null;
+  /** Views ÷ the creator's usual, when known. */
+  usual: number | null;
+  caption: string;
+  hook: string | null;
+  format: string | null;
+  angle: string | null;
+  /** What is really said first, when the user read the clip (transcript). */
+  spoken: string | null;
+};
+
+/** What each canvas format asks for. */
+const CANVAS_FORMAT_RULES: Record<CanvasFormat, (goal: Goal | null) => string[]> = {
+  script: (goal) => [
+    "Write a filmable short-form script, 20-45 seconds.",
+    ...(goal ? GOAL_BEATS[goal] : ["Beats in order: hook, setup, demo, payoff, cta."]),
+  ],
+  demo: () => ["Write a product demo script, 20-40 seconds (screen recording or phone over the shoulder).", ...GOAL_BEATS.startup],
+  shopReview: () => ["Write a review / unboxing script, 20-40 seconds, with the product in hand.", ...GOAL_BEATS.sell],
+  hooks: () => [
+    "Write 3 different openings for the first 1-2 seconds, each under 12 words. Each borrows a DIFFERENT reference's kind",
+    "of opening (a question, a bold claim, a reveal, a relatable moment...), in new words.",
+  ],
+  brief: () => [
+    "Write a brief to send to a creator or influencer who will film this video for the founder: what the video is, 3-8 shots",
+    "in order with the line to say and a direction, what it must get across, and what to avoid (including any claim the",
+    "product description doesn't support).",
+  ],
+  caption: () => [
+    "Write 3 different post captions (1-2 sentences each, up to 6 relevant hashtags) for a clip the founder already filmed,",
+    "described in their note.",
+  ],
+};
+
+const CANVAS_REFINE_RULES: Record<CanvasRefine, string> = {
+  shorter: "Make it shorter and tighter: fewer words per line; cut anything that doesn't earn its place.",
+  casual: "Make the language casual and spoken, the way Thai creators really talk on TikTok (natural Thai, not formal).",
+  strongerHook: "Make the opening much stronger: it must stop the scroll in the first second.",
+  shopCta: "End with a clear TikTok Shop call to action: tap the basket (ตะกร้า), with a reason to buy now.",
+  english: "Rewrite it in English.",
+};
+
+/**
+ * The Content Canvas prompt: the product, the reference clips, the founder's note and page, one fixed format, and an
+ * optional extra line or a one-tap rewrite of the previous version. Grounded: structure is borrowed, never words or
+ * numbers, and every part names the reference it borrows from.
+ */
+export function canvasPrompt(o: {
+  format: CanvasFormat;
+  refs: CanvasRef[];
+  product: ProductInput & { competitors?: string[] };
+  goal: Goal | null;
+  note: string;
+  page: LinkPreview | null;
+  instructions: string;
+  locale: string;
+  refine?: { kind: CanvasRefine; previous: unknown } | null;
+}): string {
+  const language = o.refine?.kind === "english" ? "English" : languageName(o.locale);
+  return [
+    `You help a founder make short-form content for THEIR OWN product. Write every field in ${language}.`,
+    ...CANVAS_FORMAT_RULES[o.format](o.goal),
+    o.goal ? `The founder ${GOAL_BRIEF[o.goal]}.` : "",
+    "Borrow the STRUCTURE of the reference clips (hook style, format, pacing, angle), never their words, jokes or footage,",
+    "and say in each `from` which reference (@handle) a part borrows from (empty when it is new). Make it filmable by the",
+    "founder with a phone. Only claim what the product description or the founder's note says.",
+    NO_MADE_UP_NUMBERS,
+    "",
+    `Product: ${o.product.name}`,
+    o.product.description ? `What it does: ${o.product.description}` : "",
+    o.product.audience ? `For: ${o.product.audience}` : "",
+    o.product.url ? `Link: ${o.product.url}` : "",
+    o.product.competitors?.length ? `Competitors: ${o.product.competitors.join(", ")}` : "",
+    o.note ? `\nThe founder's note (follow it): ${o.note}` : "",
+    o.page ? `\nA page the founder added (${o.page.url}): ${o.page.title ?? ""}. ${o.page.description ?? ""} ${o.page.text.slice(0, 1200)}` : "",
+    "",
+    o.refs.length ? "Reference clips:" : "No reference clips: use the formats that work for this kind of product.",
+    ...o.refs.map((r) =>
+      [
+        `- @${r.handle} (${r.platform}, ${r.views ?? "?"} views${r.usual !== null ? `, ${formatMultiplier(r.usual)}x their usual` : ""})`,
+        r.hook ? `  hook: ${r.hook}` : "",
+        r.format ? `  format: ${r.format}` : "",
+        r.angle ? `  angle: ${r.angle}` : "",
+        r.spoken ? `  what it really says first: "${r.spoken}"` : "",
+        `  caption: ${r.caption.slice(0, 300).replace(/\s+/g, " ")}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    ),
+    o.instructions ? `\nExtra from the founder: ${o.instructions}` : "",
+    ...(o.refine
+      ? ["", `The previous version (JSON): ${JSON.stringify(o.refine.previous).slice(0, 4000)}`, `Rewrite it: ${CANVAS_REFINE_RULES[o.refine.kind]} Keep everything else.`]
+      : []),
+  ]
+    .filter((l) => l !== "")
+    .join("\n");
+}
+
+const CANVAS_SCHEMAS = {
+  script: canvasScriptSchema,
+  demo: canvasScriptSchema,
+  shopReview: canvasScriptSchema,
+  hooks: canvasHooksSchema,
+  brief: canvasBriefSchema,
+  caption: canvasCaptionSchema,
+} as const;
+
+/** One canvas generation (one AI call). Null when the AI is unavailable or fails: the canvas shows an error, never a sample. */
+export async function writeCanvas(o: Parameters<typeof canvasPrompt>[0]): Promise<CanvasContent | null> {
+  const model = getModel();
+  if (!model) return null;
+  try {
+    const { output } = await generateText({
+      // The founder is waiting on this one: a slow first model plus the fallback.
+      ...aiCallOptions(45_000),
+      model,
+      // One schema per format; typed as one of them only so the call type-checks (the result is cast below).
+      output: Output.object({ schema: CANVAS_SCHEMAS[o.format] as typeof canvasScriptSchema }),
+      prompt: canvasPrompt(o),
+    });
+    return { format: o.format, ...output } as CanvasContent;
+  } catch (e) {
+    console.warn("[ai] writeCanvas failed", (e as Error).message);
+    return null;
+  }
 }
 
 type RunInput = {

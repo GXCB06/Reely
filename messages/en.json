@@ -28,7 +28,8 @@
     "products": "My products",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
-    "plan": "7-day plan"
+    "plan": "7-day plan",
+    "canvas": "Canvas"
   },
   "login": {
     "title": "Welcome to Reely",
@@ -1154,5 +1155,122 @@
     "replanConfirm": "Plan new keywords (planner v2) and run them on TikTok + YouTube? About 5–10 credits and ~1 minute.",
     "replanFailed": "Couldn’t plan new keywords (AI unavailable): nothing was run",
     "replanned": "new keywords (planner v2)"
+  },
+  "canvas": {
+    "title": "Canvas",
+    "subtitle": "Turn the clips you found into a script, hooks or a brief for your own product: pick reference clips, a format, and generate.",
+    "new": "New canvas",
+    "pickProduct": "For which product?",
+    "noProducts": "Run a research first: each canvas is made for one of your products.",
+    "empty": "No canvases yet. Start one here, or with “Open in canvas” on a research.",
+    "untitled": "Untitled canvas",
+    "clips": "{n, plural, =0 {no clips} one {# clip} other {# clips}}",
+    "versionsN": "{n, plural, =0 {no versions} one {# version} other {# versions}}",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this canvas and all its versions?",
+    "back": "Canvas",
+    "rename": "Canvas name",
+    "guide": "Three steps: add up to 6 reference clips, pick a format, then generate. Every version is kept, and nothing is posted anywhere.",
+    "step": {
+      "refs": "Reference clips",
+      "format": "Format",
+      "generate": "Generate"
+    },
+    "product": "Product",
+    "editProduct": "Edit",
+    "addClips": "Add clips",
+    "close": "Close",
+    "fromResearch": "From your research",
+    "fromSaved": "Saved",
+    "pasteLink": "Paste a link",
+    "pastePlaceholder": "TikTok or Instagram Reel link",
+    "pasteHint": "Reads the clip: 1 credit, free if anyone read it in the last 24 hours.",
+    "add": "Add",
+    "full": "Up to 6 clips",
+    "noResearchClips": "No research for this product yet.",
+    "noSaved": "No saved clips yet.",
+    "remove": "Remove",
+    "noClips": "No reference clips yet. You can still generate: Reely then uses formats that work for this kind of product.",
+    "note": "Note",
+    "notePlaceholder": "The offer, a promo, what to avoid, who will film it…",
+    "link": "A page to read (optional)",
+    "linkPlaceholder": "https://…",
+    "save": "Save",
+    "saved": "Saved",
+    "formats": {
+      "script": {
+        "name": "Script from these clips",
+        "hint": "Hook, beats and CTA for your goal"
+      },
+      "hooks": {
+        "name": "3 hook options",
+        "hint": "Three openings, each borrowing a different clip's pattern"
+      },
+      "demo": {
+        "name": "Product demo",
+        "hint": "Pain → feature → result → CTA"
+      },
+      "shopReview": {
+        "name": "Shop review / unboxing",
+        "hint": "Hook → demo → proof → basket CTA"
+      },
+      "brief": {
+        "name": "Influencer brief",
+        "hint": "Shots, lines and what to avoid, ready to send to a creator"
+      },
+      "caption": {
+        "name": "Caption + hashtags",
+        "hint": "For a clip you already filmed (describe it in the note)"
+      }
+    },
+    "instructions": "Extra instructions (optional)",
+    "instructionsPlaceholder": "e.g. film it at the counter, mention the free trial",
+    "generate": "Generate",
+    "generating": "Writing…",
+    "perDay": "Up to {n} generations a day. No credits.",
+    "limit": "You've reached today's {n} generations. Try again tomorrow.",
+    "failed": "The AI couldn't write this one. Try again.",
+    "versions": "Versions",
+    "noVersions": "Nothing generated yet.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "saveScript": "Save to scripts",
+    "scriptSaved": "Saved to scripts",
+    "refine": "Rewrite",
+    "refines": {
+      "shorter": "Shorter",
+      "casual": "More casual Thai",
+      "strongerHook": "Stronger hook",
+      "shopCta": "TikTok Shop CTA",
+      "english": "In English"
+    },
+    "refinedFrom": "rewrite: {kind}",
+    "from": "from @{handle}",
+    "seconds": "{n} s",
+    "mustSay": "Must get across",
+    "avoid": "Avoid",
+    "references": "References",
+    "helpful": "Helpful",
+    "notHelpful": "Not helpful",
+    "beat": {
+      "hook": "Hook",
+      "setup": "Setup",
+      "demo": "Demo",
+      "payoff": "Payoff",
+      "cta": "CTA",
+      "pain": "Pain",
+      "feature": "Feature",
+      "result": "Result",
+      "proof": "Proof",
+      "story": "Story",
+      "offer": "Offer",
+      "takeaway": "Takeaway"
+    },
+    "errors": {
+      "badLink": "That isn't a TikTok or Instagram Reel link.",
+      "notFound": "Couldn't find that clip.",
+      "limit": "Today's pasted-link limit is used up. Try again tomorrow.",
+      "failed": "Couldn't read that clip. Try again."
+    }
   }
 }

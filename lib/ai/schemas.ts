@@ -329,3 +329,69 @@ export const enhanceSchema = z.object({
   }),
 });
 export type Enhanced = z.infer<typeof enhanceSchema>;
+
+/** Content Canvas outputs (v0.3 Part A). `from` names the reference clip a part borrows from, so nothing is unsourced. */
+const fromRef = z.string().describe("The @handle of the reference clip this borrows from, or empty when it is new");
+
+export const canvasScriptSchema = z.object({
+  title: z.string().describe("Working title for the video, max 8 words"),
+  durationSeconds: z.number().int().min(10).max(90),
+  beats: z
+    .array(
+      z.object({
+        label: z.enum(BEAT_LABELS),
+        time: z.string().describe("Start time like 0:00"),
+        voiceover: z.string().describe("What is said out loud"),
+        onScreen: z.string().describe("Short on-screen text, or empty"),
+        visual: z.string().describe("What the camera shows"),
+        from: fromRef,
+      }),
+    )
+    .min(3)
+    .max(7),
+  caption: z.string().describe("Post caption, 1-2 sentences"),
+  hashtags: z.array(z.string()).max(6),
+  borrowed: z.string().describe("One sentence: what is borrowed from which reference and what is new"),
+});
+
+export const canvasHooksSchema = z.object({
+  hooks: z
+    .array(
+      z.object({
+        line: z.string().describe("What is said in the first 1-2 seconds, max 12 words"),
+        onScreen: z.string().describe("Short on-screen text for that moment"),
+        why: z.string().describe("One line: why it stops the scroll"),
+        from: fromRef,
+      }),
+    )
+    .length(3),
+});
+
+export const canvasBriefSchema = z.object({
+  title: z.string().describe("Working title for the video, max 8 words"),
+  summary: z.string().describe("One or two sentences: the video the creator should make"),
+  shots: z
+    .array(
+      z.object({
+        shot: z.string().describe("What the camera shows"),
+        line: z.string().describe("What is said, or empty"),
+        note: z.string().describe("Direction for the creator, or empty"),
+      }),
+    )
+    .min(3)
+    .max(8),
+  mustSay: z.array(z.string()).max(4).describe("Points the video must get across"),
+  avoid: z.array(z.string()).max(4).describe("Things not to do or claim"),
+  from: z.array(z.string()).max(6).describe("@handles of the reference clips used"),
+});
+
+export const canvasCaptionSchema = z.object({
+  options: z
+    .array(z.object({ caption: z.string().describe("1-2 sentences"), hashtags: z.array(z.string()).max(6) }))
+    .length(3),
+});
+
+export type CanvasScript = z.infer<typeof canvasScriptSchema>;
+export type CanvasHooks = z.infer<typeof canvasHooksSchema>;
+export type CanvasBrief = z.infer<typeof canvasBriefSchema>;
+export type CanvasCaption = z.infer<typeof canvasCaptionSchema>;
