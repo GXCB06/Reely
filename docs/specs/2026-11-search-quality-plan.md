@@ -385,7 +385,20 @@ Insta360 clips the owner had rejected.
   - sell: 3 product-type phrases and 1 result phrase;
   - every goal: no own name, no sentences, no pain-only phrase;
   - shop and brand recipes unchanged.
-- **Relevance v4** (on trial): v1, but a clip only about the pain, with no product like it, is 1.
+- **Relevance v4:** v1, but a clip only about the pain, with no product like it, is 1. **Failed its trial (2026-11-03),
+  not shipped.** Run on 425 labels, with v1 and v4 both on gemini-flash-lite-latest (3.1 Flash-Lite was overloaded):
+
+  | Half | Clips | "2" precision v1 → v4 | "2" recall v1 → v4 | Kappa v1 → v4 |
+  |---|---|---|---|---|
+  | Dev | 293 | 64% → 68% | 90% → 87% | 0.19 → 0.23 |
+  | Test | 132 | 57% → 59% | 75% → 65% | 0.23 → 0.19 |
+
+  - The test half's precision rose only 2 points (noise) while recall fell 10 points.
+  - v4 did demote the month-end skits you labelled 0.
+  - But it also demoted clips you labelled 2 where the "situation" shows the product in use: CCTV footage stories, an
+    accountant's AI helper.
+  - Pain-only is off target for software, not for physical products. The test half is now spent, so relevance stays
+    parked on v1.
 - **Measuring tools:**
   - free preview of the new plans on the scorecard;
   - "Re-run with new keywords" on each brief (TikTok + YouTube only, `settings.planner = "v2"`);

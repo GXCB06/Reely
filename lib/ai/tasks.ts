@@ -415,7 +415,7 @@ const RELEVANCE_COVER_BATCH = 20;
 
 export const RELEVANCE_VERSIONS = ["v1", "v2", "v3", "v4"] as const;
 export type RelevanceVersion = (typeof RELEVANCE_VERSIONS)[number];
-/** The relevance check the search uses. v2 / v3 failed their trial (S1b); v4 is on trial (S4b). */
+/** The relevance check the search uses. v2 / v3 failed their trial (S1b); v4 failed its test half too (S4b, 2026-11-03). */
 export const RELEVANCE_VERSION: RelevanceVersion = "v1";
 
 /**
