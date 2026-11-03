@@ -384,7 +384,8 @@ async function briefRun(admin: Admin, id: string) {
     .select("id, brief, keywords, keyword_regions, keyword_english, exclusions, platforms, region, goal, settings, input, product_id")
     .eq("id", id)
     .maybeSingle();
-  return run && isGoal(run.goal) ? { ...run, goal: run.goal, input: (run.input ?? {}) as RunInputRow } : null;
+  // Researches made before goals have none: a new plan lets the AI decide it, a plain re-run can't.
+  return run ? { ...run, goal: isGoal(run.goal) ? run.goal : null, input: (run.input ?? {}) as RunInputRow } : null;
 }
 
 /**
@@ -444,7 +445,7 @@ export async function rerunBriefAction(id: string, lang: string, replanKeywords 
   const parsed = z.object({ id: runId, lang: z.enum(["th", "en"]), replan: z.boolean() }).safeParse({ id, lang, replan: replanKeywords });
   if (!admin || !parsed.success) return { ok: false as const, error: "invalid" as const };
   const run = await briefRun(admin, parsed.data.id);
-  if (!run) return { ok: false as const, error: "noGoal" as const };
+  if (!run || (!run.goal && !parsed.data.replan)) return { ok: false as const, error: "noGoal" as const };
   const input = run.input;
   const plan = parsed.data.replan ? await replan(run, parsed.data.lang) : null;
   if (parsed.data.replan && !plan) return { ok: false as const, error: "noPlan" as const };
@@ -482,7 +483,7 @@ export async function rerunBriefAction(id: string, lang: string, replanKeywords 
     exclusions: (run.exclusions as string[]) ?? [],
     platforms: [...platforms],
     region: (run.region as "th" | "global" | "both") ?? "th",
-    goal: run.goal,
+    goal: plan?.goal ?? run.goal!,
     settings: {
       days: ([7, 30, 90].includes(settings.days ?? 90) ? settings.days : 90) as 7 | 30 | 90,
       minViews: settings.minViews ?? 10_000,
