@@ -13,7 +13,9 @@ import {
   NOTE_MAX,
   parseInputs,
   SCRIPT_FORMATS,
+  versionText,
 } from "@/lib/canvas";
+import { matchCandidates } from "@/lib/did-it-work";
 import { canvasRefs, loadCanvas } from "@/lib/canvas-data";
 import { importClip } from "@/lib/clip-import";
 import { parseClipLink } from "@/lib/clip-link";
@@ -286,5 +288,71 @@ export async function saveScriptAction(outputId: string, locale: string) {
     content: { ...script, source: "ai" },
   });
   if (!error) await recordEvent(supabase, { name: "canvas_save_script", source: "canvas", props: { format: content.format } });
+  return { ok: !error };
+}
+
+/**
+ * "I posted this": the posts on the product's own channels (My channels) that this version could have become, most
+ * alike first. Reads the cache, so a post appears once its channel page has been opened since it went up.
+ */
+export async function postCandidatesAction(outputId: string) {
+  if (!uuid.safeParse(outputId).success) return { ok: false as const };
+  const supabase = await createClient();
+  const { data: output } = await supabase.from("canvas_outputs").select("canvas_id, content, created_at").eq("id", outputId).maybeSingle();
+  if (!output) return { ok: false as const };
+  const { data: canvas } = await supabase.from("canvases").select("product_id").eq("id", output.canvas_id).maybeSingle();
+  const { data: channels } = canvas ? await supabase.from("own_accounts").select("platform, handle").eq("product_id", canvas.product_id) : { data: [] };
+  if (!channels?.length) return { ok: true as const, channels: 0, posts: [] };
+  const since = new Date(Date.parse(output.created_at as string) - 864e5).toISOString();
+  const { data: rows } = await supabase
+    .from("videos")
+    .select("id, platform, creator_handle, caption, published_at, views, thumbnail_url")
+    .in("creator_handle", channels.map((c) => c.handle as string))
+    .gte("published_at", since)
+    .order("published_at", { ascending: false })
+    .limit(60);
+  const mine = (rows ?? []).filter((r) => channels.some((c) => c.platform === r.platform && c.handle === r.creator_handle));
+  const posts = matchCandidates(
+    { text: versionText(output.content as CanvasContent), createdAt: output.created_at as string },
+    mine.map((r) => ({
+      id: r.id as number,
+      caption: r.caption as string,
+      publishedAt: (r.published_at as string | null) ?? null,
+      views: (r.views as number | null) ?? null,
+      handle: r.creator_handle as string,
+      thumbnailUrl: (r.thumbnail_url as string | null) ?? null,
+    })),
+  ).slice(0, 8);
+  return { ok: true as const, channels: channels.length, posts };
+}
+
+/** Links a version to the post made from it: one of the candidates, or a pasted TikTok / Reel link (rule 19). */
+export async function markPostedAction(outputId: string, target: { videoId: number } | { link: string }, from: "canvas" | "other" = "canvas") {
+  const parsed = z
+    .object({ outputId: uuid, target: z.union([z.object({ videoId: z.number().int().positive() }), z.object({ link: z.string().trim().min(8).max(400) })]) })
+    .safeParse({ outputId, target });
+  if (!parsed.success) return { ok: false as const, error: "invalid" as const };
+  let videoId: number;
+  if ("link" in parsed.data.target) {
+    const link = parseClipLink(parsed.data.target.link);
+    if (!link) return { ok: false as const, error: "badLink" as const };
+    const res = await importClip(link);
+    if (!res.ok) return { ok: false as const, error: res.error };
+    videoId = res.videoId;
+  } else videoId = parsed.data.target.videoId;
+  const supabase = await createClient();
+  const { error } = await supabase.from("canvas_outputs").update({ posted_video_id: videoId, posted_at: new Date().toISOString() }).eq("id", parsed.data.outputId);
+  if (!error) {
+    await recordEvent(supabase, { name: "post_linked", source: from === "other" ? "other" : "canvas", props: { pasted: "link" in parsed.data.target } });
+  }
+  revalidatePath("/[locale]/app", "layout");
+  return error ? { ok: false as const, error: "invalid" as const } : { ok: true as const };
+}
+
+export async function unmarkPostedAction(outputId: string) {
+  if (!uuid.safeParse(outputId).success) return { ok: false as const };
+  const supabase = await createClient();
+  const { error } = await supabase.from("canvas_outputs").update({ posted_video_id: null, posted_at: null }).eq("id", outputId);
+  revalidatePath("/[locale]/app", "layout");
   return { ok: !error };
 }

@@ -1282,7 +1282,34 @@
     "openInCanvasTip": "A new canvas with this research's best 3 clips, ready to write a script, hooks or a brief",
     "myChannel": "What works on my channel",
     "myChannelHint": "From the analysis of your channel. Keeps scripts in a style that already works for you:",
-    "myChannelOn": "Use it"
+    "myChannelOn": "Use it",
+    "posted": {
+      "iPosted": "I posted this",
+      "pickHint": "Which post did you make from this version? Recent posts on your channels, best match first.",
+      "noChannel": "Add your channel in My channels first, or paste the post's link below.",
+      "noPosts": "No new posts found yet. Open your channel in My channels to refresh it, or paste the link.",
+      "pastePlaceholder": "Or paste the TikTok / Reel link",
+      "link": "Link",
+      "linked": "Linked: Reely will show how it does",
+      "title": "Posted on @{handle}",
+      "views": "{views} views",
+      "x": "{x}× your usual",
+      "label": {
+        "breakout": "Breakout",
+        "strong": "Strong",
+        "normal": "Normal"
+      },
+      "postedOn": "posted {when}",
+      "growing": "still growing (first 3 days)",
+      "unlink": "Unlink this post",
+      "errors": {
+        "invalid": "Couldn't link it. Try again.",
+        "badLink": "That isn't a TikTok or Instagram Reel link.",
+        "notFound": "Couldn't find that post.",
+        "limit": "Today's pasted-link limit is used up.",
+        "failed": "Couldn't read that post."
+      }
+    }
   },
   "me": {
     "title": "My channels",
@@ -1426,6 +1453,18 @@
       "s15to30": "15–30 s",
       "s30to60": "30–60 s",
       "over60": "Over 60 s"
+    },
+    "made": {
+      "title": "Made with Reely",
+      "empty": "When you post a video from a canvas script, tap “I posted this” on it, and Reely shows how it did here.",
+      "summary": "Posts made from Reely: {x}× your usual (median), vs {others}× for your other posts · {n} posts",
+      "summaryWait": "The comparison shows from {min} linked posts ({n} so far).",
+      "x": "{x}× your usual",
+      "growing": "still growing",
+      "suggest": "Is this the video you made from “{title}”?",
+      "yes": "Yes, link it",
+      "no": "No",
+      "failed": "Couldn't link it. Try again."
     }
   }
 }

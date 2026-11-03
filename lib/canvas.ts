@@ -100,3 +100,19 @@ export function contentText(c: CanvasContent, label: (beat: string) => string = 
       return c.options.map((o, i) => `${i + 1}. ${o.caption}\n${tags(o.hashtags)}`).join("\n\n");
   }
 }
+
+/** The words of a version most likely to show up in the post made from it (for "Did it work?" matching). */
+export function versionText(c: CanvasContent): string {
+  switch (c.format) {
+    case "script":
+    case "demo":
+    case "shopReview":
+      return [c.title, c.caption, ...c.beats.map((b) => b.voiceover)].join(" ");
+    case "hooks":
+      return c.hooks.map((h) => h.line).join(" ");
+    case "brief":
+      return [c.title, c.summary, ...c.shots.map((s) => s.line)].join(" ");
+    case "caption":
+      return c.options.map((o) => o.caption).join(" ");
+  }
+}

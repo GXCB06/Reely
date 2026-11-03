@@ -2,6 +2,7 @@ import "server-only";
 import type { HookBreakdown } from "@/lib/ai/schemas";
 import type { CanvasRef } from "@/lib/ai/tasks";
 import type { StoredAudit } from "@/lib/channel-audit";
+import { type PostResult, postResult } from "@/lib/did-it-work";
 import { type CanvasContent, type CanvasFormat, type CanvasInputs, parseInputs } from "@/lib/canvas";
 import type { VideoRow } from "@/lib/db-mappers";
 import { type Goal, isGoal } from "@/lib/goals";
@@ -31,7 +32,42 @@ export type CanvasOutput = {
   content: CanvasContent;
   vote: -1 | 1 | null;
   createdAt: string;
+  /** "Did it work?": the post this version became, and how it did against its channel's usual. */
+  posted: PostedResult | null;
 };
+
+export type PostedResult = {
+  id: number;
+  handle: string;
+  platform: string;
+  thumbnailUrl: string | null;
+  url: string;
+  publishedAt: string | null;
+  result: PostResult;
+};
+
+/** Linked posts with their result against each channel's usual views (from the cache; no credits). */
+export async function postedResults(supabase: Supabase, ids: number[], now = Date.now()): Promise<Map<number, PostedResult>> {
+  if (!ids.length) return new Map();
+  const { data: rows } = await supabase.from("videos").select("id, platform, creator_handle, thumbnail_url, url, views, published_at").in("id", ids);
+  const handles = [...new Set((rows ?? []).map((r) => r.creator_handle as string))];
+  const { data: creators } = handles.length ? await supabase.from("creators").select("platform, handle, usual_views").in("handle", handles) : { data: [] };
+  const usualOf = new Map((creators ?? []).map((c) => [`${c.platform}:${c.handle}`, c.usual_views as number | null]));
+  return new Map(
+    (rows ?? []).map((r) => [
+      r.id as number,
+      {
+        id: r.id as number,
+        handle: r.creator_handle as string,
+        platform: r.platform as string,
+        thumbnailUrl: (r.thumbnail_url as string | null) ?? null,
+        url: r.url as string,
+        publishedAt: (r.published_at as string | null) ?? null,
+        result: postResult(r.views as number | null, usualOf.get(`${r.platform}:${r.creator_handle}`) ?? null, (r.published_at as string | null) ?? null, now),
+      },
+    ]),
+  );
+}
 
 export type CanvasProduct = {
   id: string;
@@ -108,11 +144,12 @@ export async function loadCanvas(supabase: Supabase, id: string): Promise<Loaded
   const inputs = parseInputs(canvas.inputs);
   const [{ data: product }, { data: outputs }, clips, myChannel] = await Promise.all([
     supabase.from("products").select("id, name, url, description, audience, competitors, goal").eq("id", canvas.product_id).maybeSingle(),
-    supabase.from("canvas_outputs").select("id, format, instructions, refine, content, vote, created_at").eq("canvas_id", id).order("created_at", { ascending: false }),
+    supabase.from("canvas_outputs").select("id, format, instructions, refine, content, vote, created_at, posted_video_id").eq("canvas_id", id).order("created_at", { ascending: false }),
     clipCards(supabase, inputs.clips),
     myChannelFor(supabase, canvas.product_id as string),
   ]);
   if (!product) return null;
+  const posted = await postedResults(supabase, (outputs ?? []).map((o) => o.posted_video_id as number | null).filter((v): v is number => v !== null));
   return {
     id: canvas.id as string,
     title: canvas.title as string,
@@ -135,6 +172,7 @@ export async function loadCanvas(supabase: Supabase, id: string): Promise<Loaded
       content: o.content as CanvasContent,
       vote: (o.vote as -1 | 1 | null) ?? null,
       createdAt: o.created_at as string,
+      posted: o.posted_video_id ? (posted.get(o.posted_video_id as number) ?? null) : null,
     })),
     myChannel,
   };

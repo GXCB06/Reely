@@ -21,6 +21,7 @@ import { channelExtras, loadOwnChannel } from "@/lib/own-accounts";
 import { createClient } from "@/lib/supabase/server";
 import { ChannelAudit } from "./audit";
 import { CompareTable, GroupBars, Timeline, WeekLine } from "./charts";
+import { MadeWithReely } from "./made-with-reely";
 
 const WINDOWS = { d30: 30, d90: 90, y1: 365 } as const;
 type WindowKey = keyof typeof WINDOWS;
@@ -36,7 +37,7 @@ export default async function ChannelPage({ params, searchParams }: PageProps<"/
   const handle = decodeURIComponent(rawHandle);
   const supabase = await createClient();
   // Only the user's own channels open here (RLS).
-  const { data: own } = await supabase.from("own_accounts").select("id").eq("platform", platform).eq("handle", handle).maybeSingle();
+  const { data: own } = await supabase.from("own_accounts").select("id, product_id").eq("platform", platform).eq("handle", handle).maybeSingle();
   if (!own) notFound();
   const sp = await searchParams;
   const windowKey: WindowKey = typeof sp.w === "string" && sp.w in WINDOWS ? (sp.w as WindowKey) : "d90";
@@ -96,6 +97,8 @@ export default async function ChannelPage({ params, searchParams }: PageProps<"/
 
       <div className="space-y-8 px-4 pb-16 md:px-10">
         <ChannelAudit supabase={supabase} platform={platform} handle={handle} fetchedAt={stats.fetchedAt} now={now} />
+
+        <MadeWithReely supabase={supabase} productId={own.product_id as string} videos={stats.videos} now={now} />
 
         <section className="space-y-3 rounded-3xl border bg-card p-4" data-me="timeline">
           <div>

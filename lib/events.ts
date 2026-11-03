@@ -23,6 +23,8 @@ export const EVENT_NAMES = [
   "own_account_add",
   "channel_audit",
   "idea_to_canvas",
+  // "Did it work?": a canvas version linked to the post made from it (props: pasted link or picked).
+  "post_linked",
 ] as const;
 export type EventName = (typeof EVENT_NAMES)[number];
 

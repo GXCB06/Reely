@@ -8,6 +8,7 @@ import { useRouter } from "@/i18n/navigation";
 import { CANVAS_REFINES, type CanvasContent, type CanvasRefine, contentText, SCRIPT_FORMATS } from "@/lib/canvas";
 import type { CanvasOutput } from "@/lib/canvas-data";
 import { generateAction, saveScriptAction, voteOutputAction } from "../actions";
+import { PostedStrip } from "./posted";
 
 /** One version: the content for its format, then Copy, Save to scripts, one-tap rewrites and 👍/👎. */
 export function OutputCard({ canvasId, output, perDay }: { canvasId: string; output: CanvasOutput; perDay: number }) {
@@ -55,6 +56,7 @@ export function OutputCard({ canvasId, output, perDay }: { canvasId: string; out
         {output.instructions && <> · “{output.instructions}”</>}
       </p>
       <Content c={c} />
+      <PostedStrip output={output} />
       <div className="flex flex-wrap items-center gap-2 border-t pt-3">
         <button type="button" onClick={copy} className="chip">
           {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />} {copied ? t("copied") : t("copy")}
