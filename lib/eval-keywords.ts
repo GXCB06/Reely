@@ -1,11 +1,11 @@
 // Keyword scorecard (search quality S4, measure first): for every planned search keyword of the test set, how many
 // results it brought, how many the search's relevance check called exact, and how many the owner labelled on target.
-// Grouped by keyword kind (the product's own name, a competitor, anything else) and language, so the keyword planner
+// Grouped by keyword kind (own brand, competitor, review, how-to, category, problem) and language, so the keyword planner
 // can be changed from evidence. Pure, so the grouping is unit-tested.
 import type { EvalPlatform, Label } from "./eval";
 import { looksThai } from "./region";
 
-export type KeywordKind = "own" | "competitor" | "other" | "feeds";
+export type KeywordKind = "own" | "competitor" | "review" | "howto" | "category" | "other" | "feeds";
 
 /** A result of one brief (deduplicated across the brief's researches), with the keyword that found it. */
 export type ScoreClip = { videoId: string; platform: EvalPlatform; keyword: string; relevance: number | null; human: Label | null };
@@ -26,17 +26,35 @@ export type KeywordRow = {
   onTarget: number;
 };
 
-/** Words of a name worth matching (Latin words of 4+ letters, or the whole name when it has none). */
-const nameWords = (name: string) => {
-  const words = name.toLowerCase().match(/[a-z0-9]{4,}/g) ?? [];
-  return words.length ? words : name.trim() ? [name.trim().toLowerCase()] : [];
-};
+/** Everyday words that appear in product names but don't name a brand ("Fitbod: Gym & Fitness Planner"). */
+const GENERIC = new Set(
+  "app apps saas tool tools software pro plus ultra smart online best review product products account accounting fitness gym workout planner scan feed content creator creators video videos marketing business shop store the for and".split(
+    " ",
+  ),
+);
 
-/** What a keyword is: the user's own product name, a competitor's name, or anything else. */
+/** The brand word of a name: its first Latin word of 3+ letters that isn't an everyday word, else the whole name. */
+export function brandWord(name: string): string | null {
+  const words = name.toLowerCase().match(/[a-z0-9]{3,}/g) ?? [];
+  if (!words.length) return name.trim() ? name.trim().toLowerCase() : null;
+  return words.find((w) => !GENERIC.has(w)) ?? name.trim().toLowerCase();
+}
+
+/**
+ * What a keyword is: the user's own product or a competitor (by its brand word), a review or comparison, a how-to or
+ * tips phrase, a category phrase (an app, tool or product of a kind), or anything else (a problem or situation).
+ */
 export function keywordKind(keyword: string, productName: string, competitors: string[]): Exclude<KeywordKind, "feeds"> {
   const k = keyword.toLowerCase();
-  if (nameWords(productName).some((w) => k.includes(w))) return "own";
-  if (competitors.some((c) => nameWords(c).some((w) => k.includes(w)))) return "competitor";
+  const has = (name: string) => {
+    const w = brandWord(name);
+    return w !== null && k.includes(w);
+  };
+  if (has(productName)) return "own";
+  if (competitors.some(has)) return "competitor";
+  if (/รีวิว|review|\bvs\b|เปรียบเทียบ|compare/.test(k)) return "review";
+  if (/how to|วิธี|สอน|tips|เทคนิค|ทริค|\bideas?\b|ไอเดีย/.test(k)) return "howto";
+  if (/\bapps?\b|แอป|\btools?\b|โปรแกรม|software|เครื่องมือ|อุปกรณ์|กล้อง|ไมค์|ไมโครโฟน/.test(k)) return "category";
   return "other";
 }
 

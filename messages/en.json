@@ -1118,9 +1118,12 @@
       "labelled": "You labelled",
       "onTarget": "Your 2s",
       "kind": {
-        "own": "Your own product's name",
-        "competitor": "A competitor's name",
-        "other": "Category, problem or other",
+        "own": "Your own product's brand",
+        "competitor": "A competitor's brand",
+        "review": "Review or comparison",
+        "howto": "How-to, tips or ideas",
+        "category": "Category (an app, tool or product of a kind)",
+        "other": "Problem, situation or other",
         "feeds": "From accounts and feeds (not a planned keyword)"
       },
       "lang": {
