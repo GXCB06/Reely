@@ -174,7 +174,10 @@ The app only talks to adapters (via `lib/adapters/index.ts`), never to vendor AP
 23. My channels (`/app/me`, v0.3 Part B): a founder's own public accounts, at most 3 per product (`own_accounts`). One
     deeper read when a channel is added (`addOwnAccount`: TikTok 4 pages = 4 credits via `tiktokProfileVideos`, Instagram
     3 pages = 3 credits, YouTube free), then only the normal 24-hour refresh of rule 5 when its page is opened. Posts live
-    in the shared cache. Public numbers only: no account login (OAuth), no private analytics.
+    in the shared cache. Public numbers only: no account login (OAuth), no private analytics. "Analyse my channel"
+    (`analyseChannel`) is one AI call, no credits, kept on `own_accounts.audit` until the channel's posts are refreshed; it
+    compares with tracked accounts' and the latest research's clips from the cache only, and every point cites posts or
+    clips (`resolveAudit` drops made-up labels). Its "common in hits" points feed canvas generations (`useMyChannel`).
 
 ## Security rules
 

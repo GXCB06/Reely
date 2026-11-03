@@ -16,7 +16,8 @@ export const INSTRUCTIONS_MAX = 300;
 /** Generations per person per day: protects the free Gemini tier. */
 export const CANVAS_PER_DAY = 40;
 
-export type CanvasInputs = { clips: number[]; note: string; link: string | null };
+/** `useMyChannel`: feed what works on the founder's own channel (My channels audit) into the prompt; on by default. */
+export type CanvasInputs = { clips: number[]; note: string; link: string | null; useMyChannel: boolean };
 
 /** A canvas's stored inputs, whatever shape the row holds (older or hand-edited rows never break the page). */
 export function parseInputs(raw: unknown): CanvasInputs {
@@ -26,6 +27,7 @@ export function parseInputs(raw: unknown): CanvasInputs {
     clips: clips.slice(0, MAX_CLIPS),
     note: typeof r.note === "string" ? r.note.slice(0, NOTE_MAX) : "",
     link: typeof r.link === "string" && r.link.trim() ? r.link.trim().slice(0, 300) : null,
+    useMyChannel: r.useMyChannel !== false,
   };
 }
 

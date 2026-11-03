@@ -7,6 +7,7 @@ import { Link } from "@/i18n/navigation";
 import { type ChannelPost, monthlyUsual, postingPattern, PATTERN_MIN_POSTS, snapshot } from "@/lib/account-analysis";
 import { loadOwnChannel } from "@/lib/own-accounts";
 import { createClient } from "@/lib/supabase/server";
+import { ChannelAudit } from "./audit";
 
 const WINDOWS = { d30: 30, d90: 90, y1: 365 } as const;
 type WindowKey = keyof typeof WINDOWS;
@@ -63,6 +64,7 @@ export default async function ChannelPage({ params, searchParams }: PageProps<"/
       </header>
 
       <div className="space-y-8 px-4 pb-16 md:px-10">
+        <ChannelAudit supabase={supabase} platform={platform} handle={handle} fetchedAt={stats.fetchedAt} now={now} />
         <section className="space-y-3">
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
@@ -145,12 +147,18 @@ function analyse(videos: Awaited<ReturnType<typeof loadOwnChannel>>["videos"], d
   };
 }
 
-/** Views of the latest posts, oldest first, as a small line. */
+/**
+ * Views of the latest posts, oldest first, as a small line. Log scale: one viral post (seen live: 384K against a usual
+ * ~800) would otherwise flatten every other post into the floor.
+ */
 function Sparkline({ values, label }: { values: number[]; label: string }) {
-  const max = Math.max(...values, 1);
+  const scaled = values.map((v) => Math.log10(v + 1));
+  const max = Math.max(...scaled, 1);
+  const min = Math.min(...scaled);
   const w = 300;
   const h = 48;
-  const points = values.map((v, i) => `${((i / (values.length - 1)) * w).toFixed(1)},${(h - (v / max) * (h - 4) - 2).toFixed(1)}`).join(" ");
+  const y = (v: number) => h - ((v - min) / Math.max(max - min, 0.001)) * (h - 4) - 2;
+  const points = scaled.map((v, i) => `${((i / (scaled.length - 1)) * w).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
   return (
     <figure className="mt-4 max-w-md">
       <svg viewBox={`0 0 ${w} ${h}`} className="h-12 w-full" role="img" aria-label={label}>

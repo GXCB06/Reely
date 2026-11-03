@@ -395,3 +395,26 @@ export type CanvasScript = z.infer<typeof canvasScriptSchema>;
 export type CanvasHooks = z.infer<typeof canvasHooksSchema>;
 export type CanvasBrief = z.infer<typeof canvasBriefSchema>;
 export type CanvasCaption = z.infer<typeof canvasCaptionSchema>;
+
+/** "Analyse my channel" (v0.3 Part B2). Posts are cited by their labels (P3), watched clips by theirs (C2). */
+const postLabels = z.array(z.string()).max(5).describe("Labels like P3 of the founder's posts this comes from");
+export const channelAuditSchema = z.object({
+  summary: z.string().describe("1-2 sentences: what works on this channel"),
+  commonInHits: z.array(z.object({ point: z.string(), posts: postLabels })).min(1).max(5),
+  weakPattern: z.array(z.object({ point: z.string(), posts: postLabels })).max(3),
+  gaps: z
+    .array(z.object({ point: z.string(), clips: z.array(z.string()).max(4).describe("Labels like C2 of the watched clips") }))
+    .max(3),
+  ideas: z
+    .array(
+      z.object({
+        title: z.string().describe("Working title, max 8 words"),
+        hook: z.string().describe("The opening line, max 12 words"),
+        angle: z.string().describe("One sentence: what the video shows"),
+        why: z.string().describe("One sentence: why it should work, from the cited posts or clips"),
+        basedOn: z.array(z.string()).max(4).describe("Labels (P… or C…) it builds on"),
+      }),
+    )
+    .length(5),
+});
+export type ChannelAuditOutput = z.infer<typeof channelAuditSchema>;

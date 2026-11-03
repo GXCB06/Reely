@@ -46,6 +46,8 @@ import {
   canvasCaptionSchema,
   canvasHooksSchema,
   canvasScriptSchema,
+  type ChannelAuditOutput,
+  channelAuditSchema,
 } from "./schemas";
 import { type CanvasContent, type CanvasFormat, type CanvasRefine, keepKnownSources } from "@/lib/canvas";
 
@@ -873,6 +875,8 @@ export function canvasPrompt(o: {
   instructions: string;
   locale: string;
   refine?: { kind: CanvasRefine; previous: unknown } | null;
+  /** What works on the founder's own channel (My channels audit), when they keep it on. */
+  myChannel?: { handle: string; platform: string; usual: number | null; points: string[] } | null;
 }): string {
   const language = o.refine?.kind === "english" ? "English" : languageName(o.locale);
   return [
@@ -892,6 +896,14 @@ export function canvasPrompt(o: {
     o.product.competitors?.length ? `Competitors: ${o.product.competitors.join(", ")}` : "",
     o.note ? `\nThe founder's note (follow it): ${o.note}` : "",
     o.page ? `\nA page the founder added (${o.page.url}): ${o.page.title ?? ""}. ${o.page.description ?? ""} ${o.page.text.slice(0, 1200)}` : "",
+    ...(o.myChannel?.points.length
+      ? [
+          `\nWhat already works on the founder's own ${o.myChannel.platform} channel @${o.myChannel.handle}` +
+            (o.myChannel.usual ? ` (usually ~${o.myChannel.usual} views)` : "") +
+            ": keep the content in a style that fits it.",
+          ...o.myChannel.points.map((p) => `- ${p}`),
+        ]
+      : []),
     "",
     o.refs.length
       ? `Reference clips (a "from" may only name one of these: ${o.refs.map((r) => `@${r.handle}`).join(", ")}):`
@@ -942,6 +954,70 @@ export async function writeCanvas(o: Parameters<typeof canvasPrompt>[0]): Promis
     return keepKnownSources({ format: o.format, ...output } as CanvasContent, o.refs.map((r) => r.handle));
   } catch (e) {
     console.warn("[ai] writeCanvas failed", (e as Error).message);
+    return null;
+  }
+}
+
+/** One of the founder's posts, as the channel audit reads it (labelled P1, P2… in the prompt). */
+export type AuditPost = { views: number | null; usual: number | null; seconds: number | null; postedAt: string | null; caption: string };
+/** A clip from an account the founder watches (labelled C1, C2…). */
+export type AuditClip = { handle: string; views: number | null; usual: number | null; caption: string };
+
+/**
+ * "Analyse my channel" (v0.3 Part B2): what the founder's hits share, what the weaker posts share, gaps against the
+ * clips of accounts they watch, and 5 ideas. Every point cites the posts or clips it comes from by label.
+ */
+export function channelAuditPrompt(o: {
+  handle: string;
+  platform: string;
+  posts: AuditPost[];
+  clips: AuditClip[];
+  product: ProductInput;
+  goal: Goal | null;
+  locale: string;
+}): string {
+  const line = (label: string, p: { views: number | null; usual: number | null; caption: string }, extra = "") =>
+    `${label} | ${p.views ?? "?"} views | ${p.usual !== null ? `${formatMultiplier(p.usual)}x usual` : "?"}${extra} | ${p.caption.slice(0, 220).replace(/\s+/g, " ") || "(no caption)"}`;
+  return [
+    `You analyse a founder's OWN short-video channel (@${o.handle} on ${o.platform}) from its public posts, for their product. Write every field in ${languageName(o.locale)}.`,
+    "A hit is a post at 2x its own usual views or more. Find patterns you can see in the list: topic, hook style and first",
+    "line, call to action (e.g. 'comment a word to get it'), format words, length, posting time. Each point names the posts",
+    "it comes from by their labels exactly as given (P1, P2…) and never cites a label that isn't listed.",
+    o.clips.length
+      ? "Gaps: what clips from accounts the founder watches (C1, C2…) do that the founder's hits don't. Cite those clips."
+      : "There are no watched clips: leave gaps empty.",
+    "Ideas: 5 videos the founder can film next with a phone, each building on cited hits or watched clips (basedOn).",
+    "Only claim what the product description says; offer nothing (free trial, discount, price) it doesn't mention.",
+    NO_MADE_UP_NUMBERS,
+    "Never quote a number that isn't in the lists below.",
+    "",
+    `Product: ${o.product.name}`,
+    o.product.description ? `What it does: ${o.product.description}` : "",
+    o.product.audience ? `For: ${o.product.audience}` : "",
+    o.goal ? `The founder ${GOAL_BRIEF[o.goal]}.` : "",
+    "",
+    "The founder's posts (label | views | vs their usual | seconds | posted | caption), biggest first:",
+    ...o.posts.map((p, i) => line(`P${i + 1}`, p, ` | ${p.seconds ?? "?"}s | ${p.postedAt ?? "?"}`)),
+    ...(o.clips.length ? ["", "Clips from accounts the founder watches (label | views | vs their usual | caption):", ...o.clips.map((c, i) => line(`C${i + 1} @${c.handle}`, c))] : []),
+  ]
+    .filter((l) => l !== "")
+    .join("\n");
+}
+
+/** One channel audit (one AI call). Null when the AI is unavailable or fails. */
+export async function auditChannel(o: Parameters<typeof channelAuditPrompt>[0]): Promise<ChannelAuditOutput | null> {
+  const model = getModel();
+  if (!model || !o.posts.length) return null;
+  try {
+    const { output } = await generateText({
+      ...aiCallOptions(45_000),
+      model,
+      output: Output.object({ schema: channelAuditSchema }),
+      prompt: channelAuditPrompt(o),
+    });
+    return output;
+  } catch (e) {
+    console.warn("[ai] auditChannel failed", (e as Error).message);
     return null;
   }
 }

@@ -1279,7 +1279,10 @@
     "alreadyIn": "already on it",
     "newFor": "New canvas for {product}",
     "openInCanvas": "Open in canvas",
-    "openInCanvasTip": "A new canvas with this research's best 3 clips, ready to write a script, hooks or a brief"
+    "openInCanvasTip": "A new canvas with this research's best 3 clips, ready to write a script, hooks or a brief",
+    "myChannel": "What works on my channel",
+    "myChannelHint": "From the analysis of @{handle}. Keeps scripts in a style that already works for you.",
+    "myChannelOn": "Use it"
   },
   "me": {
     "title": "My channels",
@@ -1349,6 +1352,21 @@
       "exists": "You've already added this channel.",
       "notFound": "Couldn't find public posts for this account. Is it public?",
       "failed": "Couldn't read this channel. Try again."
-    }
+    },
+    "analyseTitle": "Analyse my channel",
+    "analyseHint": "What your hits have in common, what your weaker posts share, what the accounts you track do that you don't, and 5 ideas to film next. One AI call, no credits.",
+    "analyse": "Analyse my channel",
+    "analysing": "Reading your posts…",
+    "analyseAgain": "Analyse again",
+    "analysedAt": "Analysed {when} from {posts} of your posts and {clips} clips from accounts you watch",
+    "upToDate": "up to date with your latest posts",
+    "commonTitle": "What your hits have in common",
+    "weakTitle": "What your weaker posts share",
+    "gapsTitle": "Gaps vs accounts you watch",
+    "gapsNone": "Track a few competitor or inspiration accounts (Tracking) to see what they do that you don't.",
+    "ideasTitle": "5 ideas to film next",
+    "openInCanvas": "Open in canvas",
+    "auditFailed": "The AI couldn't analyse this channel. Try again.",
+    "auditNoPosts": "No posts read yet for this channel."
   }
 }

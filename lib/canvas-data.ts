@@ -1,6 +1,7 @@
 import "server-only";
 import type { HookBreakdown } from "@/lib/ai/schemas";
 import type { CanvasRef } from "@/lib/ai/tasks";
+import type { StoredAudit } from "@/lib/channel-audit";
 import { type CanvasContent, type CanvasFormat, type CanvasInputs, parseInputs } from "@/lib/canvas";
 import type { VideoRow } from "@/lib/db-mappers";
 import { type Goal, isGoal } from "@/lib/goals";
@@ -42,6 +43,9 @@ export type CanvasProduct = {
   goal: Goal | null;
 };
 
+/** What works on the founder's own channel for this product (the latest My channels analysis), if there is one. */
+export type MyChannel = { handle: string; platform: string; usual: number | null; points: string[] };
+
 export type LoadedCanvas = {
   id: string;
   title: string;
@@ -49,7 +53,24 @@ export type LoadedCanvas = {
   product: CanvasProduct;
   clips: CanvasClip[];
   outputs: CanvasOutput[];
+  myChannel: MyChannel | null;
 };
+
+/** The product's most recently analysed own channel, as the canvas reads it (no AI call, no credits). */
+async function myChannelFor(supabase: Supabase, productId: string): Promise<MyChannel | null> {
+  const { data: own } = await supabase
+    .from("own_accounts")
+    .select("platform, handle, audit")
+    .eq("product_id", productId)
+    .not("audit", "is", null)
+    .order("audit_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const points = ((own?.audit as StoredAudit | null)?.commonInHits ?? []).map((p) => p.point);
+  if (!own || !points.length) return null;
+  const { data: creator } = await supabase.from("creators").select("usual_views").eq("platform", own.platform).eq("handle", own.handle).maybeSingle();
+  return { handle: own.handle as string, platform: own.platform as string, usual: (creator?.usual_views as number | null) ?? null, points };
+}
 
 /** Clips as small cards, in the order given, with each creator's usual views for the multiplier. */
 export async function clipCards(supabase: Supabase, ids: number[]): Promise<CanvasClip[]> {
@@ -85,10 +106,11 @@ export async function loadCanvas(supabase: Supabase, id: string): Promise<Loaded
   const { data: canvas } = await supabase.from("canvases").select("id, title, inputs, product_id").eq("id", id).maybeSingle();
   if (!canvas) return null;
   const inputs = parseInputs(canvas.inputs);
-  const [{ data: product }, { data: outputs }, clips] = await Promise.all([
+  const [{ data: product }, { data: outputs }, clips, myChannel] = await Promise.all([
     supabase.from("products").select("id, name, url, description, audience, competitors, goal").eq("id", canvas.product_id).maybeSingle(),
     supabase.from("canvas_outputs").select("id, format, instructions, refine, content, vote, created_at").eq("canvas_id", id).order("created_at", { ascending: false }),
     clipCards(supabase, inputs.clips),
+    myChannelFor(supabase, canvas.product_id as string),
   ]);
   if (!product) return null;
   return {
@@ -114,6 +136,7 @@ export async function loadCanvas(supabase: Supabase, id: string): Promise<Loaded
       vote: (o.vote as -1 | 1 | null) ?? null,
       createdAt: o.created_at as string,
     })),
+    myChannel,
   };
 }
 

@@ -12,8 +12,8 @@ describe("parseInputs", () => {
   });
 
   it("never throws on an odd row", () => {
-    expect(parseInputs(null)).toEqual({ clips: [], note: "", link: null });
-    expect(parseInputs({ clips: "no", link: "" })).toEqual({ clips: [], note: "", link: null });
+    expect(parseInputs(null)).toEqual({ clips: [], note: "", link: null, useMyChannel: true });
+    expect(parseInputs({ clips: "no", link: "", useMyChannel: false })).toEqual({ clips: [], note: "", link: null, useMyChannel: false });
   });
 });
 

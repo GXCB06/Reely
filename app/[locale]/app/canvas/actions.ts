@@ -155,6 +155,13 @@ export async function setNoteAction(canvasId: string, note: string, link: string
   return { ok: await updateInputs(parsed.data.canvasId, (i) => ({ ...i, note: parsed.data.note, link: parsed.data.link || null })) };
 }
 
+/** Switches "What works on my channel" on or off for this canvas's generations. */
+export async function setUseMyChannelAction(canvasId: string, on: boolean) {
+  const parsed = z.object({ canvasId: uuid, on: z.boolean() }).safeParse({ canvasId, on });
+  if (!parsed.success) return { ok: false as const };
+  return { ok: await updateInputs(parsed.data.canvasId, (i) => ({ ...i, useMyChannel: parsed.data.on })) };
+}
+
 export async function renameCanvasAction(canvasId: string, title: string) {
   const parsed = z.object({ canvasId: uuid, title: z.string().trim().max(80) }).safeParse({ canvasId, title });
   if (!parsed.success) return { ok: false as const };
@@ -221,6 +228,7 @@ export async function generateAction(
     instructions: parsed.data.instructions,
     locale: parsed.data.lang,
     refine: previous ? { kind: parsed.data.refine!.kind, previous: previous.content } : null,
+    myChannel: canvas.inputs.useMyChannel ? canvas.myChannel : null,
   });
   if (!content) return { ok: false as const, error: "failed" as const };
 

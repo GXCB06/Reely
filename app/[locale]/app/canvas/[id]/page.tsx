@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { CanvasInputs } from "./canvas-inputs";
 import { CanvasOutput } from "./canvas-output";
 import { CanvasTitle } from "./canvas-title";
+import { MyChannelCard } from "./my-channel-card";
 
 /**
  * One Content Canvas: reference clips, the product and a note on the left; a fixed format, Generate and every version
@@ -51,6 +52,7 @@ export default async function CanvasPage({ params }: PageProps<"/[locale]/app/ca
             </p>
             {p.description && <p className="line-clamp-3 text-xs text-muted-foreground">{p.description}</p>}
           </section>
+          {canvas.myChannel && <MyChannelCard canvasId={canvas.id} channel={canvas.myChannel} on={canvas.inputs.useMyChannel} />}
           <CanvasInputs canvasId={canvas.id} clips={canvas.clips} note={canvas.inputs.note} link={canvas.inputs.link ?? ""} choices={choices} />
         </div>
         <CanvasOutput

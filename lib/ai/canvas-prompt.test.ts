@@ -40,3 +40,28 @@ describe("canvasPrompt (Content Canvas)", () => {
     expect(p).toContain("Rewrite it in English.");
   });
 });
+
+describe("channelAuditPrompt (My channels)", () => {
+  it("labels posts and watched clips, and carries the grounding rules", async () => {
+    const { channelAuditPrompt } = await import("./tasks");
+    const p = channelAuditPrompt({
+      handle: "accospro.app",
+      platform: "tiktok",
+      posts: [{ views: 384_700, usual: 476, seconds: 21, postedAt: "Wed 15:00", caption: "นักบัญชีจะไม่อดหลับอดนอนอีกต่อไป" }],
+      clips: [{ handle: "flowaccountchannel", views: 583_500, usual: 853, caption: "3 เทคนิคใช้ AI" }],
+      product: base.product,
+      goal: "startup",
+      locale: "th",
+    });
+    expect(p).toContain("P1 | 384700 views | 476x usual | 21s | Wed 15:00 | นักบัญชีจะไม่อดหลับอดนอนอีกต่อไป");
+    expect(p).toContain("C1 @flowaccountchannel");
+    expect(p).toContain("Never invent numbers");
+    expect(p).toContain("never cites a label that isn't listed");
+  });
+
+  it("adds what works on the founder's channel to a canvas prompt", () => {
+    const p = canvasPrompt({ ...base, format: "script", myChannel: { handle: "accospro.app", platform: "tiktok", usual: 810, points: ["Comment-a-word CTAs"] } });
+    expect(p).toContain("own tiktok channel @accospro.app (usually ~810 views)");
+    expect(p).toContain("- Comment-a-word CTAs");
+  });
+});
