@@ -44,6 +44,27 @@ export type CanvasContent =
   | ({ format: "brief" } & CanvasBrief)
   | ({ format: "caption" } & CanvasCaption);
 
+/**
+ * Every `from` names a reference clip actually on the canvas: a handle the AI made up (seen live: the product's own
+ * account) is cleared, so a part is never credited to a clip the founder can't open.
+ */
+export function keepKnownSources(c: CanvasContent, handles: string[]): CanvasContent {
+  const known = new Map(handles.map((h) => [h.replace(/^@/, "").toLowerCase(), h.replace(/^@/, "")]));
+  const fix = (from: string) => known.get(from.trim().replace(/^@/, "").toLowerCase()) ?? "";
+  switch (c.format) {
+    case "script":
+    case "demo":
+    case "shopReview":
+      return { ...c, beats: c.beats.map((b) => ({ ...b, from: fix(b.from) })) };
+    case "hooks":
+      return { ...c, hooks: c.hooks.map((h) => ({ ...h, from: fix(h.from) })) };
+    case "brief":
+      return { ...c, from: [...new Set(c.from.map(fix).filter(Boolean))] };
+    case "caption":
+      return c;
+  }
+}
+
 const tags = (h: string[]) => h.map((t) => (t.startsWith("#") ? t : `#${t}`)).join(" ");
 
 /** A version as plain text, for Copy (pasted into notes, LINE or a doc). `label` names a beat in the user's language. */

@@ -47,7 +47,7 @@ import {
   canvasHooksSchema,
   canvasScriptSchema,
 } from "./schemas";
-import type { CanvasContent, CanvasFormat, CanvasRefine } from "@/lib/canvas";
+import { type CanvasContent, type CanvasFormat, type CanvasRefine, keepKnownSources } from "@/lib/canvas";
 
 // Every task falls back to deterministic sample output when Gemini is not configured or fails,
 // so the app keeps working (and costs nothing) during development.
@@ -893,7 +893,9 @@ export function canvasPrompt(o: {
     o.note ? `\nThe founder's note (follow it): ${o.note}` : "",
     o.page ? `\nA page the founder added (${o.page.url}): ${o.page.title ?? ""}. ${o.page.description ?? ""} ${o.page.text.slice(0, 1200)}` : "",
     "",
-    o.refs.length ? "Reference clips:" : "No reference clips: use the formats that work for this kind of product.",
+    o.refs.length
+      ? `Reference clips (a "from" may only name one of these: ${o.refs.map((r) => `@${r.handle}`).join(", ")}):`
+      : "No reference clips: use the formats that work for this kind of product, and leave every `from` empty.",
     ...o.refs.map((r) =>
       [
         `- @${r.handle} (${r.platform}, ${r.views ?? "?"} views${r.usual !== null ? `, ${formatMultiplier(r.usual)}x their usual` : ""})`,
@@ -937,7 +939,7 @@ export async function writeCanvas(o: Parameters<typeof canvasPrompt>[0]): Promis
       output: Output.object({ schema: CANVAS_SCHEMAS[o.format] as typeof canvasScriptSchema }),
       prompt: canvasPrompt(o),
     });
-    return { format: o.format, ...output } as CanvasContent;
+    return keepKnownSources({ format: o.format, ...output } as CanvasContent, o.refs.map((r) => r.handle));
   } catch (e) {
     console.warn("[ai] writeCanvas failed", (e as Error).message);
     return null;

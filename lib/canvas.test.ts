@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contentText, formatsFor, MAX_CLIPS, parseInputs } from "./canvas";
+import { contentText, formatsFor, keepKnownSources, MAX_CLIPS, parseInputs } from "./canvas";
 
 describe("parseInputs", () => {
   it("keeps valid clip ids once, up to the limit, and trims the note and link", () => {
@@ -51,5 +51,20 @@ describe("contentText", () => {
       "1. Hook 1\n2. Hook 2\n3. Hook 3",
     );
     expect(contentText({ format: "caption", options: [1, 2, 3].map((n) => ({ caption: `C${n}`, hashtags: [] })) })).toContain("2. C2");
+  });
+});
+
+describe("keepKnownSources", () => {
+  it("keeps a source only when it is a clip on the canvas, matched without @ or case", () => {
+    const fixed = keepKnownSources(
+      { format: "hooks", hooks: ["@FlowAccount", "@accospro.app", ""].map((from) => ({ line: "x", onScreen: "", why: "", from })) },
+      ["flowaccount", "sharktankthailand"],
+    );
+    expect(fixed.format === "hooks" && fixed.hooks.map((h) => h.from)).toEqual(["flowaccount", "", ""]);
+    const brief = keepKnownSources(
+      { format: "brief", title: "", summary: "", shots: [], mustSay: [], avoid: [], from: ["@sharktankthailand", "@made.up", "sharktankthailand"] },
+      ["sharktankthailand"],
+    );
+    expect(brief.format === "brief" && brief.from).toEqual(["sharktankthailand"]);
   });
 });
