@@ -56,3 +56,11 @@ describe("layout", () => {
     expect(pos["out-o2"].y).toBeGreaterThanOrEqual(pos["fmt-f1"].y);
   });
 });
+
+describe("NODE_ID", () => {
+  it("accepts the ids the board makes and rejects anything else", async () => {
+    const { NODE_ID } = await import("./canvas-board");
+    expect(["main", "f" + Date.now().toString(36), "f_1-a"].every((id) => NODE_ID.test(id))).toBe(true);
+    expect(["", "a b", "x".repeat(21), "f;drop"].some((id) => NODE_ID.test(id))).toBe(false);
+  });
+});

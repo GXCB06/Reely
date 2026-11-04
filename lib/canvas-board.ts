@@ -6,6 +6,8 @@ import { CANVAS_FORMATS, type CanvasFormat } from "@/lib/canvas";
 export const MAIN_NODE = "main";
 /** Format nodes per board. */
 export const MAX_FORMAT_NODES = 8;
+/** A format node's id: letters, digits, _ or -, up to 20 (the board makes "f" + a base-36 time). */
+export const NODE_ID = /^[\w-]{1,20}$/;
 
 export type FormatNode = {
   id: string;
@@ -41,7 +43,7 @@ export function parseBoard(raw: unknown, defaultFormat: CanvasFormat): Board {
   const seen = new Set<string>();
   const formats: FormatNode[] = [];
   for (const f of Array.isArray(r.formats) ? (r.formats as Partial<FormatNode>[]) : []) {
-    if (!f || typeof f.id !== "string" || !/^[\w-]{1,20}$/.test(f.id) || seen.has(f.id) || !isFormat(f.format)) continue;
+    if (!f || typeof f.id !== "string" || !NODE_ID.test(f.id) || seen.has(f.id) || !isFormat(f.format)) continue;
     seen.add(f.id);
     formats.push({
       id: f.id,

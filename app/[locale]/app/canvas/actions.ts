@@ -16,7 +16,7 @@ import {
   versionText,
 } from "@/lib/canvas";
 import { matchCandidates } from "@/lib/did-it-work";
-import { MAIN_NODE, nodeClips, outputNode, parseBoard } from "@/lib/canvas-board";
+import { MAIN_NODE, NODE_ID, nodeClips, outputNode, parseBoard } from "@/lib/canvas-board";
 import { canvasRefs, loadCanvas } from "@/lib/canvas-data";
 import { importClip } from "@/lib/clip-import";
 import { parseClipLink } from "@/lib/clip-link";
@@ -195,7 +195,7 @@ const generateInput = z.object({
   instructions: z.string().trim().max(INSTRUCTIONS_MAX),
   lang,
   refine: z.object({ outputId: uuid, kind: z.enum(CANVAS_REFINES) }).nullable(),
-  nodeId: z.string().regex(/^[w-]{1,20}$/).nullable(),
+  nodeId: z.string().regex(NODE_ID).nullable(),
 });
 
 /**
