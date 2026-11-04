@@ -227,7 +227,10 @@ export function BoardView({
   const t = useTranslations("canvas");
   const locale = useLocale();
   const router = useRouter();
-  const [board, setBoard] = useState<Board>(initialBoard);
+  const [edited, setBoard] = useState<Board>(initialBoard);
+  // Which node made each version is recorded by the server, so it always comes from the latest props (a version
+  // generated a moment ago would otherwise show under the main node until a reload).
+  const board = useMemo(() => ({ ...edited, outputs: initialBoard.outputs }), [edited, initialBoard.outputs]);
   const [generating, setGenerating] = useState<string | null>(null);
   const [opened, setOpened] = useState<CanvasOutput | null>(null);
   const [, start] = useTransition();
